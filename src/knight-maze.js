@@ -1,3 +1,4 @@
+import { createMazeAudio } from './maze-audio.js';
 // Deterministic maze rules, separate from rendering and the shared wallet.
 export const MAZE = [
   '###################',
@@ -22,6 +23,7 @@ export const MAZE = [
 ];
 export const DIRECTIONS = { up: [0,-1], down: [0,1], left: [-1,0], right: [1,0] };
 export const SWORD_SECONDS = 30;
+export const DEATH_PAUSE_SECONDS = 1.5;
 const START = { x: 9, y: 15 };
 const HOMES = [{x:7,y:9},{x:9,y:9},{x:11,y:9},{x:10,y:9}];
 const key = (x,y) => `${x},${y}`;
@@ -33,7 +35,7 @@ function actor(p) { return { ...p, to: null, dir: 'left' }; }
 export function createMazeState(modifiers = {}) {
   const gems = new Set(), swords = new Set();
   MAZE.forEach((row,y)=>[...row].forEach((tile,x)=>{if(tile==='.')gems.add(key(x,y));if(tile==='S')swords.add(key(x,y));}));
-  return { player: actor(START), dragons: HOMES.map((p,i)=>({...actor(p),home:p,index:i,respawn:0})), gems, swords, totalGems:gems.size, earned:0, kills:0, lives:3, sword:0, grace:3, elapsed:0, wanted:null, status:'playing', modifiers:{speed:1,pickupRadius:1,garden:false,...modifiers} };
+  return { player: actor(START), dragons: HOMES.map((p,i)=>({...actor(p),home:p,index:i,respawn:0})), gems, swords, totalGems:gems.size, earned:0, kills:0, lives:3, deathPause:0, sword:0, grace:3, elapsed:0, wanted:null, status:'playing', modifiers:{speed:1,pickupRadius:1,garden:false,...modifiers} };
 }
 function advance(a, distance, choose, arrived = () => {}) {
   while(distance>0.000001) {
@@ -48,22 +50,33 @@ function distancesFrom(player) {
   for(let i=0;i<queue.length;i++){const p=queue[i];for(const n of neighbors(p.x,p.y)){const k=key(n.x,n.y);if(!map.has(k)){map.set(k,map.get(key(p.x,p.y))+1);queue.push(n);}}}
   return map;
 }
-function pickups(s) {
+function pickups(s, emit) {
   const x=Math.round(s.player.x),y=Math.round(s.player.y);
   // The magnet reaches only adjacent corridor cells, never through walls.
   const cells=[{x,y},...(s.modifiers.pickupRadius>1?neighbors(x,y):[])];
-  for(const p of cells)if(s.gems.delete(key(p.x,p.y)))s.earned++;
-  if(s.swords.delete(key(x,y)))s.sword=SWORD_SECONDS;
+  let collected=false;
+  for(const p of cells)if(s.gems.delete(key(p.x,p.y))){s.earned++;collected=true;}
+  if(collected)emit('gem');
+  if(s.swords.delete(key(x,y))){s.sword=SWORD_SECONDS;emit('sword');}
 }
-export function tickMaze(s, dt, direction) {
+export function tickMaze(s, dt, direction, emit = () => {}) {
+  if(s.status==='dying') {
+    s.deathPause=Math.max(0,s.deathPause-Math.max(0,Math.min(dt,.25)));
+    if(s.deathPause<=.000001){
+      s.deathPause=0;
+      if(!s.lives)s.status='lost';
+      else {s.status='playing';s.grace=3;s.player=actor(START);s.wanted=null;for(const d of s.dragons)Object.assign(d,actor(d.home),{respawn:0});}
+    }
+    return;
+  }
   if(s.status!=='playing')return;
   if(direction && DIRECTIONS[direction])s.wanted=direction;
   // Substeps prevent tunneling through enemies and preserve timer/collision ordering.
   let left=Math.max(0,Math.min(dt,.25));
   while(left>0.000001 && s.status==='playing') {
     const step=Math.min(left,.02);left-=step;s.elapsed+=step;s.sword=Math.max(0,s.sword-step);s.grace=Math.max(0,s.grace-step);
-    advance(s.player,4.2*s.modifiers.speed*step,a=>{const choices=neighbors(a.x,a.y);return choices.find(n=>n.dir===s.wanted)||choices.find(n=>n.dir===a.dir);},()=>pickups(s));
-    pickups(s);
+    advance(s.player,4.2*s.modifiers.speed*step,a=>{const choices=neighbors(a.x,a.y);return choices.find(n=>n.dir===s.wanted)||choices.find(n=>n.dir===a.dir);},()=>pickups(s,emit));
+    pickups(s,emit);
     const distances=distancesFrom(s.player);
     for(const dragon of s.dragons) {
       if(dragon.respawn>0){dragon.respawn=Math.max(0,dragon.respawn-step);continue;}
@@ -73,11 +86,11 @@ export function tickMaze(s, dt, direction) {
         return options.sort((a,b)=>{const da=distances.get(key(a.x,a.y))??100,db=distances.get(key(b.x,b.y))??100;return (s.sword>0?db-da:da-db)||((Object.keys(DIRECTIONS).indexOf(a.dir)+dragon.index)%4-(Object.keys(DIRECTIONS).indexOf(b.dir)+dragon.index)%4);})[0];
       });
       if(Math.hypot(dragon.x-s.player.x,dragon.y-s.player.y)<.65) {
-        if(s.sword>0){s.kills++;s.earned+=10;Object.assign(dragon,actor(dragon.home),{respawn:8});}
-        else if(s.grace<=0){s.lives--;s.grace=3;s.player=actor(START);s.wanted=null;for(const d of s.dragons)Object.assign(d,actor(d.home),{respawn:0});if(!s.lives)s.status='lost';break;}
+        if(s.sword>0){s.kills++;s.earned+=10;emit('dragon');Object.assign(dragon,actor(dragon.home),{respawn:8});}
+        else if(s.grace<=0){s.lives--;s.status='dying';s.deathPause=DEATH_PAUSE_SECONDS;s.wanted=null;emit('eaten');break;}
       }
     }
-    if(!s.gems.size)s.status='won';
+    if(!s.gems.size && s.status==='playing'){s.status='won';emit('win');}
   }
 }
 const KNIGHT = [
@@ -109,22 +122,30 @@ export function drawMaze(ctx,s,character,width,height,preview=false) {
   const colors=['#a34b50','#738959','#78609e','#4e8e98'];
   for(const d of s.dragons){if(d.respawn>0)continue;ctx.globalAlpha=s.sword>0?.55:1;pixels(ctx,DRAGON,ox+(d.x+.5)*cell,oy+(d.y+.5)*cell+Math.sin(s.elapsed*10+d.index)*1.2,cell*.93,{h:'#e2d8bd',d:colors[d.index],b:'#e9b47e',w:'#c99373',e:s.sword>0?'#bcecff':'#ffda70'},d.dir==='right');ctx.globalAlpha=1;}
   if(s.grace<=0||Math.floor(s.elapsed*8)%2===0||preview){const px=ox+(s.player.x+.5)*cell,py=oy+(s.player.y+.5)*cell;pixels(ctx,KNIGHT,px,py,cell*.92,{p:character.color,s:'#8294a7',w:'#d8e3e4',k:'#1d2838',c:character.color},s.player.dir==='left');if(s.sword>0)sword(ctx,px+cell*.32,py,cell*.8);}
+  if(!preview && s.status==='dying') {
+    ctx.fillStyle='#10151fbd';ctx.fillRect(ox,oy,board,board);
+    ctx.textAlign='center';ctx.fillStyle='#f4d388';ctx.font='bold 30px monospace';
+    ctx.fillText('GOBBLED UP!',width/2,oy+board/2-10);
+    ctx.font='18px monospace';ctx.fillStyle='#eef1ef';
+    ctx.fillText(s.lives?'Get ready to try again…':'Your last life!',width/2,oy+board/2+28);
+  }
 }
 export function drawKnightPreview(canvas,character,modifiers) { const ctx=canvas.getContext('2d');if(ctx)drawMaze(ctx,createMazeState(modifiers),character,canvas.width,canvas.height,true); }
 export function createKnightMaze({canvas,character,modifiers,onHud,onFinish}) {
   const ctx=canvas.getContext('2d');if(!ctx)throw Error('Your browser does not support canvas.');
   let state=createMazeState(modifiers),active=false,paused=false,last=0,frame,destroyed=false;
-  const controller=new AbortController(),options={signal:controller.signal};
+  const controller=new AbortController(),options={signal:controller.signal},audio=createMazeAudio();
   const input={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',w:'up',s:'down',a:'left',d:'right'};
-  const turn=direction=>{if(DIRECTIONS[direction])state.wanted=direction;};
+  const turn=direction=>{audio.unlock();if(state.status==='playing' && DIRECTIONS[direction])state.wanted=direction;};
   canvas.addEventListener('keydown',e=>{const dir=input[e.key]||input[e.key.toLowerCase()];if(dir){e.preventDefault();turn(dir);}},options);
   let pointer=null;
   canvas.addEventListener('pointerdown',e=>{canvas.focus();pointer={x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId);},options);
   canvas.addEventListener('pointermove',e=>{if(!pointer)return;const dx=e.clientX-pointer.x,dy=e.clientY-pointer.y;if(Math.hypot(dx,dy)>12){turn(Math.abs(dx)>Math.abs(dy)?dx>0?'right':'left':dy>0?'down':'up');pointer={x:e.clientX,y:e.clientY};}},options);
   canvas.addEventListener('pointerup',()=>pointer=null,options);canvas.addEventListener('pointercancel',()=>pointer=null,options);
   function finish(){if(!active)return;active=false;onFinish(state.earned,{title:state.status==='won'?'The vault is yours!':state.status==='lost'?'The dragons hold the vault.':'Quest saved.',detail:`${state.totalGems-state.gems.size} gems · ${state.kills} dragons defeated`});}
-  function hud(){onHud({text:`${state.lives} lives · ${state.gems.size} gems left · ✦ ${state.earned} coins${state.sword>0?` · Sword ${Math.ceil(state.sword)}s`:''}`});}
-  function tick(now){if(destroyed)return;const dt=last?Math.min((now-last)/1000,.1):0;last=now;if(active&&!paused&&!document.hidden){tickMaze(state,dt);hud();if(state.status!=='playing')finish();}drawMaze(ctx,state,character,canvas.width,canvas.height);frame=requestAnimationFrame(tick);}
+  function hud(){onHud({lives:state.lives,text:`${state.lives} lives · ${state.gems.size} gems left · ✦ ${state.earned} coins${state.sword>0?` · Sword ${Math.ceil(state.sword)}s`:''}`});}
+  function tick(now){if(destroyed)return;const dt=last?Math.min((now-last)/1000,.1):0;last=now;if(active&&!paused&&!document.hidden){tickMaze(state,dt,undefined,event=>audio.play(event));hud();if(state.status==='won'||state.status==='lost')finish();}drawMaze(ctx,state,character,canvas.width,canvas.height);frame=requestAnimationFrame(tick);}
+  document.addEventListener?.('visibilitychange',()=>{last=0;if(document.hidden)audio.stop();},options);
   frame=requestAnimationFrame(tick);
-  return {start(){state=createMazeState(modifiers);active=true;paused=false;last=0;hud();canvas.focus();},pause(value){paused=value;last=0;pointer=null;},input:turn,destroy(){if(destroyed)return;destroyed=true;cancelAnimationFrame(frame);controller.abort();finish();}};
+  return {start(){audio.stop();audio.unlock();state=createMazeState(modifiers);active=true;paused=false;last=0;hud();canvas.focus();},pause(value){paused=value;last=0;pointer=null;if(value)audio.stop();else audio.unlock();},setMuted:value=>audio.setMuted(value),input:turn,destroy(){if(destroyed)return;destroyed=true;cancelAnimationFrame(frame);controller.abort();audio.destroy();finish();}};
 }
