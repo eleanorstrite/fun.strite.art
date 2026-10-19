@@ -9,9 +9,9 @@ test('every gem and sword is reachable in a rectangular enclosed maze',()=>{
   const state=createMazeState();for(const k of [...state.gems,...state.swords])assert.equal(seen.has(k),true);
   assert.equal(state.swords.size,4);
 });
-test('swords grant 30 seconds, expire, and another sword refreshes rather than stacks',()=>{
-  const s=safeState();s.player={x:1,y:1,to:null,dir:'up'};tickMaze(s,.01);assert.equal(s.sword,SWORD_SECONDS);elapse(s,29.9);assert.equal(s.sword>0,true);elapse(s,.11);assert.equal(s.sword,0);
-  s.sword=20;s.player={x:17,y:1,to:null,dir:'up'};tickMaze(s,.01);assert.equal(s.sword,30);assert.equal(s.swords.size,2);
+test('swords grant 10 seconds, expire, and another sword refreshes rather than stacks',()=>{
+  const s=safeState();s.player={x:1,y:1,to:null,dir:'up'};tickMaze(s,.01);assert.equal(s.sword,SWORD_SECONDS);elapse(s,9.9);assert.equal(s.sword>0,true);elapse(s,.11);assert.equal(s.sword,0);
+  s.sword=5;s.player={x:17,y:1,to:null,dir:'up'};tickMaze(s,.01);assert.equal(s.sword,10);assert.equal(s.swords.size,2);
 });
 test('walls block movement, buffered turns work, and boots increase movement',()=>{
   const a=safeState(),b=safeState();tickMaze(a,.1,'up');assert.equal(a.player.y,15);
@@ -23,7 +23,7 @@ test('gems pay once and magnet cannot collect through a wall',()=>{
   s.modifiers.pickupRadius=2;s.player={x:1,y:1,to:null,dir:'up'};s.gems.add('2,2');tickMaze(s,.01);assert.equal(s.gems.has('2,2'),true);assert.equal(s.gems.has('2,1'),false);
 });
 test('armed contact defeats a dragon, pays ten coins, and respawns after eight seconds',()=>{
-  const s=safeState();s.sword=30;Object.assign(s.dragons[0],{x:9,y:15,to:null,respawn:0});tickMaze(s,.01);assert.equal(s.kills,1);assert.equal(s.earned,10);assert.equal(s.dragons[0].respawn,8);
+  const s=safeState();s.sword=SWORD_SECONDS;Object.assign(s.dragons[0],{x:9,y:15,to:null,respawn:0});tickMaze(s,.01);assert.equal(s.kills,1);assert.equal(s.earned,10);assert.equal(s.dragons[0].respawn,8);
   elapse(s,7.9);assert.equal(s.dragons[0].respawn>0,true);elapse(s,.11);assert.equal(s.dragons[0].respawn,0);
 });
 test('getting eaten removes one life, emits once, and freezes the world before respawn',()=>{
@@ -41,7 +41,7 @@ test('last life waits for the eaten pause before game over, and restart restores
   const earned=s.earned;tickMaze(s,.2);assert.equal(s.earned,earned);assert.equal(s.lives,0);assert.equal(createMazeState().lives,3);
 });
 test('dragon defeats and pickups emit distinct sound events without repeat rewards',()=>{
-  const s=safeState(),events=[];s.sword=30;Object.assign(s.dragons[0],{x:9,y:15,to:null,respawn:0});
+  const s=safeState(),events=[];s.sword=SWORD_SECONDS;Object.assign(s.dragons[0],{x:9,y:15,to:null,respawn:0});
   tickMaze(s,.01,undefined,e=>events.push(e));assert.deepEqual(events,['dragon']);tickMaze(s,.01,undefined,e=>events.push(e));assert.deepEqual(events,['dragon']);
   s.player={x:1,y:1,to:null,dir:'up'};tickMaze(s,.01,undefined,e=>events.push(e));assert.deepEqual(events,['dragon','sword']);
   s.player={x:2,y:1,to:null,dir:'up'};tickMaze(s,.01,undefined,e=>events.push(e));assert.equal(events.includes('gem'),true);

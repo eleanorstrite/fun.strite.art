@@ -23,7 +23,7 @@ export const MAZE = [
   '###################',
 ];
 export const DIRECTIONS = { up: [0,-1], down: [0,1], left: [-1,0], right: [1,0] };
-export const SWORD_SECONDS = 30;
+export const SWORD_SECONDS = 10;
 export const DEATH_PAUSE_SECONDS = 1.5;
 const START = { x: 9, y: 15 };
 const HOMES = [{x:7,y:9},{x:9,y:9},{x:11,y:9},{x:10,y:9}];
