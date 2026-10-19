@@ -1,3 +1,4 @@
+import { ARMORS } from './system.js';
 import { createDefeatSequence, drawDefeat } from './maze-defeat.js';
 import { createVictorySequence, drawVictory } from './maze-victory.js';
 import { createMazeAudio } from './maze-audio.js';
@@ -106,13 +107,23 @@ function pixels(ctx,sprite,x,y,size,palette,flip=false) {
   const unit=size/16;ctx.translate(-sprite[0].length*unit/2,-size/2);
   sprite.forEach((row,iy)=>[...row].forEach((c,ix)=>{if(c!=='.'){ctx.fillStyle=palette[c];ctx.fillRect(Math.floor(ix*unit),Math.floor(iy*unit),Math.ceil(unit),Math.ceil(unit));}}));ctx.restore();
 }
+export function drawKnight(ctx,x,y,size,character,flip=false) {
+  const armor=ARMORS[character.armor]||ARMORS.silver,helmet=character.helmet||'plume';
+  const sprite=KNIGHT.map(row=>row.replace(/p/g,helmet==='plume'?'p':'.').replace(/c/g,character.cape===false?'.':'c'));
+  pixels(ctx,sprite,x,y,size,{p:character.color,s:armor.dark,w:armor.light,k:'#1d2838',c:character.color},flip);
+  ctx.save();ctx.translate(x,y);if(flip)ctx.scale(-1,1);ctx.scale(size/16,size/16);
+  if(helmet==='crown'){ctx.fillStyle='#f5cc65';ctx.fillRect(-4,-6,7,2);ctx.fillRect(-4,-9,1.5,4);ctx.fillRect(-1.5,-9,1.5,4);ctx.fillRect(1,-9,1.5,4);ctx.fillStyle=character.color;ctx.fillRect(-1.5,-6,1,1);}
+  if(helmet==='horns'){ctx.fillStyle='#f3dfb2';ctx.fillRect(-5,-7,2,3);ctx.fillRect(-6,-9,2,3);ctx.fillRect(2,-7,2,3);ctx.fillRect(3,-9,2,3);}
+  if(character.shield){ctx.fillStyle=armor.light;ctx.beginPath();ctx.moveTo(-7,-1);ctx.lineTo(-2,-1);ctx.lineTo(-2,3);ctx.lineTo(-4.5,5);ctx.lineTo(-7,3);ctx.closePath();ctx.fill();ctx.fillStyle=character.color;ctx.fillRect(-6,0,3,3);ctx.fillStyle='#f4d27b';ctx.fillRect(-5,0,1,3);}
+  ctx.restore();
+}
 function sword(ctx,x,y,size) {
   ctx.save();ctx.translate(x,y);ctx.rotate(.55);ctx.fillStyle='#657b96';ctx.fillRect(-size*.11,-size*.47,size*.22,size*.65);ctx.fillStyle='#e0eff2';ctx.fillRect(-size*.09,-size*.47,size*.09,size*.62);ctx.fillStyle='#ecc275';ctx.fillRect(-size*.28,size*.09,size*.56,size*.12);ctx.fillStyle='#9e674e';ctx.fillRect(-size*.07,size*.21,size*.14,size*.24);ctx.restore();
 }
 export function drawMaze(ctx,s,character,width,height,preview=false) {
   ctx.imageSmoothingEnabled=false;ctx.fillStyle='#10151f';ctx.fillRect(0,0,width,height);
   const board=Math.min(preview?width*.55:width-24,height-76),cell=board/19,ox=preview?width-board-24:(width-board)/2,oy=preview?38:64;
-  if(preview){ctx.fillStyle='#e5c68a';ctx.font='600 17px monospace';ctx.textAlign='left';ctx.fillText('THE FIRST QUEST',35,95);ctx.fillStyle='#f5ecd7';ctx.font='bold 42px monospace';ctx.fillText('KNIGHTS AND',35,157);ctx.fillText('DRAGONS',35,207);ctx.font='16px monospace';ctx.fillStyle='#99a9b8';ctx.fillText('Gems. Dragons. Glory.',35,250);pixels(ctx,KNIGHT,100,365,100,{p:character.color,s:'#8294a7',w:'#d8e3e4',k:'#1d2838',c:character.color});sword(ctx,175,360,80);}
+  if(preview){ctx.fillStyle='#e5c68a';ctx.font='600 17px monospace';ctx.textAlign='left';ctx.fillText('THE FIRST QUEST',35,95);ctx.fillStyle='#f5ecd7';ctx.font='bold 42px monospace';ctx.fillText('KNIGHTS AND',35,157);ctx.fillText('DRAGONS',35,207);ctx.font='16px monospace';ctx.fillStyle='#99a9b8';ctx.fillText('Gems. Dragons. Glory.',35,250);drawKnight(ctx,100,365,100,character);sword(ctx,175,360,80);}
   else {ctx.textAlign='left';ctx.font='bold 16px monospace';ctx.fillStyle='#e5c68a';ctx.fillText('KNIGHTS AND DRAGONS',18,29);ctx.textAlign='right';ctx.fillStyle=s.sword>0?'#f4d388':'#b6c4cf';ctx.fillText(s.sword>0?`SWORD  ${s.sword.toFixed(1)}s`:'FIND A SWORD',width-18,29);ctx.fillStyle='#293243';ctx.fillRect(18,42,width-36,5);ctx.fillStyle='#f3c674';ctx.fillRect(18,42,(width-36)*s.sword/SWORD_SECONDS,5);}
   MAZE.forEach((row,y)=>[...row].forEach((t,x)=>{const px=ox+x*cell,py=oy+y*cell;
     if(t==='#'){ctx.fillStyle='#354255';ctx.fillRect(px+1,py+1,cell-2,cell-2);ctx.fillStyle='#53637a';ctx.fillRect(px+2,py+2,cell-4,3);ctx.fillStyle='#222d3d';ctx.fillRect(px+2,py+cell-5,cell-4,3);ctx.fillStyle='#293548';ctx.fillRect(px+cell*.5,py+5,1,cell-10);if(s.modifiers.garden&&(x*7+y)%9===0){ctx.fillStyle='#628b75';ctx.fillRect(px+2,py+2,cell*.6,4);ctx.fillStyle='#bd96ba';ctx.fillRect(px+5,py+4,4,4);}}
@@ -123,7 +134,7 @@ export function drawMaze(ctx,s,character,width,height,preview=false) {
   for(const item of s.swords){const[x,y]=item.split(',').map(Number);const px=ox+(x+.5)*cell,py=oy+(y+.5)*cell;ctx.fillStyle='#f3cd7320';ctx.beginPath();ctx.arc(px,py,cell*.44,0,7);ctx.fill();sword(ctx,px,py,cell*.82);}
   const colors=['#a34b50','#738959','#78609e','#4e8e98'];
   for(const d of s.dragons){if(d.respawn>0)continue;ctx.globalAlpha=s.sword>0?.55:1;pixels(ctx,DRAGON,ox+(d.x+.5)*cell,oy+(d.y+.5)*cell+Math.sin(s.elapsed*10+d.index)*1.2,cell*.93,{h:'#e2d8bd',d:colors[d.index],b:'#e9b47e',w:'#c99373',e:s.sword>0?'#bcecff':'#ffda70'},d.dir==='right');ctx.globalAlpha=1;}
-  if(s.grace<=0||Math.floor(s.elapsed*8)%2===0||preview){const px=ox+(s.player.x+.5)*cell,py=oy+(s.player.y+.5)*cell;pixels(ctx,KNIGHT,px,py,cell*.92,{p:character.color,s:'#8294a7',w:'#d8e3e4',k:'#1d2838',c:character.color},s.player.dir==='left');if(s.sword>0)sword(ctx,px+cell*.32,py,cell*.8);}
+  if(s.grace<=0||Math.floor(s.elapsed*8)%2===0||preview){const px=ox+(s.player.x+.5)*cell,py=oy+(s.player.y+.5)*cell;drawKnight(ctx,px,py,cell*.92,character,s.player.dir==='left');if(s.sword>0)sword(ctx,px+cell*.32,py,cell*.8);}
   if(!preview && s.status==='dying') {
     ctx.fillStyle='#10151fbd';ctx.fillRect(ox,oy,board,board);
     ctx.textAlign='center';ctx.fillStyle='#f4d388';ctx.font='bold 30px monospace';
@@ -148,9 +159,9 @@ export function createKnightMaze({canvas,character,modifiers,onHud,onFinish}) {
   function finish(){if(!active)return;active=false;onFinish(state.earned,{title:state.status==='won'?'The vault is yours!':state.status==='lost'?'The dragons hold the vault.':'Quest saved.',detail:`${state.totalGems-state.gems.size} gems · ${state.kills} dragons defeated`});}
   function hud(){onHud({lives:state.lives,text:`${state.lives} lives · ${state.gems.size} gems left · ✦ ${state.earned} coins${state.sword>0?` · Sword ${Math.ceil(state.sword)}s`:''}`});}
   function drawEndingKnight(ctx,x,y,size,wave) {
-    pixels(ctx,KNIGHT,x,y,size,{p:character.color,s:'#8294a7',w:'#d8e3e4',k:'#1d2838',c:character.color});
+    drawKnight(ctx,x,y,size,character);
     ctx.save();ctx.translate(x+size*.28,y-size*.06);ctx.rotate(wave);
-    ctx.fillStyle='#d8e3e4';ctx.fillRect(-10,-49,20,53);sword(ctx,0,-85,115);ctx.restore();
+    ctx.fillStyle=(ARMORS[character.armor]||ARMORS.silver).light;ctx.fillRect(-10,-49,20,53);sword(ctx,0,-85,115);ctx.restore();
   }
   function tick(now){
     if(destroyed)return;
@@ -172,5 +183,5 @@ export function createKnightMaze({canvas,character,modifiers,onHud,onFinish}) {
   }
   document.addEventListener?.('visibilitychange',()=>{last=0;if(document.hidden)audio.stop();},options);
   frame=requestAnimationFrame(tick);
-  return {start(){audio.stop();audio.unlock();ending=null;state=createMazeState(modifiers);active=true;paused=false;last=0;hud();canvas.focus();},pause(value){paused=value;last=0;pointer=null;if(value)audio.stop();else audio.unlock();},setMuted:value=>audio.setMuted(value),input:turn,destroy(){if(destroyed)return;destroyed=true;cancelAnimationFrame(frame);controller.abort();audio.destroy();finish();}};
+  return {start(){audio.stop();audio.unlock();ending=null;state=createMazeState(modifiers);active=true;paused=false;last=0;hud();canvas.focus();},pause(value){paused=value;last=0;pointer=null;if(value)audio.stop();else audio.unlock();},setCharacter(value){character={...value};},setMuted:value=>audio.setMuted(value),input:turn,destroy(){if(destroyed)return;destroyed=true;cancelAnimationFrame(frame);controller.abort();audio.destroy();finish();}};
 }

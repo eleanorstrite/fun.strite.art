@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MAZE, createMazeState, neighbors, tickMaze, SWORD_SECONDS, createKnightMaze } from '../src/knight-maze.js';
+import { MAZE, createMazeState, neighbors, tickMaze, SWORD_SECONDS, createKnightMaze, drawKnight } from '../src/knight-maze.js';
 function safeState(){const state=createMazeState();state.player.dir='up';state.dragons.forEach(d=>d.respawn=999);return state;}
 function elapse(state,seconds){for(let i=0;i<Math.round(seconds*100);i++)tickMaze(state,.01);}
 test('every gem and sword is reachable in a rectangular enclosed maze',()=>{
@@ -84,4 +84,11 @@ test('defeat ending follows the last life, pauses, and settles once when skipped
     engine.pause(true);for(let i=0;i<100;i++){frame(now);now+=100;}assert.equal(settled,0);
     engine.pause(false);handlers.keydown({key:'Enter',preventDefault(){}});assert.equal(settled,1);engine.destroy();assert.equal(settled,1);
   }finally{engine?.destroy();Object.assign(globalThis,original);}
+});
+
+test('knight renderer applies armor colors and optional cape, plume, and shield',()=>{
+  const used=[];const ctx=new Proxy({fillRect(){used.push(this.fillStyle);}}, {get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
+  const character={color:'#ed6e40',armor:'gold',helmet:'plain',cape:false,shield:false};
+  drawKnight(ctx,90,90,120,character);assert.equal(used.includes('#b88b38'),true);assert.equal(used.includes(character.color),false);
+  drawKnight(ctx,90,90,120,{...character,shield:true});assert.equal(used.includes(character.color),true);
 });

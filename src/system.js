@@ -1,21 +1,27 @@
 /** Shared, renderer-independent progression API. No game owns the wallet. */
 export const SAVE_KEY = 'sidequest.save.v1';
 export const COLORS = ['#ed6e40', '#86966a', '#9b85bb', '#6e9eae', '#d5aa4d'];
+export const ARMORS = { silver: { name: 'Silver', dark: '#8294a7', light: '#d8e3e4' }, gold: { name: 'Gold', dark: '#b88b38', light: '#ffe39a' }, midnight: { name: 'Midnight', dark: '#414565', light: '#9499c6' }, rose: { name: 'Rose', dark: '#a7657d', light: '#f2b8cd' } };
+export const HELMETS = { plume: 'Feather plume', horns: 'Dragon horns', crown: 'Royal crown', plain: 'Classic helmet' };
+export const KNIGHT_DEFAULTS = { armor: 'silver', helmet: 'plume', cape: true, shield: false };
 export const UPGRADES = [
   { id: 'boots', name: 'A little extra pep', category: 'CHARACTER', icon: '↗', cost: 40, description: 'Move 25% faster. More exploring, less getting there.' },
   { id: 'garden', name: 'Room to bloom', category: 'ENVIRONMENT', icon: '✳', cost: 60, description: 'Bring flowers and colorful trees into every world.' },
   { id: 'magnet', name: 'A magnetic personality', category: 'EQUIPMENT', icon: '⌁', cost: 80, description: 'Pick up coins from twice as far away. A handy little helper.' },
 ];
-export function freshSave() { return { version: 1, coins: 0, character: { name: 'Pip', color: COLORS[0], style: 'antenna' }, upgrades: [], stats: {} }; }
+export function freshSave() { return { version: 1, coins: 0, character: { name: 'Pip', color: COLORS[0], style: 'antenna', ...KNIGHT_DEFAULTS }, upgrades: [], stats: {} }; }
 export function validateSave(data) {
   const validInt = n => Number.isSafeInteger(n) && n >= 0 && n <= 1000000000;
   if (!data || data.version !== 1 || !validInt(data.coins) || !data.character || typeof data.character.name !== 'string' || !data.character.name.trim() || data.character.name.length > 24 || !COLORS.includes(data.character.color) || !['antenna', 'ears', 'plain'].includes(data.character.style) || !Array.isArray(data.upgrades) || data.upgrades.some(id => !UPGRADES.some(u => u.id === id)) || !data.stats || typeof data.stats !== 'object' || Array.isArray(data.stats)) throw new Error('This is not a valid Sidequest save file.');
+  const look = { ...KNIGHT_DEFAULTS };
+  for (const field of Object.keys(look)) if (data.character[field] !== undefined) look[field] = data.character[field];
+  if (!Object.hasOwn(ARMORS, look.armor) || !Object.hasOwn(HELMETS, look.helmet) || typeof look.cape !== 'boolean' || typeof look.shield !== 'boolean') throw new Error('Invalid knight appearance in save file.');
   const stats = {};
   for (const [id, stat] of Object.entries(data.stats)) {
     if (!/^[a-z][a-z0-9-]{0,40}$/.test(id) || !stat || !validInt(stat.plays) || !validInt(stat.best)) throw new Error('Invalid game progress in save file.');
     Object.defineProperty(stats, id, { value: { plays: stat.plays, best: stat.best }, enumerable: true, writable: true, configurable: true });
   }
-  return { version: 1, coins: data.coins, character: { name: data.character.name.trim(), color: data.character.color, style: data.character.style }, upgrades: [...new Set(data.upgrades)], stats };
+  return { version: 1, coins: data.coins, character: { name: data.character.name.trim(), color: data.character.color, style: data.character.style, ...look }, upgrades: [...new Set(data.upgrades)], stats };
 }
 export function createSystem(storage, onStorageError = () => {}) {
   let state = freshSave();
