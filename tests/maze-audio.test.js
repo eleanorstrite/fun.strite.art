@@ -22,3 +22,8 @@ test('victory speech uses the requested words, obeys mute, and is cancelled on c
   globalThis.speechSynthesis={speak:line=>lines.push(line.text),cancel:()=>cancelled++};
   try{const audio=createMazeAudio(null);audio.sayWin();assert.deepEqual(lines,['You win!']);audio.setMuted(true);assert.equal(cancelled,1);audio.sayWin();assert.equal(lines.length,1);audio.setMuted(false);audio.sayWin();audio.destroy();assert.equal(cancelled,2);}finally{Object.assign(globalThis,original);}
 });
+test('dragon says You lose with a lower voice and respects mute',()=>{
+  const original={speechSynthesis:globalThis.speechSynthesis,SpeechSynthesisUtterance:globalThis.SpeechSynthesisUtterance};const lines=[];
+  globalThis.SpeechSynthesisUtterance=class{constructor(text){this.text=text;}};globalThis.speechSynthesis={speak:line=>lines.push(line),cancel(){}};
+  try{const audio=createMazeAudio(null);audio.sayLose();assert.equal(lines[0].text,'You lose.');assert.equal(lines[0].pitch<1,true);audio.setMuted(true);audio.sayLose();assert.equal(lines.length,1);audio.destroy();}finally{Object.assign(globalThis,original);}
+});

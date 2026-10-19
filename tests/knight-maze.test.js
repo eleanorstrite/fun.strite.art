@@ -70,3 +70,18 @@ test('winning delays rewards for the ending, freezes on pause, and allows skip w
     engine.start();frames(2);assert.equal(settled,1);handlers.keydown({key:'Enter',preventDefault(){}});assert.equal(settled,2);engine.destroy();assert.equal(settled,2);
   } finally {engine?.destroy();MAZE.splice(0,MAZE.length,...maze);Object.assign(globalThis,original);}
 });
+test('defeat ending follows the last life, pauses, and settles once when skipped',()=>{
+  const original={requestAnimationFrame:globalThis.requestAnimationFrame,cancelAnimationFrame:globalThis.cancelAnimationFrame,document:globalThis.document};
+  let frame,settled=0,now=100,hud={};const handlers={};
+  globalThis.requestAnimationFrame=fn=>(frame=fn,1);globalThis.cancelAnimationFrame=()=>{};globalThis.document={hidden:false};
+  const ctx=new Proxy({},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
+  const canvas={width:760,height:760,getContext:()=>ctx,addEventListener(name,fn){handlers[name]=fn;},focus(){}};
+  let engine;
+  try{
+    engine=createKnightMaze({canvas,character:{color:'#ed6e40'},modifiers:{},onHud:value=>hud=value,onFinish(){settled++;}});engine.start();
+    for(let i=0;i<3000&&!hud.text.includes('one last surprise');i++){frame(now);now+=100;}
+    assert.equal(hud.lives,0);assert.equal(hud.text.includes('one last surprise'),true);assert.equal(settled,0);
+    engine.pause(true);for(let i=0;i<100;i++){frame(now);now+=100;}assert.equal(settled,0);
+    engine.pause(false);handlers.keydown({key:'Enter',preventDefault(){}});assert.equal(settled,1);engine.destroy();assert.equal(settled,1);
+  }finally{engine?.destroy();Object.assign(globalThis,original);}
+});

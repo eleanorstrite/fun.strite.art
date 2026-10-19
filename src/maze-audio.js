@@ -18,16 +18,19 @@ export function createMazeAudio(Context = globalThis.AudioContext || globalThis.
     gem: [[880, 1100, .06]],
     sword: [[440, 660, .12], [660, 880, .12], [880, 1320, .2]],
     dragon: [[180, 70, .16], [330, 660, .12], [660, 990, .22]],
+    gulp: [[160, 65, .18], [95, 210, .16], [120, 45, .3]],
     eaten: [[480, 320, .2], [320, 220, .2], [220, 140, .25], [140, 45, .55]],
     win: [[523, 523, .12], [659, 659, .12], [784, 784, .12], [1047, 1047, .4]],
   };
   return {
     unlock, stop,
-    sayWin() {
+    sayWin() { this.say('You win!',1.15); },
+    sayLose() { this.say('You lose.',.65); },
+    say(text,pitch) {
       if(muted || disposed || !globalThis.speechSynthesis || !globalThis.SpeechSynthesisUtterance)return;
       try {
-        speech=new globalThis.SpeechSynthesisUtterance('You win!');
-        speech.rate=.9;speech.pitch=1.15;speech.volume=.8;
+        speech=new globalThis.SpeechSynthesisUtterance(text);
+        speech.rate=.9;speech.pitch=pitch;speech.volume=.8;
         speech.onend=speech.onerror=()=>{speech=null;};
         globalThis.speechSynthesis.speak(speech);
       } catch { speech=null; }
