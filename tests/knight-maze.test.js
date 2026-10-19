@@ -55,3 +55,18 @@ test('engine pauses timers, freezes hidden tabs, and settles only once on destro
   const canvas={width:760,height:760,getContext:()=>ctx,addEventListener(){},focus(){}};
   try {const engine=createKnightMaze({canvas,character:{color:'#ed6e40'},modifiers:{},onHud(){hudCount++},onFinish(){settled++}});engine.start();frame(100);engine.pause(true);const n=hudCount;frame(200);assert.equal(hudCount,n);engine.pause(false);globalThis.document.hidden=true;frame(300);assert.equal(hudCount,n);globalThis.document.hidden=false;frame(400);assert.equal(hudCount>n,true);engine.destroy();engine.destroy();assert.equal(settled,1);}finally{Object.assign(globalThis,original);}
 });
+test('winning delays rewards for the ending, freezes on pause, and allows skip without double settlement',()=>{
+  const original={requestAnimationFrame:globalThis.requestAnimationFrame,cancelAnimationFrame:globalThis.cancelAnimationFrame,document:globalThis.document};
+  const maze=MAZE.slice();let frame,settled=0,now=100;const handlers={};
+  globalThis.requestAnimationFrame=fn=>(frame=fn,1);globalThis.cancelAnimationFrame=()=>{};globalThis.document={hidden:false};
+  const ctx=new Proxy({},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
+  const canvas={width:760,height:760,getContext:()=>ctx,addEventListener(name,fn){handlers[name]=fn;},focus(){}};
+  let engine;
+  try {
+    MAZE.forEach((row,i)=>MAZE[i]=row.replace(/\./g,'D'));
+    engine=createKnightMaze({canvas,character:{color:'#ed6e40'},modifiers:{},onHud(){},onFinish(){settled++;}});
+    const frames=n=>{for(let i=0;i<n;i++){frame(now);now+=100;}};
+    engine.start();frames(2);assert.equal(settled,0);engine.pause(true);frames(100);assert.equal(settled,0);engine.pause(false);frames(80);assert.equal(settled,1);
+    engine.start();frames(2);assert.equal(settled,1);handlers.keydown({key:'Enter',preventDefault(){}});assert.equal(settled,2);engine.destroy();assert.equal(settled,2);
+  } finally {engine?.destroy();MAZE.splice(0,MAZE.length,...maze);Object.assign(globalThis,original);}
+});

@@ -1,3 +1,4 @@
+import { createVictorySequence, drawVictory } from './maze-victory.js';
 import { createMazeAudio } from './maze-audio.js';
 // Deterministic maze rules, separate from rendering and the shared wallet.
 export const MAZE = [
@@ -133,19 +134,42 @@ export function drawMaze(ctx,s,character,width,height,preview=false) {
 export function drawKnightPreview(canvas,character,modifiers) { const ctx=canvas.getContext('2d');if(ctx)drawMaze(ctx,createMazeState(modifiers),character,canvas.width,canvas.height,true); }
 export function createKnightMaze({canvas,character,modifiers,onHud,onFinish}) {
   const ctx=canvas.getContext('2d');if(!ctx)throw Error('Your browser does not support canvas.');
-  let state=createMazeState(modifiers),active=false,paused=false,last=0,frame,destroyed=false;
+  let state=createMazeState(modifiers),active=false,paused=false,last=0,frame,destroyed=false,victory=null;
+  const reducedMotion=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false;
   const controller=new AbortController(),options={signal:controller.signal},audio=createMazeAudio();
   const input={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',w:'up',s:'down',a:'left',d:'right'};
   const turn=direction=>{audio.unlock();if(state.status==='playing' && DIRECTIONS[direction])state.wanted=direction;};
-  canvas.addEventListener('keydown',e=>{const dir=input[e.key]||input[e.key.toLowerCase()];if(dir){e.preventDefault();turn(dir);}},options);
+  canvas.addEventListener('keydown',e=>{if(e.key==='Enter'&&victory&&active){e.preventDefault();audio.stop();finish();return;}const dir=input[e.key]||input[e.key.toLowerCase()];if(dir){e.preventDefault();turn(dir);}},options);
   let pointer=null;
-  canvas.addEventListener('pointerdown',e=>{canvas.focus();pointer={x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId);},options);
+  canvas.addEventListener('pointerdown',e=>{canvas.focus();if(victory&&active){audio.stop();finish();return;}pointer={x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId);},options);
   canvas.addEventListener('pointermove',e=>{if(!pointer)return;const dx=e.clientX-pointer.x,dy=e.clientY-pointer.y;if(Math.hypot(dx,dy)>12){turn(Math.abs(dx)>Math.abs(dy)?dx>0?'right':'left':dy>0?'down':'up');pointer={x:e.clientX,y:e.clientY};}},options);
   canvas.addEventListener('pointerup',()=>pointer=null,options);canvas.addEventListener('pointercancel',()=>pointer=null,options);
   function finish(){if(!active)return;active=false;onFinish(state.earned,{title:state.status==='won'?'The vault is yours!':state.status==='lost'?'The dragons hold the vault.':'Quest saved.',detail:`${state.totalGems-state.gems.size} gems · ${state.kills} dragons defeated`});}
   function hud(){onHud({lives:state.lives,text:`${state.lives} lives · ${state.gems.size} gems left · ✦ ${state.earned} coins${state.sword>0?` · Sword ${Math.ceil(state.sword)}s`:''}`});}
-  function tick(now){if(destroyed)return;const dt=last?Math.min((now-last)/1000,.1):0;last=now;if(active&&!paused&&!document.hidden){tickMaze(state,dt,undefined,event=>audio.play(event));hud();if(state.status==='won'||state.status==='lost')finish();}drawMaze(ctx,state,character,canvas.width,canvas.height);frame=requestAnimationFrame(tick);}
+  function drawWinningKnight(ctx,x,y,size,wave) {
+    pixels(ctx,KNIGHT,x,y,size,{p:character.color,s:'#8294a7',w:'#d8e3e4',k:'#1d2838',c:character.color});
+    ctx.save();ctx.translate(x+size*.28,y-size*.06);ctx.rotate(wave);
+    ctx.fillStyle='#d8e3e4';ctx.fillRect(-10,-49,20,53);sword(ctx,0,-85,115);ctx.restore();
+  }
+  function tick(now){
+    if(destroyed)return;
+    const dt=last?Math.min((now-last)/1000,.1):0;last=now;
+    if(active&&!paused&&!document.hidden){
+      if(victory){
+        victory.advance(dt);
+        onHud({lives:state.lives,text:victory.time>=3.6?'You win! Your treasure awaits.':'Victory! The treasure chest is opening…'});
+        if(victory.complete)finish();
+      } else {
+        tickMaze(state,dt,undefined,event=>audio.play(event));hud();
+        if(state.status==='won')victory=createVictorySequence(audio);
+        else if(state.status==='lost')finish();
+      }
+    }
+    if(victory)drawVictory(ctx,victory.time,canvas.width,canvas.height,drawWinningKnight,reducedMotion);
+    else drawMaze(ctx,state,character,canvas.width,canvas.height);
+    frame=requestAnimationFrame(tick);
+  }
   document.addEventListener?.('visibilitychange',()=>{last=0;if(document.hidden)audio.stop();},options);
   frame=requestAnimationFrame(tick);
-  return {start(){audio.stop();audio.unlock();state=createMazeState(modifiers);active=true;paused=false;last=0;hud();canvas.focus();},pause(value){paused=value;last=0;pointer=null;if(value)audio.stop();else audio.unlock();},setMuted:value=>audio.setMuted(value),input:turn,destroy(){if(destroyed)return;destroyed=true;cancelAnimationFrame(frame);controller.abort();audio.destroy();finish();}};
+  return {start(){audio.stop();audio.unlock();victory=null;state=createMazeState(modifiers);active=true;paused=false;last=0;hud();canvas.focus();},pause(value){paused=value;last=0;pointer=null;if(value)audio.stop();else audio.unlock();},setMuted:value=>audio.setMuted(value),input:turn,destroy(){if(destroyed)return;destroyed=true;cancelAnimationFrame(frame);controller.abort();audio.destroy();finish();}};
 }

@@ -1,6 +1,6 @@
 // Small synthesized arcade cues; no downloads or audio files required.
 export function createMazeAudio(Context = globalThis.AudioContext || globalThis.webkitAudioContext) {
-  let context = null, muted = false, disposed = false;
+  let context = null, muted = false, disposed = false, speech = null;
   const voices = new Set();
   function unlock() {
     if (disposed || !Context) return;
@@ -10,6 +10,7 @@ export function createMazeAudio(Context = globalThis.AudioContext || globalThis.
     } catch { /* Audio is optional when unsupported or blocked. */ }
   }
   function stop() {
+    if(speech){globalThis.speechSynthesis?.cancel();speech=null;}
     for (const voice of voices) { try { voice.stop(); } catch {} }
     voices.clear();
   }
@@ -22,6 +23,15 @@ export function createMazeAudio(Context = globalThis.AudioContext || globalThis.
   };
   return {
     unlock, stop,
+    sayWin() {
+      if(muted || disposed || !globalThis.speechSynthesis || !globalThis.SpeechSynthesisUtterance)return;
+      try {
+        speech=new globalThis.SpeechSynthesisUtterance('You win!');
+        speech.rate=.9;speech.pitch=1.15;speech.volume=.8;
+        speech.onend=speech.onerror=()=>{speech=null;};
+        globalThis.speechSynthesis.speak(speech);
+      } catch { speech=null; }
+    },
     play(name) {
       if (muted || disposed || !context || context.state !== 'running' || !cues[name]) return;
       if (name === 'eaten') stop();

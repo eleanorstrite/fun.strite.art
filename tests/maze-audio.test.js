@@ -16,3 +16,9 @@ test('audio starts on interaction, schedules distinct cues, honors mute, and rel
   audio.destroy();assert.equal(closed,1);audio.unlock();audio.play('sword');assert.equal(created,1);assert.equal(notes.length,8);
 });
 test('unsupported audio does not interfere with gameplay',()=>{const audio=createMazeAudio(null);audio.unlock();audio.play('eaten');audio.setMuted(true);audio.destroy();});
+test('victory speech uses the requested words, obeys mute, and is cancelled on cleanup',()=>{
+  const original={speechSynthesis:globalThis.speechSynthesis,SpeechSynthesisUtterance:globalThis.SpeechSynthesisUtterance};let cancelled=0;const lines=[];
+  globalThis.SpeechSynthesisUtterance=class{constructor(text){this.text=text;}};
+  globalThis.speechSynthesis={speak:line=>lines.push(line.text),cancel:()=>cancelled++};
+  try{const audio=createMazeAudio(null);audio.sayWin();assert.deepEqual(lines,['You win!']);audio.setMuted(true);assert.equal(cancelled,1);audio.sayWin();assert.equal(lines.length,1);audio.setMuted(false);audio.sayWin();audio.destroy();assert.equal(cancelled,2);}finally{Object.assign(globalThis,original);}
+});
