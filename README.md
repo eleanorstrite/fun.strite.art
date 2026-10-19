@@ -1,6 +1,6 @@
 # Sidequest
 
-A static game playground for GitHub Pages. Includes Knight & Ember (a 2D knight-and-dragon maze) and Orbit Garden (a perspective-projected 3D world), a shared character studio, a wallet, and character/environment/equipment upgrades. No runtime dependencies, bundler, account, or backend required.
+A static game playground for GitHub Pages. Includes Knights and Dragons (a 2D knight-and-dragon maze) and Orbit Garden (a perspective-projected 3D world), a shared character studio, a wallet, and character/environment/equipment upgrades. No runtime dependencies, bundler, account, or backend required.
 
 ## Run locally
 
@@ -23,7 +23,7 @@ Push these files to the `main` branch. In the repository's **Settings → Pages 
 ## How the shared system works
 
 - `src/system.js`: versioned save validation, character settings, a single wallet, upgrade catalog, per-game statistics, import/export, and single-settlement game sessions. `modifiers()` supplies shared gameplay effects.
-- `src/games.js`: the game registry and starter rendering/input lifecycle. Orbit Garden has 45-second rounds; each collected token earns two coins. Knight & Ember ends when all gems are collected or all three lives are lost. Closing an active game settles the coins collected so far. Pausing or hiding the tab stops the round timer. Orbit Garden uses world-space perspective projection on Canvas 2D; it is not a WebGL engine.
+- `src/games.js`: the game registry and starter rendering/input lifecycle. Orbit Garden has 45-second rounds; each collected token earns two coins. Knights and Dragons ends when all gems are collected or all three lives are lost. Closing an active game settles the coins collected so far. Pausing or hiding the tab stops the round timer. Orbit Garden uses world-space perspective projection on Canvas 2D; it is not a WebGL engine.
 - `src/knight-maze.js`: original pixel sprites, connected stone maze, buffered movement, dragon pathfinding, three lives, four swords granting 30 seconds of power each, and testable simulation rules. Gems earn one coin and defeated dragons earn ten; dragons respawn after eight seconds. New swords refresh the timer to 30 seconds. Keyboard, swipe, and on-screen direction buttons are supported. Three smiley faces below the maze track lives. Getting eaten removes one face and pauses the world for 1.5 seconds before respawning (or showing game over). Synthesized arcade sounds mark gems, swords, dragon defeats, losing a life, and victory; the Sound on/off button mutes them. Audio begins after a user interaction and is optional when Web Audio is unavailable. The shared color becomes the knight’s cape and plume. Boots increase speed, the magnet collects adjacent corridor gems, and the garden adds blooming moss to the dungeon.
 - `src/app.js`: hub UI, shared character station, shop, save tools, and game modal. The Character studio button inside every game opens the shared station. Character changes and newly purchased upgrades apply when entering a game.
 - `styles.css`: responsive design and CSS character artwork.
@@ -48,6 +48,6 @@ Progress is stored under `sidequest.save.v1` in localStorage for this browser an
 
 With Node.js 22 or later installed, run `npm test` (or `node --test tests/*.test.js`). Tests cover maze connectivity, sword duration/refresh, movement, dragon defeats/respawns, lives, victory, pause/hidden-tab behavior, shared rewards, duplicate settlement, purchases, persistence, validation, and storage failures. GitHub Actions runs these before deployment. Manually check desktop keyboard play, touch/pointer play, the modal's Escape/close behavior, both dimensions, all upgrades, and export/import on supported browsers.
 
-## Knight & Ember artwork
+## Knights and Dragons artwork
 
 The knight and dragon are original code-drawn pixel sprites inspired by the supplied armored-knight and winged-dragon references. The reference GIFs are not bundled. The maze is an original layout rather than the supplied Pac-Man board.
