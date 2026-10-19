@@ -1,3 +1,4 @@
+import { initBackgroundPicker } from './backgrounds.js';
 import { drawKnight } from './knight-maze.js';
 import { createSystem, COLORS, UPGRADES, ARMORS, HELMETS } from './system.js';
 import { GAMES, drawPreview } from './games.js';
@@ -47,3 +48,5 @@ $('#export').onclick=()=>{const url=URL.createObjectURL(new Blob([system.exportS
 $('#import-trigger').onclick=()=>$('#import').click();
 $('#import').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{if(file.size>100000)throw new Error('That save file is too large.');const raw=await file.text();if(!confirm('Replace your current character, coins, and upgrades with this save? Export your current save first if you want to keep it.'))return;system.importSave(raw);syncForm();notify('Welcome back. Your universe is restored.');}catch(err){notify(err instanceof SyntaxError?'That file is not valid JSON.':err.message);}finally{e.target.value='';}};
 system.subscribe(render);render();syncForm();
+
+initBackgroundPicker(storage);

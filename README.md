@@ -2,6 +2,10 @@
 
 A static game playground for GitHub Pages. Includes Knights and Dragons (a 2D knight-and-dragon maze), a shared character studio, a wallet, and character/environment/equipment upgrades. No runtime dependencies, bundler, account, or backend required.
 
+## Home screen backgrounds
+
+Use **Pick your scenery** at the top of the home screen to choose Countryside, City, Sunset, Starry night, or the original Classic background. Original SVG scenes are bundled locally. The selection is saved per browser under `sidequest.background.v1`, independently of game saves; it does not change the maze or exported progress.
+
 ## Run locally
 
 Run `python3 -m http.server 8000` in this directory, then open http://localhost:8000. Serve over HTTP rather than opening the HTML file directly because the app uses JavaScript modules. Fonts load optionally from Google Fonts; local fallback fonts work offline.
