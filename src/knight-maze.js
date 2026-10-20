@@ -1,4 +1,4 @@
-import { ARMORS } from './system.js';
+import { ARMORS, DRAGON_STYLES } from './system.js';
 import { createDefeatSequence, drawDefeat } from './maze-defeat.js';
 import { createVictorySequence, drawVictory } from './maze-victory.js';
 import { createMazeAudio } from './maze-audio.js';
@@ -113,6 +113,7 @@ export function drawKnight(ctx,x,y,size,character,flip=false) {
   pixels(ctx,sprite,x,y,size,{p:character.color,s:armor.dark,w:armor.light,k:'#1d2838',c:character.color},flip);
   ctx.save();ctx.translate(x,y);if(flip)ctx.scale(-1,1);ctx.scale(size/16,size/16);
   if(helmet==='crown'){ctx.fillStyle='#f5cc65';ctx.fillRect(-4,-6,7,2);ctx.fillRect(-4,-9,1.5,4);ctx.fillRect(-1.5,-9,1.5,4);ctx.fillRect(1,-9,1.5,4);ctx.fillStyle=character.color;ctx.fillRect(-1.5,-6,1,1);}
+  if(helmet==='winged'){ctx.fillStyle='#e0f3ff';for(const side of [-1,1]){ctx.save();ctx.scale(side,1);ctx.beginPath();ctx.moveTo(3,-4);ctx.lineTo(8,-10);ctx.lineTo(7,-4);ctx.lineTo(4,-2);ctx.closePath();ctx.fill();ctx.restore();}}
   if(helmet==='horns'){ctx.fillStyle='#f3dfb2';ctx.fillRect(-5,-7,2,3);ctx.fillRect(-6,-9,2,3);ctx.fillRect(2,-7,2,3);ctx.fillRect(3,-9,2,3);}
   if(character.shield){ctx.fillStyle=armor.light;ctx.beginPath();ctx.moveTo(-7,-1);ctx.lineTo(-2,-1);ctx.lineTo(-2,3);ctx.lineTo(-4.5,5);ctx.lineTo(-7,3);ctx.closePath();ctx.fill();ctx.fillStyle=character.color;ctx.fillRect(-6,0,3,3);ctx.fillStyle='#f4d27b';ctx.fillRect(-5,0,1,3);}
   ctx.restore();
@@ -126,13 +127,13 @@ export function drawMaze(ctx,s,character,width,height,preview=false) {
   if(preview){ctx.fillStyle='#e5c68a';ctx.font='600 17px monospace';ctx.textAlign='left';ctx.fillText('THE FIRST QUEST',35,95);ctx.fillStyle='#f5ecd7';ctx.font='bold 42px monospace';ctx.fillText('KNIGHTS AND',35,157);ctx.fillText('DRAGONS',35,207);ctx.font='16px monospace';ctx.fillStyle='#99a9b8';ctx.fillText('Gems. Dragons. Glory.',35,250);drawKnight(ctx,100,365,100,character);sword(ctx,175,360,80);}
   else {ctx.textAlign='left';ctx.font='bold 16px monospace';ctx.fillStyle='#e5c68a';ctx.fillText('KNIGHTS AND DRAGONS',18,29);ctx.textAlign='right';ctx.fillStyle=s.sword>0?'#f4d388':'#b6c4cf';ctx.fillText(s.sword>0?`SWORD  ${s.sword.toFixed(1)}s`:'FIND A SWORD',width-18,29);ctx.fillStyle='#293243';ctx.fillRect(18,42,width-36,5);ctx.fillStyle='#f3c674';ctx.fillRect(18,42,(width-36)*s.sword/SWORD_SECONDS,5);}
   MAZE.forEach((row,y)=>[...row].forEach((t,x)=>{const px=ox+x*cell,py=oy+y*cell;
-    if(t==='#'){ctx.fillStyle='#354255';ctx.fillRect(px+1,py+1,cell-2,cell-2);ctx.fillStyle='#53637a';ctx.fillRect(px+2,py+2,cell-4,3);ctx.fillStyle='#222d3d';ctx.fillRect(px+2,py+cell-5,cell-4,3);ctx.fillStyle='#293548';ctx.fillRect(px+cell*.5,py+5,1,cell-10);if(s.modifiers.garden&&(x*7+y)%9===0){ctx.fillStyle='#628b75';ctx.fillRect(px+2,py+2,cell*.6,4);ctx.fillStyle='#bd96ba';ctx.fillRect(px+5,py+4,4,4);}}
+    if(t==='#'){ctx.fillStyle='#354255';ctx.fillRect(px+1,py+1,cell-2,cell-2);ctx.fillStyle='#53637a';ctx.fillRect(px+2,py+2,cell-4,3);ctx.fillStyle='#222d3d';ctx.fillRect(px+2,py+cell-5,cell-4,3);ctx.fillStyle='#293548';ctx.fillRect(px+cell*.5,py+5,1,cell-10);}
     else {ctx.fillStyle=(x+y)%2?'#161e2b':'#182130';ctx.fillRect(px,py,cell,cell);}
   }));
   const gemColors=['#ed6f94','#72dbcb','#b79af5','#f2c875','#76bdf4'];
   for(const gem of s.gems){const [x,y]=gem.split(',').map(Number),px=ox+(x+.5)*cell,py=oy+(y+.5)*cell,r=cell*.14;ctx.fillStyle=gemColors[(x+y*2)%5];ctx.beginPath();ctx.moveTo(px,py-r*1.5);ctx.lineTo(px+r,py);ctx.lineTo(px,py+r*1.5);ctx.lineTo(px-r,py);ctx.closePath();ctx.fill();ctx.fillStyle='#ffffffb0';ctx.fillRect(px-1,py-r,2,3);}
   for(const item of s.swords){const[x,y]=item.split(',').map(Number);const px=ox+(x+.5)*cell,py=oy+(y+.5)*cell;ctx.fillStyle='#f3cd7320';ctx.beginPath();ctx.arc(px,py,cell*.44,0,7);ctx.fill();sword(ctx,px,py,cell*.82);}
-  const colors=['#a34b50','#738959','#78609e','#4e8e98'];
+  const colors=(DRAGON_STYLES[character.dragon]||DRAGON_STYLES.classic).colors;
   for(const d of s.dragons){if(d.respawn>0)continue;ctx.globalAlpha=s.sword>0?.55:1;pixels(ctx,DRAGON,ox+(d.x+.5)*cell,oy+(d.y+.5)*cell+Math.sin(s.elapsed*10+d.index)*1.2,cell*.93,{h:'#e2d8bd',d:colors[d.index],b:'#e9b47e',w:'#c99373',e:s.sword>0?'#bcecff':'#ffda70'},d.dir==='right');ctx.globalAlpha=1;}
   if(s.grace<=0||Math.floor(s.elapsed*8)%2===0||preview){const px=ox+(s.player.x+.5)*cell,py=oy+(s.player.y+.5)*cell;drawKnight(ctx,px,py,cell*.92,character,s.player.dir==='left');if(s.sword>0)sword(ctx,px+cell*.32,py,cell*.8);}
   if(!preview && s.status==='dying') {
@@ -177,7 +178,7 @@ export function createKnightMaze({canvas,character,modifiers,onHud,onFinish}) {
         else if(state.status==='lost')ending=createDefeatSequence(audio);
       }
     }
-    if(ending)(state.status==='lost'?drawDefeat:drawVictory)(ctx,ending.time,canvas.width,canvas.height,drawEndingKnight,reducedMotion);
+    if(ending)(state.status==='lost'?drawDefeat:drawVictory)(ctx,ending.time,canvas.width,canvas.height,drawEndingKnight,reducedMotion,character.dragon);
     else drawMaze(ctx,state,character,canvas.width,canvas.height);
     frame=requestAnimationFrame(tick);
   }
