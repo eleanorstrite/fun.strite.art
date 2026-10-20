@@ -53,13 +53,18 @@ function distancesFrom(player) {
   for(let i=0;i<queue.length;i++){const p=queue[i];for(const n of neighbors(p.x,p.y)){const k=key(n.x,n.y);if(!map.has(k)){map.set(k,map.get(key(p.x,p.y))+1);queue.push(n);}}}
   return map;
 }
+export function calculateMazeReward(totalGems,remainingGems,kills) {
+  const collected=totalGems>0?Math.max(0,Math.min(1,(totalGems-remainingGems)/totalGems)):0;
+  return Math.min(40,Math.floor(collected*30)+Math.min(10,Math.max(0,kills)*2));
+}
+function updateReward(s){s.earned=calculateMazeReward(s.totalGems,s.gems.size,s.kills);}
 function pickups(s, emit) {
   const x=Math.round(s.player.x),y=Math.round(s.player.y);
   // The magnet reaches only adjacent corridor cells, never through walls.
   const cells=[{x,y},...(s.modifiers.pickupRadius>1?neighbors(x,y):[])];
   let collected=false;
-  for(const p of cells)if(s.gems.delete(key(p.x,p.y))){s.earned++;collected=true;}
-  if(collected)emit('gem');
+  for(const p of cells)if(s.gems.delete(key(p.x,p.y))){collected=true;}
+  if(collected){updateReward(s);emit('gem');}
   if(s.swords.delete(key(x,y))){s.sword=SWORD_SECONDS;emit('sword');}
 }
 export function tickMaze(s, dt, direction, emit = () => {}) {
@@ -89,7 +94,7 @@ export function tickMaze(s, dt, direction, emit = () => {}) {
         return options.sort((a,b)=>{const da=distances.get(key(a.x,a.y))??100,db=distances.get(key(b.x,b.y))??100;return (s.sword>0?db-da:da-db)||((Object.keys(DIRECTIONS).indexOf(a.dir)+dragon.index)%4-(Object.keys(DIRECTIONS).indexOf(b.dir)+dragon.index)%4);})[0];
       });
       if(Math.hypot(dragon.x-s.player.x,dragon.y-s.player.y)<.65) {
-        if(s.sword>0){s.kills++;s.earned+=10;emit('dragon');Object.assign(dragon,actor(dragon.home),{respawn:8});}
+        if(s.sword>0){s.kills++;updateReward(s);emit('dragon');Object.assign(dragon,actor(dragon.home),{respawn:8});}
         else if(s.grace<=0){s.lives--;s.status='dying';s.deathPause=DEATH_PAUSE_SECONDS;s.wanted=null;emit('eaten');break;}
       }
     }

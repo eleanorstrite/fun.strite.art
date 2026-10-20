@@ -8,8 +8,8 @@ export const HELMETS = { plume: 'Feather plume', horns: 'Dragon horns', crown: '
 HELMETS.winged='Winged helmet';
 export const KNIGHT_DEFAULTS = { armor: 'silver', helmet: 'plume', cape: true, shield: false, dragon: 'classic' };
 export const UPGRADES = [
-  { id:'boots',name:'Super speed',group:'gameplay',category:'CHARACTER',icon:'↗',cost:200,description:'Move 25% faster in the maze. Active next adventure.' },
-  { id:'magnet',name:'Gem magnet',group:'gameplay',category:'EQUIPMENT',icon:'⌁',cost:500,description:'Collect gems from adjacent corridors. Active next adventure.' },
+  { id:'boots',name:'Super speed',group:'gameplay',category:'CHARACTER',icon:'↗',cost:800,description:'Move 25% faster in the maze. Active next adventure.' },
+  { id:'magnet',name:'Gem magnet',group:'gameplay',category:'EQUIPMENT',icon:'⌁',cost:1000,description:'Collect gems from adjacent corridors. Active next adventure.' },
   { id:'aurora-background',name:'Northern lights',group:'appearance',category:'BACKGROUND',icon:'✧',cost:200,description:'Unlock an aurora home background. Select it in Pick your scenery.' },
   { id:'forest-background',name:'Enchanted forest',group:'appearance',category:'BACKGROUND',icon:'☾',cost:350,description:'Unlock a glowing forest home background. Select it in Pick your scenery.' },
   { id:'emerald-armor',name:'Emerald armor',group:'appearance',category:'KNIGHT STYLE',icon:'♜',cost:250,description:'Unlock emerald armor in the customizer below the arrows. Appearance only.' },

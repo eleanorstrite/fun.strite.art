@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MAZE, createMazeState, neighbors, tickMaze, SWORD_SECONDS, createKnightMaze, drawKnight } from '../src/knight-maze.js';
+import { MAZE, createMazeState, neighbors, tickMaze, SWORD_SECONDS, createKnightMaze, drawKnight, calculateMazeReward } from '../src/knight-maze.js';
 function safeState(){const state=createMazeState();state.player.dir='up';state.dragons.forEach(d=>d.respawn=999);return state;}
 function elapse(state,seconds){for(let i=0;i<Math.round(seconds*100);i++)tickMaze(state,.01);}
 test('every gem and sword is reachable in a rectangular enclosed maze',()=>{
@@ -22,8 +22,8 @@ test('gems pay once and magnet cannot collect through a wall',()=>{
   const s=safeState();s.player={x:1,y:3,to:null,dir:'left'};tickMaze(s,.01);const earned=s.earned;tickMaze(s,.01);assert.equal(s.earned,earned);
   s.modifiers.pickupRadius=2;s.player={x:1,y:1,to:null,dir:'up'};s.gems.add('2,2');tickMaze(s,.01);assert.equal(s.gems.has('2,2'),true);assert.equal(s.gems.has('2,1'),false);
 });
-test('armed contact defeats a dragon, pays ten coins, and respawns after eight seconds',()=>{
-  const s=safeState();s.sword=SWORD_SECONDS;Object.assign(s.dragons[0],{x:9,y:15,to:null,respawn:0});tickMaze(s,.01);assert.equal(s.kills,1);assert.equal(s.earned,10);assert.equal(s.dragons[0].respawn,8);
+test('armed contact defeats a dragon, pays two bonus coins, and respawns after eight seconds',()=>{
+  const s=safeState();s.sword=SWORD_SECONDS;Object.assign(s.dragons[0],{x:9,y:15,to:null,respawn:0});tickMaze(s,.01);assert.equal(s.kills,1);assert.equal(s.earned,2);assert.equal(s.dragons[0].respawn,8);
   elapse(s,7.9);assert.equal(s.dragons[0].respawn>0,true);elapse(s,.11);assert.equal(s.dragons[0].respawn,0);
 });
 test('getting eaten removes one life, emits once, and freezes the world before respawn',()=>{
@@ -46,7 +46,7 @@ test('dragon defeats and pickups emit distinct sound events without repeat rewar
   s.player={x:1,y:1,to:null,dir:'up'};tickMaze(s,.01,undefined,e=>events.push(e));assert.deepEqual(events,['dragon','sword']);
   s.player={x:2,y:1,to:null,dir:'up'};tickMaze(s,.01,undefined,e=>events.push(e));assert.equal(events.includes('gem'),true);
 });
-test('collecting the last gem wins the maze',()=>{const s=safeState();s.gems=new Set(['9,15']);tickMaze(s,.01);assert.equal(s.status,'won');assert.equal(s.earned,1);});
+test('collecting the last gem wins the maze',()=>{const s=safeState();s.gems=new Set(['9,15']);tickMaze(s,.01);assert.equal(s.status,'won');assert.equal(s.earned,30);});
 test('engine pauses timers, freezes hidden tabs, and settles only once on destroy',()=>{
   const original={requestAnimationFrame:globalThis.requestAnimationFrame,cancelAnimationFrame:globalThis.cancelAnimationFrame,document:globalThis.document};
   let frame,settled=0,hudCount=0;
@@ -91,4 +91,15 @@ test('knight renderer applies armor colors and optional cape, plume, and shield'
   const character={color:'#ed6e40',armor:'gold',helmet:'plain',cape:false,shield:false};
   drawKnight(ctx,90,90,120,character);assert.equal(used.includes('#b88b38'),true);assert.equal(used.includes(character.color),false);
   drawKnight(ctx,90,90,120,{...character,shield:true});assert.equal(used.includes(character.color),true);
+});
+
+test('maze rewards scale with progress and dragon defeats and never exceed forty',()=>{
+  assert.equal(calculateMazeReward(180,180,0),0);
+  assert.equal(calculateMazeReward(180,90,0),15);
+  assert.equal(calculateMazeReward(180,90,2),19);
+  assert.equal(calculateMazeReward(180,0,0),30);
+  assert.equal(calculateMazeReward(180,0,3),36);
+  assert.equal(calculateMazeReward(180,0,5),40);
+  assert.equal(calculateMazeReward(180,0,100),40);
+  assert.equal(calculateMazeReward(0,0,0),0);
 });
