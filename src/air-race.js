@@ -45,51 +45,51 @@ function shape(ctx,points,color){
 }
 export function drawAirplane(ctx,x,y,size,look={},bank=0,time=0){
   ctx.save();ctx.translate(x,y);ctx.rotate(bank);ctx.scale(size/100,size/100);
-  const color=look.color||'#ed6e40',swept=look.style==='swept',biplane=look.style==='biplane';
-  if(look.style==='jet'){
-    // Passenger jet seen from above, with twin engines and colorful tail accents.
-    ctx.strokeStyle='#263b48';ctx.lineWidth=1.8;ctx.lineJoin='round';
-    const panel=(points,fill)=>{shape(ctx,points,fill);ctx.stroke();};
-    for(const side of [-1,1]){
-      ctx.fillStyle='#eaf0f5';ctx.beginPath();ctx.ellipse(side*27,13,7,15,0,0,7);ctx.fill();ctx.stroke();
-      ctx.fillStyle='#555889';ctx.beginPath();ctx.ellipse(side*27,2,5,4,0,0,7);ctx.fill();ctx.stroke();
-    }
-    panel([[-8,-13],[-58,19],[-57,27],[-8,11],[8,11],[57,27],[58,19],[8,-13]],'#f8faf9');
-    panel([[-8,26],[-26,40],[-24,44],[0,36],[24,44],[26,40],[8,26]],'#f8faf9');
-    ctx.fillStyle='#f8faf9';ctx.beginPath();ctx.ellipse(0,0,11,44,0,0,7);ctx.fill();ctx.stroke();
-    panel([[-7,-30],[7,-30],[8,-23],[-8,-23]],'#37b5d4');
-    ctx.fillStyle=color;
-    for(const side of [-1,1]){
-      ctx.fillRect(side<0?-9:6,-15,3,33);
-      for(let row=0;row<6;row++){ctx.fillStyle='#315572';ctx.fillRect(side<0?-8:5,-13+row*5,3,3);}
-      ctx.fillStyle=color;
-    }
-    panel([[0,18],[-4,40],[0,47],[4,40]],color);
-    panel([[-53,20],[-49,18],[-48,24],[-53,25]],color);
-    panel([[53,20],[49,18],[48,24],[53,25]],color);
-    ctx.restore();return;
+  const color=look.color||'#ed6e40',jet=look.style==='jet',swept=look.style==='swept',biplane=look.style==='biplane';
+  // Chase camera: foreshortened fuselage, broad horizontal wings, and the
+  // nearest tail in front of the cabin. The nose points away into the course.
+  ctx.strokeStyle='#263b48';ctx.lineWidth=1.4;ctx.lineJoin='round';
+  const panel=(points,fill)=>{shape(ctx,points,fill);ctx.stroke();};
+  const oval=(cx,cy,rx,ry,fill)=>{
+    ctx.fillStyle=fill;ctx.beginPath();ctx.ellipse(cx,cy,rx,ry,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+  };
+  if(!jet){
+    ctx.save();ctx.translate(0,-8);ctx.rotate(time*55);
+    ctx.fillStyle='#d8eff766';ctx.fillRect(-17,-1,34,2);ctx.restore();
   }
-  // Rear chase view: long wings, tail fins, cockpit and spinning propeller.
-  ctx.fillStyle='#19364a55';ctx.beginPath();ctx.ellipse(0,24,45,7,0,0,7);ctx.fill();
-  shape(ctx,swept?[[-8,-8],[-54,22],[-48,29],[-4,12],[4,12],[48,29],[54,22],[8,-8]]:
-    [[-8,-3],[-57,4],[-57,14],[-6,12],[6,12],[57,14],[57,4],[8,-3]],color);
-  shape(ctx,[[-51,7],[-51,11],[-13,8],[-13,5]],'#fff3d5');
-  shape(ctx,[[51,7],[51,11],[13,8],[13,5]],'#fff3d5');
+  // The distant cabin sits above the wings; the nearer tail hides its center.
+  oval(0,-3,jet?10:8,12,jet?'#f5f8fa':color);
+  oval(0,-10,jet?6:5,4,'#79b8d0');
+  const wingColor=jet?'#f5f8fa':color;
+  panel(swept||jet?
+    [[-7,-2],[-61,8],[-59,13],[-6,6],[6,6],[59,13],[61,8],[7,-2]]:
+    [[-7,-1],[-59,1],[-59,7],[-7,6],[7,6],[59,7],[59,1],[7,-1]],wingColor);
+  for(const side of [-1,1]){
+    panel([[side*48,3],[side*57,4],[side*57,8],[side*48,7]],jet?color:'#fff0cc');
+    if(jet){
+      // Circular exhausts face the chase camera under each wing.
+      oval(side*25,10,7,7,'#e5edf2');
+      oval(side*25,10,4.5,4.5,'#344455');
+      oval(side*25,10,2,2,'#758b9d');
+      panel([[side*58,9],[side*62,-1],[side*64,0],[side*62,12]],color);
+    }
+  }
   if(biplane){
-    ctx.strokeStyle='#2e4657';ctx.lineWidth=2;
-    for(const side of [-1,1]){ctx.beginPath();ctx.moveTo(side*36,5);ctx.lineTo(side*36,-13);ctx.stroke();}
-    shape(ctx,[[-52,-16],[52,-16],[52,-7],[-52,-7]],color);
-    ctx.fillStyle='#ffffff44';ctx.fillRect(-50,-16,100,2);
+    for(const side of [-1,1]){
+      ctx.beginPath();ctx.moveTo(side*37,3);ctx.lineTo(side*37,-11);ctx.stroke();
+    }
+    panel([[-56,-13],[56,-13],[56,-8],[-56,-8]],color);
   }
-  ctx.fillStyle=color;ctx.beginPath();ctx.ellipse(0,0,10,35,0,0,7);ctx.fill();
-  ctx.fillStyle='#ffffff55';ctx.beginPath();ctx.ellipse(-3,-8,3,22,0,0,7);ctx.fill();
-  ctx.fillStyle='#244c65';ctx.beginPath();ctx.ellipse(0,-9,6,12,0,0,7);ctx.fill();
-  ctx.fillStyle='#b7e4ed';ctx.beginPath();ctx.ellipse(-2,-12,2,6,0,0,7);ctx.fill();
-  shape(ctx,[[-4,21],[-23,28],[-23,33],[0,29],[23,33],[23,28],[4,21]],color);
-  shape(ctx,[[0,15],[-4,30],[0,36],[4,30]],'#eef1dd');
-  ctx.save();ctx.translate(0,-34);ctx.rotate(time*55);ctx.fillStyle='#d8eff788';ctx.fillRect(-21,-2,42,4);ctx.restore();
+  oval(0,7,7,8,jet?'#e0e9ee':color);
+  panel([[-3,6],[-24,11],[-24,15],[0,12],[24,15],[24,11],[3,6]],wingColor);
+  // Upright vertical stabilizer, closest to the viewer.
+  panel([[-2,10],[-3,-15],[0,-24],[3,-15],[2,10]],color);
+  ctx.strokeStyle='#ffffff99';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(0,-19);ctx.lineTo(0,7);ctx.stroke();
+  oval(0,13,2.5,2,'#40586b');
   ctx.restore();
 }
+
 export function drawAirRace(ctx,s,look,width,height,bestMs=null,reducedMotion=false){
   ctx.save();ctx.scale(width/AIR_WIDTH,height/AIR_HEIGHT);
   const sky=ctx.createLinearGradient(0,0,0,AIR_HEIGHT);sky.addColorStop(0,'#77b8d4');sky.addColorStop(.65,'#d9e9d9');sky.addColorStop(1,'#f4dfb5');
