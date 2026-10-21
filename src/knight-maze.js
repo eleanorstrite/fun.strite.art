@@ -43,7 +43,7 @@ function actor(p) { return { ...p, to: null, dir: 'left' }; }
 export function createMazeState(modifiers = {}) {
   const gems = new Set(), swords = new Set();
   MAZE.forEach((row,y)=>[...row].forEach((tile,x)=>{if(tile==='.')gems.add(key(x,y));if(tile==='S')swords.add(key(x,y));}));
-  return { player: actor(START), dragons: HOMES.map((p,i)=>({...actor(p),home:p,index:i,respawn:0})), gems, swords, totalGems:gems.size, earned:0, kills:0, lives:3, deathPause:0, boosts:{boots:0,magnet:0}, sword:0, grace:3, elapsed:0, wanted:null, status:'playing', modifiers:{speed:1,pickupRadius:1,garden:false,...modifiers} };
+  return { player: actor(START), dragons: HOMES.map((p,i)=>({...actor(p),home:p,index:i,respawn:0})), gems, swords, totalGems:gems.size, earned:0, kills:0, lives:3, deathPause:0, boosts:{boots:0,magnet:0,eliminator:0}, sword:0, grace:3, elapsed:0, wanted:null, status:'playing', modifiers:{speed:1,pickupRadius:1,garden:false,...modifiers} };
 }
 function advance(a, distance, choose, arrived = () => {}) {
   while(distance>0.000001) {
@@ -73,7 +73,7 @@ function pickups(s, emit) {
   if(s.swords.delete(key(x,y))){s.sword=SWORD_SECONDS;emit('sword');}
 }
 export function activateMazeBoost(state,id,consume=()=>false) {
-  if(state.status!=='playing'||!['boots','magnet'].includes(id)||state.boosts[id]>0)return false;
+  if(state.status!=='playing'||!['boots','magnet','eliminator'].includes(id)||state.boosts[id]>0)return false;
   if(!consume(id))return false;
   state.boosts[id]=15;return true;
 }
@@ -93,11 +93,14 @@ export function tickMaze(s, dt, direction, emit = () => {}) {
   let left=Math.max(0,Math.min(dt,.25));
   while(left>0.000001 && s.status==='playing') {
     const step=Math.min(left,.02);left-=step;s.elapsed+=step;s.sword=Math.max(0,s.sword-step);s.grace=Math.max(0,s.grace-step);
-    for(const id of ['boots','magnet'])s.boosts[id]=Math.max(0,s.boosts[id]-step);
+    const dragonsHidden=s.boosts.eliminator>0;
+    for(const id of ['boots','magnet','eliminator']){const remaining=s.boosts[id]-step;s.boosts[id]=remaining>1e-8?remaining:0;}
     advance(s.player,4.2*s.modifiers.speed*(s.boosts.boots>0?1.25:1)*step,a=>{const choices=neighbors(a.x,a.y);return choices.find(n=>n.dir===s.wanted)||choices.find(n=>n.dir===a.dir);},portal=>{if(portal)emit('portal');pickups(s,emit);});
     pickups(s,emit);
     const distances=distancesFrom(s.player);
     for(const dragon of s.dragons) {
+      // Freeze position, direction, destination and respawn time until the boost ends.
+      if(dragonsHidden)continue;
       if(dragon.respawn>0){dragon.respawn=Math.max(0,dragon.respawn-step);continue;}
       advance(dragon,(s.sword>0?2.3:2.85+dragon.index*.12)*step,a=>{
         const choices=neighbors(a.x,a.y), reverse={left:'right',right:'left',up:'down',down:'up'}[a.dir];
@@ -157,7 +160,7 @@ export function drawMaze(ctx,s,character,width,height,preview=false) {
   for(const gem of s.gems){const [x,y]=gem.split(',').map(Number),px=ox+(x+.5)*cell,py=oy+(y+.5)*cell,r=cell*.14;ctx.fillStyle=gemColors[(x+y*2)%5];ctx.beginPath();ctx.moveTo(px,py-r*1.5);ctx.lineTo(px+r,py);ctx.lineTo(px,py+r*1.5);ctx.lineTo(px-r,py);ctx.closePath();ctx.fill();ctx.fillStyle='#ffffffb0';ctx.fillRect(px-1,py-r,2,3);}
   for(const item of s.swords){const[x,y]=item.split(',').map(Number);const px=ox+(x+.5)*cell,py=oy+(y+.5)*cell;ctx.fillStyle='#f3cd7320';ctx.beginPath();ctx.arc(px,py,cell*.44,0,7);ctx.fill();sword(ctx,px,py,cell*.82);}
   const colors=(DRAGON_STYLES[character.dragon]||DRAGON_STYLES.classic).colors;
-  for(const d of s.dragons){if(d.respawn>0)continue;ctx.globalAlpha=s.sword>0?.55:1;pixels(ctx,DRAGON,ox+(d.x+.5)*cell,oy+(d.y+.5)*cell+Math.sin(s.elapsed*10+d.index)*1.2,cell*.93,{h:'#e2d8bd',d:colors[d.index],b:'#e9b47e',w:'#c99373',e:s.sword>0?'#bcecff':'#ffda70'},d.dir==='right');ctx.globalAlpha=1;}
+  for(const d of s.dragons){if(d.respawn>0||s.boosts.eliminator>0)continue;ctx.globalAlpha=s.sword>0?.55:1;pixels(ctx,DRAGON,ox+(d.x+.5)*cell,oy+(d.y+.5)*cell+Math.sin(s.elapsed*10+d.index)*1.2,cell*.93,{h:'#e2d8bd',d:colors[d.index],b:'#e9b47e',w:'#c99373',e:s.sword>0?'#bcecff':'#ffda70'},d.dir==='right');ctx.globalAlpha=1;}
   if(s.grace<=0||Math.floor(s.elapsed*8)%2===0||preview){const px=ox+(s.player.x+.5)*cell,py=oy+(s.player.y+.5)*cell;drawKnight(ctx,px,py,cell*.92,character,s.player.dir==='left');if(s.sword>0)sword(ctx,px+cell*.32,py,cell*.8);}
   if(!preview && s.status==='dying') {
     ctx.fillStyle='#10151fbd';ctx.fillRect(ox,oy,board,board);

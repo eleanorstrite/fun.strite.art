@@ -149,3 +149,22 @@ test('portal links exist only on the middle row and dragons can use them',()=>{
  s.dragons[0]={x:0,y:PORTAL_ROW,to:null,dir:'left',home:{x:7,y:9},index:0,respawn:0};
  tickMaze(s,.01);assert.equal(s.dragons[0].x,18);
 });
+
+test('eliminator freezes every dragon for fifteen seconds without kills or contact damage',()=>{
+ const s=safeState();s.grace=0;s.player={x:1,y:1,to:null,dir:'up'};s.swords.clear();
+ s.dragons[0]={...s.dragons[0],x:1,y:1,to:{x:2,y:1},respawn:0};
+ s.dragons[1].respawn=0;
+ const positions=JSON.parse(JSON.stringify(s.dragons));let consumed=0;
+ assert.equal(activateMazeBoost(s,'eliminator',()=>{consumed++;return true;}),true);
+ assert.equal(activateMazeBoost(s,'eliminator',()=>{consumed++;return true;}),false);
+ elapse(s,14.9);assert.equal(s.boosts.eliminator>0,true);
+ assert.deepEqual(s.dragons,positions);assert.equal(s.lives,3);assert.equal(s.kills,0);
+ elapse(s,.1);assert.equal(s.boosts.eliminator<1e-8,true);assert.deepEqual(s.dragons,positions);
+ tickMaze(s,.02);assert.equal(s.boosts.eliminator,0);assert.equal(s.lives,2);assert.equal(consumed,1);
+});
+test('eliminator cannot be used while dying and keeps its remaining time during a death pause',()=>{
+ const s=safeState();s.status='dying';s.deathPause=1;
+ assert.equal(activateMazeBoost(s,'eliminator',()=>true),false);
+ s.status='playing';activateMazeBoost(s,'eliminator',()=>true);s.status='dying';
+ tickMaze(s,.25);assert.equal(s.boosts.eliminator,15);
+});

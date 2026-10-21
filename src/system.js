@@ -13,6 +13,7 @@ export const ROBOT_DEFAULTS={outfit:'none',hat:'none',color:'#6e9eae',glasses:fa
 export const KNIGHT_DEFAULTS = { armor: 'silver', helmet: 'plume', cape: true, shield: false, dragon: 'classic' };
 export const UPGRADES = [
   { id:'boots',name:'Super speed',group:'gameplay',category:'CHARACTER',icon:'👟',cost:800,description:'One use: move 25% faster for 15 seconds. Tap the shoe above the maze to activate.' },
+  { id:'eliminator',name:'Dragon eliminator',group:'gameplay',category:'EQUIPMENT',icon:'🐉',cost:1000,description:'One use: make all dragons disappear for 15 seconds. They return to their same positions. Activate above the maze.' },
   { id:'magnet',name:'Gem magnet',group:'gameplay',category:'EQUIPMENT',icon:'🧲',cost:1000,description:'One use: collect gems from adjacent corridors for 15 seconds. Tap the magnet above the maze.' },
   { id:'aurora-background',name:'Northern lights',group:'appearance',category:'BACKGROUND',icon:'✧',cost:200,description:'Unlock an aurora home background. Select it in Pick your scenery.' },
   { id:'forest-background',name:'Enchanted forest',group:'appearance',category:'BACKGROUND',icon:'☾',cost:350,description:'Unlock a glowing forest home background. Select it in Pick your scenery.' },
@@ -21,7 +22,7 @@ export const UPGRADES = [
   { id:'ember-dragons',name:'Ember dragons',group:'appearance',category:'DRAGON STYLE',icon:'♨',cost:350,description:'Dress the dragons in fiery colors. Choose in the customizer. Appearance only.' },
   { id:'ice-dragons',name:'Ice dragons',group:'appearance',category:'DRAGON STYLE',icon:'❄',cost:500,description:'Give the dragons icy blue scales. Choose in the customizer. Appearance only.' },
 ];
-export function freshSave() { return { version: 1, coins: 0, character: { name: 'Pip', color: COLORS[0], style: 'antenna', ...KNIGHT_DEFAULTS, robot:{...ROBOT_DEFAULTS}, flight:{...FLIGHT_DEFAULTS} }, upgrades: [], boosts: {boots:0,magnet:0}, stats: {} }; }
+export function freshSave() { return { version: 1, coins: 0, character: { name: 'Pip', color: COLORS[0], style: 'antenna', ...KNIGHT_DEFAULTS, robot:{...ROBOT_DEFAULTS}, flight:{...FLIGHT_DEFAULTS} }, upgrades: [], boosts: {boots:0,magnet:0,eliminator:0}, stats: {} }; }
 export function validateSave(data) {
   const validInt = n => Number.isSafeInteger(n) && n >= 0 && n <= 1000000000;
   if (!data || data.version !== 1 || !validInt(data.coins) || !data.character || typeof data.character.name !== 'string' || !data.character.name.trim() || data.character.name.length > 24 || !COLORS.includes(data.character.color) || !['antenna', 'ears', 'plain'].includes(data.character.style) || !Array.isArray(data.upgrades) || data.upgrades.some(id => id !== 'garden' && !UPGRADES.some(u => u.id === id)) || !data.stats || typeof data.stats !== 'object' || Array.isArray(data.stats)) throw new Error('This is not a valid Sidequest save file.');
@@ -35,13 +36,14 @@ export function validateSave(data) {
   const boosts = data.boosts === undefined
     ? {boots:Number(data.upgrades.includes('boots')),magnet:Number(data.upgrades.includes('magnet'))}
     : data.boosts;
-  if(!boosts || Array.isArray(boosts) || !validInt(boosts.boots) || !validInt(boosts.magnet) || boosts.boots+boosts.magnet>3)throw new Error('Your boost bag can hold up to three boosts.');
+  const eliminator=boosts?.eliminator===undefined?0:boosts.eliminator;
+  if(!validInt(eliminator) || !boosts || Array.isArray(boosts) || !validInt(boosts.boots) || !validInt(boosts.magnet) || boosts.boots+boosts.magnet+eliminator>3)throw new Error('Your boost bag can hold up to three boosts.');
   const stats = {};
   for (const [id, stat] of Object.entries(data.stats)) {
     if (!/^[a-z][a-z0-9-]{0,40}$/.test(id) || !stat || !validInt(stat.plays) || !validInt(stat.best)) throw new Error('Invalid game progress in save file.');
     Object.defineProperty(stats, id, { value: { plays: stat.plays, best: stat.best }, enumerable: true, writable: true, configurable: true });
   }
-  return { version: 1, coins: Math.min(1000000000,data.coins+(data.upgrades.includes('garden')?60:0)), character: { name: data.character.name.trim(), color: data.character.color, style: data.character.style, ...look, flight:validateFlightSettings(data.character.flight), robot:{outfit:robot.outfit,hat:robot.hat,color:robot.color,glasses:robot.glasses,headphones:robot.headphones,backpack:robot.backpack} }, upgrades: [...new Set(data.upgrades.filter(id=>!['garden','boots','magnet'].includes(id)))], boosts:{boots:boosts.boots,magnet:boosts.magnet}, stats };
+  return { version: 1, coins: Math.min(1000000000,data.coins+(data.upgrades.includes('garden')?60:0)), character: { name: data.character.name.trim(), color: data.character.color, style: data.character.style, ...look, flight:validateFlightSettings(data.character.flight), robot:{outfit:robot.outfit,hat:robot.hat,color:robot.color,glasses:robot.glasses,headphones:robot.headphones,backpack:robot.backpack} }, upgrades: [...new Set(data.upgrades.filter(id=>!['garden','boots','magnet','eliminator'].includes(id)))], boosts:{boots:boosts.boots,magnet:boosts.magnet,eliminator}, stats };
 }
 export function createSystem(storage, onStorageError = () => {}) {
   let state = freshSave();
@@ -63,14 +65,14 @@ export function createSystem(storage, onStorageError = () => {}) {
     buy(id) {
       const item = UPGRADES.find(u => u.id === id);
       if (!item || state.upgrades.includes(id)) throw new Error('This upgrade is already yours.');
-      if(item.group==='gameplay' && state.boosts.boots+state.boosts.magnet>=3)throw new Error('Boost bag full! Use a boost before buying more.');
+      if(item.group==='gameplay' && state.boosts.boots+state.boosts.magnet+state.boosts.eliminator>=3)throw new Error('Boost bag full! Use a boost before buying more.');
       if (state.coins < item.cost) throw new Error('Play an adventure to earn more coins.');
       state.coins -= item.cost;
       if(item.group==='gameplay')state.boosts[id]++;else state.upgrades.push(id);
       persist();
     },
     consumeBoost(id) {
-      if(!['boots','magnet'].includes(id) || state.boosts[id]<1)return false;
+      if(!['boots','magnet','eliminator'].includes(id) || state.boosts[id]<1)return false;
       state.boosts[id]--;persist();return true;
     },
     modifiers() { return { speed: 1, pickupRadius: 1 }; },
