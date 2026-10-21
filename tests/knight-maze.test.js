@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MAZE, PORTAL_ROW, activateMazeBoost, createMazeState, neighbors, tickMaze, SWORD_SECONDS, createKnightMaze, drawKnight, calculateMazeReward } from '../src/knight-maze.js';
+import { MAZE, KNIGHT_LEVELS, PORTAL_ROW, activateMazeBoost, createMazeState, neighbors, tickMaze, SWORD_SECONDS, createKnightMaze, drawKnight, calculateMazeReward } from '../src/knight-maze.js';
 function safeState(){const state=createMazeState();state.player.dir='up';state.dragons.forEach(d=>d.respawn=999);return state;}
 function elapse(state,seconds){for(let i=0;i<Math.round(seconds*100);i++)tickMaze(state,.01);}
 test('every gem and sword is reachable in a rectangular maze',()=>{
@@ -167,4 +167,37 @@ test('eliminator cannot be used while dying and keeps its remaining time during 
  assert.equal(activateMazeBoost(s,'eliminator',()=>true),false);
  s.status='playing';activateMazeBoost(s,'eliminator',()=>true);s.status='dying';
  tickMaze(s,.25);assert.equal(s.boosts.eliminator,15);
+});
+
+test('all four distinct level mazes have reachable gems, swords, portals and dragon homes',()=>{
+ assert.equal(KNIGHT_LEVELS.length,4);assert.equal(new Set(KNIGHT_LEVELS.map(l=>l.maze.join(''))).size,4);
+ for(let level=0;level<KNIGHT_LEVELS.length;level++){
+  const s=createMazeState({},level),seen=new Set(['9,15']),queue=[{x:9,y:15}];
+  assert.equal(s.maze.length,19);s.maze.forEach(row=>assert.equal(row.length,19));
+  for(let i=0;i<queue.length;i++)for(const n of neighbors(queue[i].x,queue[i].y,s.maze)){
+   const key=n.x+','+n.y;if(!seen.has(key)){seen.add(key);queue.push(n);}
+  }
+  for(const key of [...s.gems,...s.swords,'0,9','18,9',...s.dragons.map(d=>d.x+','+d.y)])assert.equal(seen.has(key),true);
+  assert.equal(s.swords.size,4);assert.equal(s.lives,3);
+  s.player={x:0,y:9,to:null,dir:'left'};s.dragons.forEach(d=>d.respawn=999);
+  tickMaze(s,.01,'left');assert.equal(s.player.x,18);
+ }
+});
+test('winning offers replay or next level, each run resets, and the last level ends the campaign',()=>{
+ const original={requestAnimationFrame:globalThis.requestAnimationFrame,cancelAnimationFrame:globalThis.cancelAnimationFrame,document:globalThis.document};
+ const mazes=KNIGHT_LEVELS.map(l=>l.maze.slice());let frame,now=100,hud,result,finishes=0;const changes=[],handlers={};
+ globalThis.requestAnimationFrame=fn=>(frame=fn,1);globalThis.cancelAnimationFrame=()=>{};globalThis.document={hidden:false};
+ const ctx=new Proxy({},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
+ const canvas={width:760,height:760,getContext:()=>ctx,addEventListener(name,fn){handlers[name]=fn;},focus(){}};
+ let engine;
+ try{
+  for(const level of KNIGHT_LEVELS)level.maze.forEach((row,i)=>level.maze[i]=row.replace(/\./g,'D'));
+  engine=createKnightMaze({canvas,character:{color:'#ed6e40'},modifiers:{},onHud:v=>hud=v,onFinish:(coins,v)=>{result=v;finishes++;},onLevelChange:level=>changes.push(level)});
+  assert.equal(engine.selectNextLevel(),false);
+  const win=()=>{engine.start();assert.equal(hud.lives,3);frame(now);now+=100;frame(now);now+=100;assert.equal(engine.selectNextLevel(),false);handlers.keydown({key:'Enter',preventDefault(){}});};
+  win();assert.equal(result.level,0);assert.equal(result.hasNext,true);win();assert.equal(result.level,0);
+  for(let level=1;level<4;level++){assert.equal(engine.selectNextLevel(),true);win();assert.equal(result.level,level);assert.equal(result.hasNext,level<3);}
+  assert.equal(engine.selectNextLevel(),false);assert.deepEqual(changes,[1,2,3]);
+  engine.destroy();assert.equal(finishes,5);
+ }finally{engine?.destroy();KNIGHT_LEVELS.forEach((l,i)=>l.maze.splice(0,l.maze.length,...mazes[i]));Object.assign(globalThis,original);}
 });

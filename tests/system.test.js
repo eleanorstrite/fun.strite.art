@@ -79,3 +79,12 @@ test('dragon eliminators cost a thousand coins, share the bag, and persist until
  assert.deepEqual(validateSave(old).boosts,{boots:1,magnet:1,eliminator:0});
  for(const eliminator of [-1,1.5,null,'1',2])assert.throws(()=>validateSave({...old,boosts:{...old.boosts,eliminator}}));
 });
+
+test('current maze level persists and older saves start at the first level',()=>{
+ const old=freshSave();delete old.mazeLevel;assert.equal(validateSave(old).mazeLevel,0);
+ const storage=memory(),system=createSystem(storage);system.setMazeLevel(2);
+ assert.equal(createSystem(storage).snapshot().mazeLevel,2);
+ const copy=createSystem(memory());copy.importSave(system.exportSave());assert.equal(copy.snapshot().mazeLevel,2);
+ for(const level of [-1,4,1.5,'2'])assert.throws(()=>system.setMazeLevel(level));
+ assert.equal(system.snapshot().mazeLevel,2);
+});
