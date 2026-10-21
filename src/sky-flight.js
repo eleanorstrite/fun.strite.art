@@ -37,7 +37,35 @@ export function drawFlyer(ctx,x,y,size,settings,time=0,tilt=0){
   ctx.save();ctx.translate(x,y);ctx.rotate(tilt);ctx.scale(size/80,size/80);
   const flap=Math.sin(time*(settings.animal==='hummingbird'?34:10)),color=settings.color;
   // Original animated silhouettes inspired by the supplied animal references.
-  if(settings.animal==='capybara'){
+  if(settings.animal==='cat'||settings.animal==='dog'){
+    const cat=settings.animal==='cat';
+    // A curved cat tail or a wagging dog tail, behind the rocket pack.
+    ctx.strokeStyle=color;ctx.lineWidth=7;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-20,11);
+    ctx.quadraticCurveTo(-48,cat?30:5+flap*8,-42,cat?-5:0+flap*8);ctx.stroke();
+    polygon(ctx,[[-28,0],[-68,10+flap*6],[-48,-5],[-72,-16-flap*6],[-28,-17]],'#f69945');
+    polygon(ctx,[[-28,-3],[-53,-1],[-42,-10],[-28,-13]],'#ffe898');
+    ctx.fillStyle='#536b83';ctx.fillRect(-32,-30,22,36);
+    ctx.fillStyle='#b9d5df';ctx.fillRect(-29,-27,7,28);
+    ctx.fillStyle=color;ctx.beginPath();ctx.ellipse(-1,6,27,19,0,0,7);ctx.ellipse(24,-7,19,18,0,0,7);
+    ctx.ellipse(-10,23,8,5,0,0,7);ctx.ellipse(16,22,8,5,0,0,7);ctx.fill();
+    if(cat){
+      polygon(ctx,[[9,-17],[9,-38],[23,-22]],color);
+      polygon(ctx,[[27,-22],[41,-35],[40,-12]],color);
+      polygon(ctx,[[12,-22],[12,-31],[19,-23]],'#edabb4');
+      polygon(ctx,[[31,-22],[38,-29],[37,-19]],'#edabb4');
+      ctx.fillStyle='#fff0dc';ctx.beginPath();ctx.ellipse(35,1,10,7,0,0,7);ctx.fill();
+      polygon(ctx,[[36,-2],[42,-2],[39,2]],'#d57e92');
+      ctx.strokeStyle='#453e48';ctx.lineWidth=1.5;
+      for(const dy of [-4,3]){ctx.beginPath();ctx.moveTo(33,3);ctx.lineTo(20,3+dy);ctx.moveTo(42,3);ctx.lineTo(53,3+dy);ctx.stroke();}
+    }else{
+      ctx.fillStyle='#ffffff35';ctx.beginPath();ctx.ellipse(39,2,15,10,0,0,7);ctx.fill();
+      ctx.fillStyle='#5d4339';ctx.beginPath();ctx.ellipse(11,-10,9,20,-.3,0,7);ctx.fill();
+      ctx.fillStyle='#26323d';ctx.beginPath();ctx.ellipse(49,-1,5,4,0,0,7);ctx.fill();
+      ctx.fillStyle='#eb9bab';ctx.beginPath();ctx.ellipse(41,13,4,7,-.15,0,7);ctx.fill();
+    }
+    ctx.strokeStyle='#536b83';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(-10,-12);ctx.lineTo(-7,20);ctx.stroke();
+    ctx.strokeStyle='#e6b65d';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(16,9);ctx.lineTo(24,12);ctx.stroke();
+  }else if(settings.animal==='capybara'){
     // Rounded snout, little ears and paws, with twin metal rocket tanks.
     polygon(ctx,[[-28,5],[-64,12+flap*5],[-43,-2],[-70,-9-flap*5],[-27,-12]],'#f69945');
     polygon(ctx,[[-28,1],[-52,4],[-36,-7],[-27,-8]],'#ffe898');
@@ -115,7 +143,7 @@ export function createSkyFlight({canvas,character,onHud,onFinish}){
     if(!active||paused||document.hidden||state.status!=='playing')return;
     audio.unlock();flapFlight(state);
     if(state.time-flapSoundAt>=.08){
-      audio.play({dragon:'flap',hummingbird:'chirp',eagle:'whoosh',capybara:'jet'}[state.settings.animal]);
+      audio.play({dragon:'flap',hummingbird:'chirp',eagle:'whoosh',capybara:'jet',cat:'jet',dog:'jet'}[state.settings.animal]);
       flapSoundAt=state.time;
     }
   }

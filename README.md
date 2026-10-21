@@ -62,7 +62,7 @@ The knight and dragon are original code-drawn pixel sprites inspired by the supp
 
 ## Skybound
 
-Choose Dragon, Hummingbird, Eagle, or Capybara with jetpack, any animal color, and Classic pipes, Castle pillars, Vine towers, or Crystal towers with a custom color. Settings are saved with your character and included in exported saves. The animals are original canvas artwork inspired by the supplied reference images; the photos are not bundled.
+Choose Dragon, Hummingbird, Eagle, or a Capybara, Cat, or Dog with a jetpack, any animal color, and Classic pipes, Castle pillars, Vine towers, or Crystal towers with a custom color. Settings are saved with your character and included in exported saves. The animals are original canvas artwork inspired by the supplied reference images; the photos are not bundled.
 
 Tap the canvas or **Flap ↑**, or press Space / Arrow Up to flap. Hit a pipe, the ground, or the top of the screen and the flight ends. Each fully cleared pipe pair pays once: Easy **1**, Medium **3**, Hard **5**, Expert **10** coins. All earned coins enter the shared wallet at the end of a flight, including when closing early. There is no 40-coin maze cap on flights. Difficulty and appearance are chosen before starting and locked for that run. Pause and hidden tabs freeze physics. Speed and magnet shop upgrades affect the maze only.
 
@@ -75,7 +75,7 @@ Tap the canvas or **Flap ↑**, or press Space / Arrow Up to flap. Hit a pipe, t
 
 `src/flight-settings.js` defines validated settings, and `src/sky-flight.js` contains the physics, collision/scoring rules, renderer, and lifecycle. The portrait canvas scales to the screen while preserving the same physics on phones and desktops.
 
-Skybound flyers have distinct synthesized flap sounds: dragon swoops, hummingbird chirps, eagle whooshes, and capybara jet bursts. Pipe clears chime. Crashes play a two-second bonk, tumble, and star animation with bounce and ending sounds before results. Pause and hidden tabs freeze this sequence; closing early still settles coins once. Sound controls mute every cue, and reduced-motion preferences remove the tumble and moving stars. The capybara supports the same saved color choices and difficulty settings as other flyers.
+Skybound flyers have distinct synthesized flap sounds: dragon swoops, hummingbird chirps, eagle whooshes, and jet bursts for the capybara, cat, and dog. Pipe clears chime. Crashes play a two-second bonk, tumble, and star animation with bounce and ending sounds before results. Pause and hidden tabs freeze this sequence; closing early still settles coins once. Sound controls mute every cue, and reduced-motion preferences remove the tumble and moving stars. The capybara, cat, and dog support the same saved color choices and difficulty settings as other flyers.
 
 Knights and Dragons has matching glowing portals at the left and right ends of the middle corridor. Walk outward through either portal to emerge on the other side and continue inward. Dragons can use the same route. Teleporting preserves sword and boost timers, and does not sweep through enemies or collect gems across the map.
 
