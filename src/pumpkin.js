@@ -141,17 +141,24 @@ export function createPumpkinGame({canvas,onHud,onFinish,controls=document.query
   const makeButton=(text,parent,fn)=>{const b=document.createElement('button');b.type='button';b.className='button outline';b.textContent=text;b.onclick=fn;parent.append(b);return b;};
   const editable=()=>active&&!paused&&clip===null&&!document.hidden;
   const stop=()=>{pointer=null;currentCut=null;};
-  const pumpkinButtons=Object.entries(PUMPKINS).map(([id,look])=>makeButton(look.name,pumpkins,()=>{if(editable()){stop();pumpkin.kind=id;refresh();}}));
-  const toolButtons=Object.entries(CARVING_TOOLS).map(([id,look])=>makeButton(look.name,toolsRow,()=>{if(editable()){stop();tool=id;refresh();}}));
-  const undo=makeButton('Undo last cut',actions,()=>{if(editable()){stop();pumpkin.cuts.pop();refresh();}});
-  const clear=makeButton('Clear carving',actions,()=>{if(editable()){stop();pumpkin.cuts=[];refresh();}});
+  let lastCarveSound=-Infinity;
+  function carvingSound(force=false){
+    if(!force&&last-lastCarveSound<120)return;
+    lastCarveSound=last;audio.unlock();
+    audio.play(tool==='knife'?'pumpkinCarve':tool==='scoop'?'pumpkinScrape':'pumpkinSnip');
+  }
+
+  const pumpkinButtons=Object.entries(PUMPKINS).map(([id,look])=>makeButton(look.name,pumpkins,()=>{if(editable()){stop();pumpkin.kind=id;audio.unlock();audio.play('pumpkinPick');refresh();}}));
+  const toolButtons=Object.entries(CARVING_TOOLS).map(([id,look])=>makeButton(look.name,toolsRow,()=>{if(editable()){stop();tool=id;audio.unlock();audio.play('pumpkinPick');refresh();}}));
+  const undo=makeButton('Undo last cut',actions,()=>{if(editable()){stop();pumpkin.cuts.pop();audio.play('pumpkinUndo');refresh();}});
+  const clear=makeButton('Clear carving',actions,()=>{if(editable()){stop();pumpkin.cuts=[];audio.play('pumpkinUndo');refresh();}});
   const clean=makeButton('Scoop out guts (0 / 3)',actions,()=>scoop());
-  const done=makeButton('Done — light my pumpkin!',actions,()=>{if(editable()&&pumpkin.scoops===3&&pumpkin.cuts.length){stop();clip=0;laughed=false;thunder=0;audio.unlock();refresh();canvas.focus({preventScroll:true});}});
+  const done=makeButton('Done — light my pumpkin!',actions,()=>{if(editable()&&pumpkin.scoops===3&&pumpkin.cuts.length){stop();clip=0;laughed=false;thunder=0;audio.unlock();audio.play('pumpkinReady');refresh();canvas.focus({preventScroll:true});}});
   actions.replaceChildren(undo,clear,done,clean);
   done.className='button dark';controls.replaceChildren(title,pumpkins,toolsRow,help,actions);
   function scoop(){
     if(!editable()||pumpkin.scoops>=3)return;
-    stop();pumpkin.scoops++;audio.unlock();audio.play('whoosh');refresh();
+    stop();pumpkin.scoops++;audio.unlock();audio.play('pumpkinScoop');refresh();
     if(pumpkin.scoops===3)canvas.focus({preventScroll:true});
   }
   function refresh(){
@@ -166,7 +173,7 @@ export function createPumpkinGame({canvas,onHud,onFinish,controls=document.query
   }
   function startCut(p){
     if(pumpkin.scoops<3||!pumpkinContains(p.x,p.y)||pumpkin.cuts.length>=250)return;
-    currentCut={tool,points:[p]};pumpkin.cuts.push(currentCut);audio.play('gem');refresh();
+    currentCut={tool,points:[p]};pumpkin.cuts.push(currentCut);carvingSound(true);refresh();
   }
   const point=e=>{const rect=canvas.getBoundingClientRect(),look=PUMPKINS[pumpkin.kind];return {x:((e.clientX-rect.left)/rect.width*900-450)/look.width,y:((e.clientY-rect.top)/rect.height*620-330)/look.height};};
   canvas.addEventListener('pointerdown',e=>{
@@ -178,7 +185,7 @@ export function createPumpkinGame({canvas,onHud,onFinish,controls=document.query
   canvas.addEventListener('pointermove',e=>{
     if(!editable()||e.pointerId!==pointer||!currentCut||!CARVING_TOOLS[currentCut.tool].width)return;
     e.preventDefault();const p=point(e),prev=currentCut.points.at(-1);
-    if(Math.hypot(p.x-prev.x,p.y-prev.y)>2&&currentCut.points.length<1500)currentCut.points.push(p);
+    if(Math.hypot(p.x-prev.x,p.y-prev.y)>2&&currentCut.points.length<1500){currentCut.points.push(p);if(pumpkinContains(p.x,p.y))carvingSound();}
   },events);
   for(const name of ['pointerup','pointercancel','lostpointercapture','blur'])canvas.addEventListener(name,stop,events);
   canvas.addEventListener('keydown',e=>{
@@ -186,7 +193,7 @@ export function createPumpkinGame({canvas,onHud,onFinish,controls=document.query
     e.preventDefault();if(pumpkin.scoops<3){if(e.key===' '&&!e.repeat)scoop();return;}cursor??={x:0,y:0};
     if(e.key===' '){startCut({...cursor});return;}
     const p={x:cursor.x+(e.key==='ArrowLeft'?-8:e.key==='ArrowRight'?8:0),y:cursor.y+(e.key==='ArrowUp'?-8:e.key==='ArrowDown'?8:0)};
-    if(pumpkinContains(p.x,p.y)){cursor=p;if(currentCut&&CARVING_TOOLS[currentCut.tool].width&&currentCut.points.length<1500)currentCut.points.push({...p});}
+    if(pumpkinContains(p.x,p.y)){cursor=p;if(currentCut&&CARVING_TOOLS[currentCut.tool].width&&currentCut.points.length<1500){currentCut.points.push({...p});carvingSound();}}
   },events);
   globalThis.window?.addEventListener('keyup',e=>{if(e.key===' ')stop();},events);
   document.addEventListener?.('visibilitychange',()=>{last=0;stop();if(document.hidden)audio.stop();},{signal:controller.signal});

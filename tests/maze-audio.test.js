@@ -44,3 +44,24 @@ test('flight cues are distinct, crash interrupts flaps, and mute suppresses all 
  for(const cue of ['flap','chirp','whoosh','jet','crash','bounce','flightEnd','flightCoin'])audio.play(cue);
  assert.equal(notes.length,count);audio.destroy();
 });
+
+test('pumpkin effects have distinct cues, short carving bursts, and obey mute and cleanup',()=>{
+  const notes=[],param=()=>({setValueAtTime(value){this.value=value;},linearRampToValueAtTime(){},exponentialRampToValueAtTime(){}});
+  class Context{
+    state='running';currentTime=0;destination={};
+    createOscillator(){const note={frequency:param(),connect(){},disconnect(){},start(at){this.startAt=at;},stop(at){this.stopAt=at;}};notes.push(note);return note;}
+    createGain(){return {gain:param(),connect(){},disconnect(){}};}
+    close(){return Promise.resolve();}
+  }
+  const audio=createMazeAudio(Context);audio.unlock();
+  const cues=['pumpkinScoop','pumpkinCarve','pumpkinScrape','pumpkinSnip','pumpkinPick','pumpkinUndo','pumpkinReady'];
+  const signatures=[];
+  for(const cue of cues){
+    const start=notes.length;audio.play(cue);
+    signatures.push(notes.slice(start).map(note=>note.frequency.value).join(','));
+    if(cue==='pumpkinCarve'||cue==='pumpkinScrape')assert.equal(notes.at(-1).stopAt<.14,true);
+  }
+  assert.equal(new Set(signatures).size,cues.length);
+  const count=notes.length;audio.setMuted(true);for(const cue of cues)audio.play(cue);
+  assert.equal(notes.length,count);audio.destroy();audio.play('pumpkinScoop');assert.equal(notes.length,count);
+});

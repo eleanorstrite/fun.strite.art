@@ -15,6 +15,14 @@ export function createMazeAudio(Context = globalThis.AudioContext || globalThis.
     voices.clear();
   }
   const cues = {
+    pumpkinScoop: [[130, 65, .08], [80, 220, .07], [170, 55, .1], [95, 45, .08]],
+    pumpkinCarve: [[210, 90, .045], [150, 65, .045]],
+    pumpkinScrape: [[140, 55, .06], [110, 45, .06]],
+    pumpkinSnip: [[640, 180, .04], [190, 70, .07]],
+    pumpkinPick: [[420, 620, .045]],
+    pumpkinUndo: [[380, 190, .09]],
+    pumpkinReady: [[440, 660, .1], [660, 880, .16]],
+
     thunder: [[70, 35, .4], [55, 25, .5]],
     cackle: [[320, 620, .12], [500, 280, .16], [340, 680, .12], [540, 260, .18], [300, 560, .14], [440, 190, .3]],
     flap: [[380, 760, .055], [680, 460, .045]],
@@ -52,7 +60,7 @@ export function createMazeAudio(Context = globalThis.AudioContext || globalThis.
       let at = context.currentTime;
       for (const [from, to, duration] of cues[name]) {
         const oscillator = context.createOscillator(), gain = context.createGain();
-        oscillator.type = ['eaten','crash','jet'].includes(name) ? 'sawtooth' : 'triangle';
+        oscillator.type = ['eaten','crash','jet','pumpkinCarve','pumpkinScrape'].includes(name) ? 'sawtooth' : 'triangle';
         oscillator.frequency.setValueAtTime(from, at);
         oscillator.frequency.exponentialRampToValueAtTime(to, at + duration);
         gain.gain.setValueAtTime(0, at);
