@@ -37,7 +37,40 @@ export function drawFlyer(ctx,x,y,size,settings,time=0,tilt=0){
   ctx.save();ctx.translate(x,y);ctx.rotate(tilt);ctx.scale(size/80,size/80);
   const flap=Math.sin(time*(settings.animal==='hummingbird'?34:10)),color=settings.color;
   // Original animated silhouettes inspired by the supplied animal references.
-  if(settings.animal==='hotdog'){
+  if(['burger','pizza','taco'].includes(settings.animal)){
+    polygon(ctx,[[-30,-2],[-72,12+flap*6],[-48,-8],[-70,-25-flap*6],[-30,-20]],'#f69945');
+    polygon(ctx,[[-30,-6],[-56,0],[-43,-12],[-30,-16]],'#ffe898');
+    ctx.fillStyle=color;ctx.fillRect(-39,-28,22,37);
+    ctx.fillStyle='#d4e9ee';ctx.fillRect(-36,-24,6,27);
+    ctx.fillStyle='#3b4c5e';ctx.fillRect(-42,-20,5,18);
+    if(settings.animal==='burger'){
+      ctx.fillStyle='#d59349';ctx.beginPath();ctx.ellipse(0,22,35,11,0,0,7);ctx.fill();
+      ctx.fillStyle='#63402b';ctx.fillRect(-34,8,68,13);
+      polygon(ctx,[[-35,7],[35,7],[27,15],[13,11],[4,18],[-10,10],[-30,14]],'#f6cc57');
+      ctx.fillStyle='#d75c49';ctx.fillRect(-33,-1,66,7);
+      polygon(ctx,[[-36,-3],[-25,-8],[-14,-3],[-2,-8],[11,-3],[25,-8],[36,-3],[29,3],[15,0],[2,4],[-12,0],[-26,3]],'#78ad52');
+      ctx.fillStyle='#edb568';ctx.beginPath();ctx.ellipse(0,-8,35,22,0,Math.PI,Math.PI*2);ctx.closePath();ctx.fill();
+      ctx.fillStyle='#fff0bc';for(const [xx,yy] of [[-20,-16],[-7,-24],[8,-20],[23,-14]]){ctx.beginPath();ctx.ellipse(xx,yy,3,1,-.4,0,7);ctx.fill();}
+    }else if(settings.animal==='pizza'){
+      polygon(ctx,[[-31,-33],[43,3],[-24,33]],'#b9763a');
+      polygon(ctx,[[-24,-27],[42,3],[-19,26]],'#f1c959');
+      ctx.strokeStyle='#df9a4e';ctx.lineWidth=9;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-29,-29);ctx.lineTo(-23,29);ctx.stroke();
+      for(const [xx,yy] of [[-12,-12],[5,2],[-9,17]]){ctx.fillStyle='#ba4a35';ctx.beginPath();ctx.arc(xx,yy,6,0,7);ctx.fill();ctx.fillStyle='#df8054';ctx.beginPath();ctx.arc(xx-1,yy-2,2,0,7);ctx.fill();}
+      ctx.fillStyle='#628e48';for(const [xx,yy] of [[-4,-3],[11,10],[-16,5]]){ctx.beginPath();ctx.ellipse(xx,yy,3,1.5,-.5,0,7);ctx.fill();}
+    }else{
+      ctx.fillStyle='#bd853e';ctx.beginPath();ctx.ellipse(0,1,37,28,0,0,7);ctx.fill();
+      ctx.fillStyle='#65412d';ctx.beginPath();ctx.ellipse(0,-10,32,12,0,0,7);ctx.fill();
+      for(let i=0;i<7;i++){ctx.fillStyle=i%2?'#78b55a':'#a1cf6b';ctx.beginPath();ctx.arc(-27+i*9,-15+(i%2?3:0),7,0,7);ctx.fill();}
+      ctx.fillStyle='#df6550';for(const xx of [-19,2,21])ctx.fillRect(xx,-20,7,6);
+      ctx.fillStyle='#efc264';ctx.beginPath();ctx.moveTo(-36,-9);ctx.quadraticCurveTo(0,6,36,-9);ctx.bezierCurveTo(34,38,-34,38,-36,-9);ctx.fill();
+      ctx.fillStyle='#cc9a49';for(const [xx,yy] of [[-23,3],[-12,16],[0,7],[17,14],[26,1]]){ctx.beginPath();ctx.arc(xx,yy,1.6,0,7);ctx.fill();}
+    }
+    ctx.strokeStyle=color;ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(-20,-24);ctx.lineTo(-16,25);ctx.stroke();
+    // Friendly face sits on the food, separate from the rocket harness.
+    ctx.fillStyle='#27313b';for(const xx of [14,26]){ctx.beginPath();ctx.arc(xx,1,2.4,0,7);ctx.fill();}
+    ctx.strokeStyle='#573d32';ctx.lineWidth=2;ctx.beginPath();ctx.arc(20,7,5,0,Math.PI);ctx.stroke();
+    ctx.restore();return;
+  }else if(settings.animal==='hotdog'){
     // Toasted bun, sausage, mustard, and a colorful strapped-on rocket pack.
     polygon(ctx,[[-30,-5],[-75,7+flap*6],[-52,-9],[-76,-23-flap*6],[-29,-22]],'#f69945');
     polygon(ctx,[[-31,-9],[-59,-7],[-44,-15],[-31,-18]],'#ffe898');
@@ -201,7 +234,7 @@ export function createSkyFlight({canvas,character,onHud,onFinish}){
     if(!active||paused||document.hidden||state.status!=='playing')return;
     audio.unlock();flapFlight(state);
     if(state.time-flapSoundAt>=.08){
-      audio.play({dragon:'flap',hummingbird:'chirp',eagle:'whoosh',capybara:'jet',cat:'jet',dog:'jet',hotdog:'jet'}[state.settings.animal]);
+      audio.play({dragon:'flap',hummingbird:'chirp',eagle:'whoosh',capybara:'jet',cat:'jet',dog:'jet',hotdog:'jet',burger:'jet',pizza:'jet',taco:'jet'}[state.settings.animal]);
       flapSoundAt=state.time;
     }
   }

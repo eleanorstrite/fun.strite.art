@@ -93,3 +93,5 @@ Maze scenery uses shaded masonry, worn flagstones, subtle wall shadows, and face
 Flappy Animals also offers a Hot dog with jetpack: a toasted bun and mustard-topped sausage with animated rocket flames and jet sounds. The color picker changes its jetpack color, and the selection persists in saves like the animal flyers.
 
 Both game customizers have a Random button that saves a random character appearance and updates its preview. Knights and Dragons mixes available armor, helmets, cape color, cape/shield toggles, and owned dragon styles; editing pauses an active maze run. Flappy Animals mixes flyer choice and color before a flight. Difficulty, scenery, pipe settings, wallet, and purchased boosts stay as selected. Locked looks are excluded.
+
+Flying Burger, Flying Pizza, and Flying Taco are free character choices in Flappy Animals. Each has its own food artwork, animated jetpack flames, jet sounds, and customizable jetpack/harness colors. They are included in Random appearance choices and saved selections.
