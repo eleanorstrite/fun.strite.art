@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { AIR_COURSE, createAirState, tickAirRace, createAirRace, drawAirRace, drawAirEnding, createAirCourse, insideAirHoop } from '../src/air-race.js';
-import { createSystem, freshSave, validateSave, AIR_DIFFICULTIES, airRecordId } from '../src/system.js';
+import { AIR_COURSE, createAirState, tickAirRace, createAirRace, drawAirRace, drawAirEnding, createAirCourse, insideAirHoop, drawAirScenery, drawAirplane } from '../src/air-race.js';
+import { createSystem, freshSave, validateSave, AIR_DIFFICULTIES, airRecordId, AIR_BACKGROUNDS, PLANE_STYLES, PLANE_UNLOCKS, UPGRADES } from '../src/system.js';
 
 function flyCourse(boost=false,dt=.02){
   const s=createAirState();s.status='playing';
@@ -50,7 +50,7 @@ test('race records keep the fastest finish and survive failed attempts, reloads 
 test('airplane customization persists and old saves receive a default airplane',()=>{
   const old=freshSave();delete old.character.plane;assert.equal(validateSave(old).character.plane.style,'sport');
   const system=createSystem({getItem:()=>null,setItem(){}});system.setCharacter({...system.snapshot().character,plane:{style:'jet',color:'#55aabb'}});
-  const copy=createSystem({getItem:()=>null,setItem(){}});copy.importSave(system.exportSave());assert.deepEqual(copy.snapshot().character.plane,{color:'#55aabb',style:'jet',difficulty:'sloth'});
+  const copy=createSystem({getItem:()=>null,setItem(){}});copy.importSave(system.exportSave());assert.deepEqual(copy.snapshot().character.plane,{color:'#55aabb',style:'jet',difficulty:'sloth',background:'valley'});
   assert.throws(()=>system.setCharacter({...system.snapshot().character,plane:{style:'unknown',color:'#55aabb'}}));
 });
 test('air race pauses time and falling, handles drag and boost, and closes only once',()=>{
@@ -192,4 +192,41 @@ test('forgiving hoop edges award close passes once but still reject clear misses
       tickAirRace(miss,.02);assert.equal(miss.status,'falling');assert.equal(miss.earned,0);
     }
   }
+});
+
+test('most Hoop Flight looks are free and paid cosmetics require a permanent purchase',()=>{
+  assert.equal(Object.keys(PLANE_STYLES).length,8);assert.equal(Object.keys(PLANE_UNLOCKS).length,2);
+  assert.equal(Object.values(AIR_BACKGROUNDS).filter(scene=>!scene.upgrade).length,6);
+  const system=createSystem({getItem:()=>null,setItem(){}});
+  const setPlane=patch=>system.setCharacter({...system.snapshot().character,plane:{...system.snapshot().character.plane,...patch}});
+  for(const style of ['glider','seaplane'])setPlane({style});
+  for(const background of ['sunset','ocean','desert','snow','meadow'])setPlane({background});
+  assert.throws(()=>setPlane({style:'stealth'}));assert.throws(()=>setPlane({background:'aurora'}));
+  assert.throws(()=>system.buy('air-city'));
+  system.beginSession('hoop-flight').finish(1000);
+  for(const id of ['air-stealth','air-rocket','air-aurora','air-city']){
+    const item=UPGRADES.find(item=>item.id===id);
+    assert.equal(item.cost,200);assert.equal(item.group,'appearance');
+    system.buy(id);assert.throws(()=>system.buy(id));
+  }
+  setPlane({style:'rocket',background:'city'});
+  assert.equal(system.snapshot().coins,200);
+  const copy=createSystem({getItem:()=>null,setItem(){}});copy.importSave(system.exportSave());
+  assert.equal(copy.snapshot().character.plane.background,'city');assert.equal(copy.snapshot().character.plane.style,'rocket');
+  const old=freshSave();delete old.character.plane.background;assert.equal(validateSave(old).character.plane.background,'valley');
+  assert.throws(()=>setPlane({background:'missing'}));
+});
+test('all airplane designs and scenic backgrounds draw distinctly without affecting gameplay',()=>{
+  let marks=[];
+  const ctx=new Proxy({createLinearGradient:()=>({addColorStop:(...args)=>marks.push(['color',...args])})},{get:(o,k)=>o[k]||((...args)=>marks.push([k,...args])),set:(o,k,v)=>(o[k]=v,true)});
+  const scenes=new Set(),planes=new Set(),state=createAirState(),before=JSON.stringify(state);
+  for(const background of Object.keys(AIR_BACKGROUNDS)){
+    marks=[];drawAirScenery(ctx,background,300);scenes.add(JSON.stringify(marks));
+    drawAirRace(ctx,state,{style:'jet',color:'#5599aa',background},900,650);
+    drawAirEnding(ctx,true,4,{color:'#5599aa',background},900,650);
+  }
+  for(const style of Object.keys(PLANE_STYLES)){
+    marks=[];drawAirplane(ctx,450,315,90,{style,color:'#5599aa'});planes.add(JSON.stringify(marks));
+  }
+  assert.equal(scenes.size,8);assert.equal(planes.size,8);assert.equal(JSON.stringify(state),before);
 });

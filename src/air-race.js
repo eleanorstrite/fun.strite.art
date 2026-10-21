@@ -68,7 +68,7 @@ function shape(ctx,points,color){
 }
 export function drawAirplane(ctx,x,y,size,look={},bank=0,time=0){
   ctx.save();ctx.translate(x,y);ctx.rotate(bank);ctx.scale(size/100,size/100);
-  const color=look.color||'#ed6e40',jet=look.style==='jet',swept=look.style==='swept',biplane=look.style==='biplane';
+  const color=look.color||'#ed6e40',jet=look.style==='jet',swept=look.style==='swept'||look.style==='stealth',biplane=look.style==='biplane';
   // Chase camera: foreshortened fuselage, broad horizontal wings, and the
   // nearest tail in front of the cabin. The nose points away into the course.
   ctx.strokeStyle='#263b48';ctx.lineWidth=1.4;ctx.lineJoin='round';
@@ -79,6 +79,18 @@ export function drawAirplane(ctx,x,y,size,look={},bank=0,time=0){
   if(!jet){
     ctx.save();ctx.translate(0,-8);ctx.rotate(time*55);
     ctx.fillStyle='#d8eff766';ctx.fillRect(-17,-1,34,2);ctx.restore();
+  }
+  if(look.style==='glider')panel([[-6,-2],[-83,1],[-83,5],[0,6],[83,5],[83,1],[6,-2]],'#f6f3e8');
+  if(look.style==='seaplane')for(const side of [-1,1]){
+    panel([[side*20,5],[side*20,17],[side*23,17],[side*23,5]],'#405365');
+    oval(side*22,21,13,5,'#d4e0e6');
+  }
+  if(look.style==='stealth')panel([[-6,-15],[-67,15],[-26,10],[0,19],[26,10],[67,15],[6,-15]],'#354858');
+  if(look.style==='rocket'){
+    for(const side of [-1,1]){
+      oval(side*17,7,7,11,'#dce9ef');
+      panel([[side*17-4,16],[side*17,28+Math.sin(time*18)*3],[side*17+4,16]],'#f7ae54');
+    }
   }
   // The distant cabin sits above the wings; the nearer tail hides its center.
   oval(0,-3,jet?10:8,12,jet?'#f5f8fa':color);
@@ -113,18 +125,58 @@ export function drawAirplane(ctx,x,y,size,look={},bank=0,time=0){
   ctx.restore();
 }
 
+export function drawAirScenery(ctx,background='valley',distance=0){
+  const palettes={
+    valley:['#77b8d4','#d9e9d9','#f4dfb5','#739c9c','#638f7b','#7eb5bf'],
+    sunset:['#685c9e','#f3a16c','#ffdfa0','#ac6d91','#875f86','#e9aa86'],
+    ocean:['#489dc8','#b3e8ed','#8ecdd7','#6aa8a5','#408f99','#4ca5c1'],
+    desert:['#75b8cf','#f8dfad','#e9b17b','#cb895f','#ac6d4e','#deb07b'],
+    snow:['#77a5cf','#e2edf7','#eef4fa','#8da6bd','#b6ccd9','#90bacd'],
+    meadow:['#77c7d5','#d9f1c9','#b5d58e','#80ad7a','#578e60','#a7ce78'],
+    aurora:['#172c50','#29586d','#5b8992','#29465e','#263c55','#45727b'],
+    city:['#484679','#c28fbc','#efb8a1','#6c6889','#4a536f','#7587a4'],
+  };
+  const colors=palettes[background]||palettes.valley,night=background==='aurora'||background==='city';
+  const sky=ctx.createLinearGradient(0,0,0,650);sky.addColorStop(0,colors[0]);sky.addColorStop(.65,colors[1]);sky.addColorStop(1,colors[2]);
+  ctx.fillStyle=sky;ctx.fillRect(0,0,900,650);
+  if(night)for(let i=0;i<50;i++){ctx.fillStyle='#fff5cf';ctx.fillRect((i*137)%900,85+(i*53)%270,2,2);}
+  ctx.fillStyle=night?'#e4e9ee':'#fff2c8';ctx.beginPath();ctx.arc(740,130,night?29:48,0,7);ctx.fill();
+  if(background==='aurora'){
+    for(let band=0;band<3;band++){
+      ctx.strokeStyle=['#7be4bd55','#83bee855','#c08fe855'][band];ctx.lineWidth=28;
+      ctx.beginPath();ctx.moveTo(0,170+band*35);ctx.bezierCurveTo(260,40+band*35,550,290,900,130+band*35);ctx.stroke();
+    }
+  }
+  for(let i=0;i<7;i++){
+    const x=((i*173-distance*.025)%1100+1100)%1100-100,y=130+(i%3)*63;
+    ctx.fillStyle=night?'#cddce51a':'#ffffff88';ctx.beginPath();ctx.ellipse(x,y,65,14,0,0,7);ctx.ellipse(x+20,y-8,32,18,0,0,7);ctx.fill();
+  }
+  shape(ctx,[[0,490],[100,340],[250,490],[410,350],[600,495],[770,370],[900,460],[900,650],[0,650]],colors[3]);
+  shape(ctx,[[0,550],[170,450],[350,560],[570,450],[770,530],[900,480],[900,650],[0,650]],colors[4]);
+  shape(ctx,[[390,470],[480,470],[720,650],[220,650]],colors[5]);
+  if(background==='snow')for(const [x,y] of [[100,340],[410,350],[770,370]])shape(ctx,[[x,y],[x-32,y+48],[x-8,y+35],[x+8,y+45],[x+33,y+49]],'#f4fafb');
+  if(background==='ocean'){
+    ctx.fillStyle=colors[5];ctx.fillRect(0,490,900,160);
+    for(let i=0;i<6;i++){
+      ctx.fillStyle='#e8d69a';ctx.beginPath();ctx.ellipse(i*175,520+(i%2)*60,65,12,0,0,7);ctx.fill();
+      shape(ctx,[[i*175-46,521+(i%2)*60],[i*175,495+(i%2)*60],[i*175+42,521+(i%2)*60]],'#578b69');
+    }
+  }
+  if(background==='desert')for(const x of [90,690,810])shape(ctx,[[x-40,570],[x-25,460],[x+25,460],[x+45,570]],'#b87953');
+  if(background==='meadow')for(let i=0;i<22;i++){
+    const x=(i*113)%900,y=500+(i%4)*30;
+    ctx.fillStyle='#6a6844';ctx.fillRect(x-2,y,4,30);
+    shape(ctx,[[x,y-25],[x-15,y+12],[x+15,y+12]],'#3d775b');
+  }
+  if(background==='city')for(let i=0;i<18;i++){
+    const x=i*53,h=65+(i*37)%120;ctx.fillStyle=i%2?'#3f4864':'#53617a';ctx.fillRect(x,580-h,46,h+70);
+    ctx.fillStyle='#ffdfa7';for(let y=590-h;y<600;y+=18)for(let wx=8;wx<42;wx+=14)ctx.fillRect(x+wx,y,5,7);
+  }
+}
+
 export function drawAirRace(ctx,s,look,width,height,bestMs=null,reducedMotion=false){
   ctx.save();ctx.scale(width/AIR_WIDTH,height/AIR_HEIGHT);
-  const sky=ctx.createLinearGradient(0,0,0,AIR_HEIGHT);sky.addColorStop(0,'#77b8d4');sky.addColorStop(.65,'#d9e9d9');sky.addColorStop(1,'#f4dfb5');
-  ctx.fillStyle=sky;ctx.fillRect(0,0,900,650);
-  ctx.fillStyle='#fff2c8';ctx.beginPath();ctx.arc(740,130,48,0,7);ctx.fill();
-  for(let i=0;i<7;i++){
-    const x=((i*173-s.distance*.025)%1100+1100)%1100-100,y=130+(i%3)*63;
-    ctx.fillStyle='#ffffff88';ctx.beginPath();ctx.ellipse(x,y,65,14,0,0,7);ctx.ellipse(x+20,y-8,32,18,0,0,7);ctx.fill();
-  }
-  shape(ctx,[[0,490],[100,340],[250,490],[410,350],[600,495],[770,370],[900,460],[900,650],[0,650]],'#739c9c');
-  shape(ctx,[[0,550],[170,450],[350,560],[570,450],[770,530],[900,480],[900,650],[0,650]],'#638f7b');
-  shape(ctx,[[390,470],[480,470],[720,650],[220,650]],'#7eb5bf');
+  drawAirScenery(ctx,look.background,s.distance);
   const config=AIR_DIFFICULTIES[s.difficulty],course=s.course,next=course[s.passed];
   // Far hoops are smaller; their centers converge toward the horizon.
   for(let index=course.length-1;index>=s.passed;index--){
@@ -221,12 +273,7 @@ export const AIR_ENDING_SECONDS=6;
 export function drawAirEnding(ctx,won,time,look,width,height,reducedMotion=false){
   ctx.save();ctx.scale(width/900,height/650);
   const t=reducedMotion?4.5:time,color=look.color||'#ed6e40';
-  const sky=ctx.createLinearGradient(0,0,0,650);sky.addColorStop(0,'#76bfdf');sky.addColorStop(1,'#edf6e3');
-  ctx.fillStyle=sky;ctx.fillRect(0,0,900,650);
-  for(let i=0;i<6;i++){
-    ctx.fillStyle='#ffffffaa';ctx.beginPath();ctx.ellipse(80+i*160,100+(i%3)*115,85,21,0,0,7);ctx.fill();
-  }
-  ctx.fillStyle='#48766c';ctx.fillRect(0,610,900,40);
+  drawAirScenery(ctx,look.background,t*100);
   if(won){
     // A checkered finish arch remains behind the airplane after it crosses.
     ctx.fillStyle='#496072';ctx.fillRect(420,150,9,400);ctx.fillRect(735,150,9,400);
