@@ -13,7 +13,7 @@ export const MAZE = [
   '####.###.#.###.####',
   '#....#.......#....#',
   '#.##.#.##.##.#.##.#',
-  '#......DDDDD......#',
+  'P......DDDDD......P',
   '#.##.#.#####.#.##.#',
   '#....#.......#....#',
   '####.#.#####.#.####',
@@ -25,6 +25,7 @@ export const MAZE = [
   '###################',
 ];
 export const DIRECTIONS = { up: [0,-1], down: [0,1], left: [-1,0], right: [1,0] };
+export const PORTAL_ROW = 9;
 export const SWORD_SECONDS = 10;
 export const DEATH_PAUSE_SECONDS = 1.5;
 const START = { x: 9, y: 15 };
@@ -32,7 +33,11 @@ const HOMES = [{x:7,y:9},{x:9,y:9},{x:11,y:9},{x:10,y:9}];
 const key = (x,y) => `${x},${y}`;
 export const walkable = (x,y) => Boolean(MAZE[y]?.[x] && MAZE[y][x] !== '#');
 export function neighbors(x,y) {
-  return Object.entries(DIRECTIONS).map(([dir,[dx,dy]])=>({dir,x:x+dx,y:y+dy})).filter(p=>walkable(p.x,p.y));
+  return Object.entries(DIRECTIONS).map(([dir,[dx,dy]])=>{
+    if(y===PORTAL_ROW && ((x===0&&dir==='left')||(x===MAZE[0].length-1&&dir==='right')))
+      return {dir,x:x===0?MAZE[0].length-1:0,y,portal:true};
+    return {dir,x:x+dx,y:y+dy};
+  }).filter(p=>walkable(p.x,p.y));
 }
 function actor(p) { return { ...p, to: null, dir: 'left' }; }
 export function createMazeState(modifiers = {}) {
@@ -42,7 +47,7 @@ export function createMazeState(modifiers = {}) {
 }
 function advance(a, distance, choose, arrived = () => {}) {
   while(distance>0.000001) {
-    if(!a.to) {const next=choose(a);if(!next)return;a.to={x:next.x,y:next.y};a.dir=next.dir;}
+    if(!a.to) {const next=choose(a);if(!next)return;if(next.portal){a.x=next.x;a.y=next.y;a.dir=next.dir;arrived(true);return;}a.to={x:next.x,y:next.y};a.dir=next.dir;}
     const dx=a.to.x-a.x,dy=a.to.y-a.y,len=Math.hypot(dx,dy),step=Math.min(len,distance);
     if(len){a.x+=dx/len*step;a.y+=dy/len*step;}distance-=step;
     if(len<=step+0.000001){a.x=a.to.x;a.y=a.to.y;a.to=null;arrived();}else return;
@@ -61,7 +66,7 @@ function updateReward(s){s.earned=calculateMazeReward(s.totalGems,s.gems.size,s.
 function pickups(s, emit) {
   const x=Math.round(s.player.x),y=Math.round(s.player.y);
   // The magnet reaches only adjacent corridor cells, never through walls.
-  const cells=[{x,y},...((s.boosts.magnet>0||s.modifiers.pickupRadius>1)?neighbors(x,y):[])];
+  const cells=[{x,y},...((s.boosts.magnet>0||s.modifiers.pickupRadius>1)?neighbors(x,y).filter(p=>!p.portal):[])];
   let collected=false;
   for(const p of cells)if(s.gems.delete(key(p.x,p.y))){collected=true;}
   if(collected){updateReward(s);emit('gem');}
@@ -89,7 +94,7 @@ export function tickMaze(s, dt, direction, emit = () => {}) {
   while(left>0.000001 && s.status==='playing') {
     const step=Math.min(left,.02);left-=step;s.elapsed+=step;s.sword=Math.max(0,s.sword-step);s.grace=Math.max(0,s.grace-step);
     for(const id of ['boots','magnet'])s.boosts[id]=Math.max(0,s.boosts[id]-step);
-    advance(s.player,4.2*s.modifiers.speed*(s.boosts.boots>0?1.25:1)*step,a=>{const choices=neighbors(a.x,a.y);return choices.find(n=>n.dir===s.wanted)||choices.find(n=>n.dir===a.dir);},()=>pickups(s,emit));
+    advance(s.player,4.2*s.modifiers.speed*(s.boosts.boots>0?1.25:1)*step,a=>{const choices=neighbors(a.x,a.y);return choices.find(n=>n.dir===s.wanted)||choices.find(n=>n.dir===a.dir);},portal=>{if(portal)emit('portal');pickups(s,emit);});
     pickups(s,emit);
     const distances=distancesFrom(s.player);
     for(const dragon of s.dragons) {
@@ -141,6 +146,13 @@ export function drawMaze(ctx,s,character,width,height,preview=false) {
     if(t==='#'){ctx.fillStyle='#354255';ctx.fillRect(px+1,py+1,cell-2,cell-2);ctx.fillStyle='#53637a';ctx.fillRect(px+2,py+2,cell-4,3);ctx.fillStyle='#222d3d';ctx.fillRect(px+2,py+cell-5,cell-4,3);ctx.fillStyle='#293548';ctx.fillRect(px+cell*.5,py+5,1,cell-10);}
     else {ctx.fillStyle=(x+y)%2?'#161e2b':'#182130';ctx.fillRect(px,py,cell,cell);}
   }));
+  for(const x of [0,MAZE[0].length-1]){
+    const px=ox+(x+.5)*cell,py=oy+(PORTAL_ROW+.5)*cell;
+    ctx.fillStyle='#794dd544';ctx.beginPath();ctx.ellipse(px,py,cell*.45,cell*.48,0,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#be9cff';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(px,py,cell*.3,cell*.42,0,0,Math.PI*2);ctx.stroke();
+    ctx.strokeStyle='#73e7ef';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(px,py,cell*.16,cell*.3,0,0,Math.PI*2);ctx.stroke();
+    ctx.fillStyle='#f4eaff';ctx.font=`bold ${Math.round(cell*.4)}px monospace`;ctx.textAlign='center';ctx.fillText(x===0?'‹':'›',px,py+cell*.13);
+  }
   const gemColors=['#ed6f94','#72dbcb','#b79af5','#f2c875','#76bdf4'];
   for(const gem of s.gems){const [x,y]=gem.split(',').map(Number),px=ox+(x+.5)*cell,py=oy+(y+.5)*cell,r=cell*.14;ctx.fillStyle=gemColors[(x+y*2)%5];ctx.beginPath();ctx.moveTo(px,py-r*1.5);ctx.lineTo(px+r,py);ctx.lineTo(px,py+r*1.5);ctx.lineTo(px-r,py);ctx.closePath();ctx.fill();ctx.fillStyle='#ffffffb0';ctx.fillRect(px-1,py-r,2,3);}
   for(const item of s.swords){const[x,y]=item.split(',').map(Number);const px=ox+(x+.5)*cell,py=oy+(y+.5)*cell;ctx.fillStyle='#f3cd7320';ctx.beginPath();ctx.arc(px,py,cell*.44,0,7);ctx.fill();sword(ctx,px,py,cell*.82);}

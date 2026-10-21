@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MAZE, activateMazeBoost, createMazeState, neighbors, tickMaze, SWORD_SECONDS, createKnightMaze, drawKnight, calculateMazeReward } from '../src/knight-maze.js';
+import { MAZE, PORTAL_ROW, activateMazeBoost, createMazeState, neighbors, tickMaze, SWORD_SECONDS, createKnightMaze, drawKnight, calculateMazeReward } from '../src/knight-maze.js';
 function safeState(){const state=createMazeState();state.player.dir='up';state.dragons.forEach(d=>d.respawn=999);return state;}
 function elapse(state,seconds){for(let i=0;i<Math.round(seconds*100);i++)tickMaze(state,.01);}
-test('every gem and sword is reachable in a rectangular enclosed maze',()=>{
+test('every gem and sword is reachable in a rectangular maze',()=>{
   assert.equal(MAZE.length,19);MAZE.forEach(row=>assert.equal(row.length,19));
   const seen=new Set(['9,15']),queue=[{x:9,y:15}];for(let i=0;i<queue.length;i++)for(const n of neighbors(queue[i].x,queue[i].y)){const k=`${n.x},${n.y}`;if(!seen.has(k)){seen.add(k);queue.push(n);}}
   const state=createMazeState();for(const k of [...state.gems,...state.swords])assert.equal(seen.has(k),true);
@@ -123,4 +123,29 @@ test('speed and magnet only affect movement and pickup while their timers are ac
  tickMaze(s,.01);assert.equal(s.gems.has('2,1'),true);
  activateMazeBoost(s,'magnet',()=>true);tickMaze(s,.01);assert.equal(s.gems.has('2,1'),false);
  elapse(s,15);s.gems.add('2,1');tickMaze(s,.01);assert.equal(s.gems.has('2,1'),true);
+});
+
+test('side portals transport in both directions and continue inward without bouncing',()=>{
+ for(const [x,dir,exit] of [[0,'left',18],[18,'right',0]]){
+  const s=safeState(),events=[];s.player={x,y:PORTAL_ROW,to:null,dir};
+  tickMaze(s,.01,dir,e=>events.push(e));assert.equal(s.player.x,exit);assert.equal(s.player.y,PORTAL_ROW);
+  assert.deepEqual(events,['portal']);tickMaze(s,.1,dir,e=>events.push(e));
+  assert.equal(exit===18?s.player.x<18:s.player.x>0,true);
+  assert.equal(events.filter(e=>e==='portal').length,1);
+ }
+});
+test('portals are reachable from corridors, preserve powers, and never sweep through the center',()=>{
+ const s=safeState();s.player={x:1,y:PORTAL_ROW,to:null,dir:'left'};s.grace=0;s.sword=5;s.boosts.boots=5;
+ s.dragons[0]={x:9,y:PORTAL_ROW,to:null,dir:'left',home:{x:7,y:9},index:0,respawn:0};
+ const events=[];tickMaze(s,.25,'left',e=>events.push(e));
+ assert.equal(s.player.x>17,true);assert.equal(s.kills,0);assert.equal(s.lives,3);
+ assert.equal(s.sword>4,true);assert.equal(s.boosts.boots>4,true);assert.equal(events.includes('portal'),true);
+});
+test('portal links exist only on the middle row and dragons can use them',()=>{
+ assert.equal(neighbors(0,PORTAL_ROW).find(n=>n.dir==='left').x,18);
+ assert.equal(neighbors(18,PORTAL_ROW).find(n=>n.dir==='right').x,0);
+ assert.equal(neighbors(1,3).some(n=>n.x===0),false);
+ const s=safeState();s.player={x:17,y:PORTAL_ROW,to:null,dir:'up'};
+ s.dragons[0]={x:0,y:PORTAL_ROW,to:null,dir:'left',home:{x:7,y:9},index:0,respawn:0};
+ tickMaze(s,.01);assert.equal(s.dragons[0].x,18);
 });
