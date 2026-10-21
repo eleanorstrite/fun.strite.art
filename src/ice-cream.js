@@ -3,7 +3,30 @@ import { createMazeAudio } from './maze-audio.js';
 import { ICE_CONES, ICE_FLAVORS, ICE_TOPPINGS, ICE_UNLOCKS, iceIngredientUnlocked } from './ice-settings.js';
 
 export const ICE_CLIP_SECONDS=7.5;
-export function createIceRecipe(){return {cone:'waffle',flavor:'vanilla',toppings:[]};}
+export function createIceRecipe(){return {cone:'waffle',flavor:'vanilla',toppings:[],sauceDrops:[]};}
+export function pourIceChocolate(recipe,x,y,seconds){
+  if(!recipe.toppings.includes('sauce')||seconds<=0)return;
+  if((x/66)**2+((y+30)/58)**2>1)return;
+  recipe.sauceDrops??=[];
+  const gx=Math.round(x/4)*4,gy=Math.round(y/4)*4;
+  let drop=recipe.sauceDrops.find(p=>p.x===gx&&p.y===gy);
+  if(!drop){drop={x:gx,y:gy,amount:0};recipe.sauceDrops.push(drop);}
+  drop.amount=Math.min(3,drop.amount+seconds);
+}
+export function drawChocolateBottle(ctx,bottle,pouring=false){
+  ctx.save();ctx.translate(450+bottle.x*1.15,307+bottle.y*1.15-85);
+  if(pouring){
+    ctx.strokeStyle='#633c32';ctx.lineWidth=5;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(0,35);ctx.lineTo(0,85);ctx.stroke();
+  }
+  ctx.fillStyle='#7d4a32';ctx.strokeStyle='#422e2b';ctx.lineWidth=2;
+  ctx.beginPath();ctx.roundRect(-22,-42,44,62,12);ctx.fill();ctx.stroke();
+  ctx.fillStyle='#b67b51';ctx.beginPath();ctx.roundRect(-16,-35,6,42,3);ctx.fill();
+  ctx.fillStyle='#f6dfad';ctx.fillRect(-21,-20,42,22);
+  ctx.fillStyle='#633c32';ctx.textAlign='center';ctx.font='bold 9px sans-serif';ctx.fillText('CHOCO',0,-6);
+  iceShape(ctx,[[-13,20],[13,20],[4,35],[-4,35]],'#efbc6b');
+  ctx.restore();
+}
 const iceClamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 // Seeded scatter stays still between frames, without rows or a repeating grid.
 export function scatterIceChips(count=22,seed=9137){
@@ -70,8 +93,13 @@ export function drawIceDessert(ctx,recipe,x,y,scale=1,bites=0){
     }
   }
   if(recipe.toppings.includes('sauce')){
-    ctx.strokeStyle='#633c32';ctx.lineWidth=7;ctx.lineCap='round';
-    ctx.beginPath();ctx.moveTo(-48,-46);ctx.bezierCurveTo(-25,-66,-22,10,0,-37);ctx.bezierCurveTo(22,-70,28,3,48,-30);ctx.stroke();
+    ctx.save();ctx.beginPath();ctx.ellipse(0,-30,69,61,0,0,Math.PI*2);ctx.clip();
+    for(const drop of recipe.sauceDrops||[]){
+      const radius=3+Math.sqrt(drop.amount)*7;
+      iceOval(ctx,drop.x,drop.y,radius,radius*.7,'#633c32');
+      iceOval(ctx,drop.x-1,drop.y-1,radius*.45,1,'#996b4d');
+    }
+    ctx.restore();
   }
   if(recipe.toppings.includes('sprinkles'))for(let i=0;i<35;i++){
     ctx.save();ctx.translate(-52+(i*29)%105,-72+(i*17)%78);ctx.rotate(i);
@@ -182,6 +210,35 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
   const audio=createMazeAudio(),controller=new AbortController();
   const reduced=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false;
   let recipe=createIceRecipe(),step=0,active=false,paused=false,clip=null,spoken=false,lastBites=0,destroyed=false,last=0,frame;
+  let bottle={x:0,y:-30},squeezing=false,pointer=null,drag=null;
+  const stopPour=()=>{squeezing=false;pointer=null;drag=null;};
+  const canPour=()=>active&&!paused&&clip===null&&step===2&&recipe.toppings.includes('sauce')&&!document.hidden;
+  const canvasPoint=e=>{const rect=canvas.getBoundingClientRect();return {x:(e.clientX-rect.left)*900/rect.width,y:(e.clientY-rect.top)*620/rect.height};};
+  const events={signal:controller.signal};
+  canvas.addEventListener?.('pointerdown',e=>{
+    if(!canPour()||pointer!==null||e.button>0)return;
+    const p=canvasPoint(e),bx=450+bottle.x*1.15,by=307+bottle.y*1.15-85;
+    if(Math.abs(p.x-bx)>32||p.y<by-50||p.y>by+40)return;
+    e.preventDefault();canvas.focus();audio.unlock();canvas.setPointerCapture?.(e.pointerId);
+    pointer=e.pointerId;drag={...p,bx:bottle.x,by:bottle.y};squeezing=true;
+    pourIceChocolate(recipe,bottle.x,bottle.y,.12);
+  },events);
+  canvas.addEventListener?.('pointermove',e=>{
+    if(e.pointerId!==pointer||!drag||!canPour())return;
+    e.preventDefault();const p=canvasPoint(e);
+    const x=iceClamp(drag.bx+(p.x-drag.x)/1.15,-58,58),y=iceClamp(drag.by+(p.y-drag.y)/1.15,-75,12);
+    const steps=Math.max(1,Math.ceil(Math.hypot(x-bottle.x,y-bottle.y)/3));
+    for(let i=1;i<=steps;i++)pourIceChocolate(recipe,bottle.x+(x-bottle.x)*i/steps,bottle.y+(y-bottle.y)*i/steps,.015);
+    bottle={x,y};
+  },events);
+  for(const event of ['pointerup','pointercancel','lostpointercapture','blur'])canvas.addEventListener?.(event,stopPour,events);
+  canvas.addEventListener?.('keydown',e=>{
+    if(!canPour()||!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].includes(e.key))return;
+    e.preventDefault();
+    if(e.key===' '){if(!squeezing)pourIceChocolate(recipe,bottle.x,bottle.y,.12);squeezing=true;}
+    else{bottle.x=iceClamp(bottle.x+(e.key==='ArrowLeft'?-4:e.key==='ArrowRight'?4:0),-58,58);bottle.y=iceClamp(bottle.y+(e.key==='ArrowUp'?-4:e.key==='ArrowDown'?4:0),-75,12);}
+  },events);
+  globalThis.window?.addEventListener('keyup',e=>{if(e.key===' ')stopPour();},events);
   const steps=['Cone','Ice cream','Toppings'];
   const tabs=document.createElement('div');tabs.className='ice-steps';
   const heading=document.createElement('h3');heading.tabIndex=-1;
@@ -189,13 +246,16 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
   const navigation=document.createElement('div');navigation.className='ice-navigation';
   const back=document.createElement('button'),next=document.createElement('button');
   back.type=next.type='button';back.className='button outline';next.className='button dark';back.textContent='← Back';
-  navigation.append(back,next);controls.replaceChildren(tabs,heading,choices,navigation);
+  navigation.append(back,next);
+  const sauceHelp=document.createElement('p');sauceHelp.textContent='Chocolate bottle: tap to squeeze, hold for more, and drag to spread it around. With a keyboard, focus the canvas, move with arrow keys, and hold Space to pour. Tap Chocolate drizzle again to remove it.';
+  controls.replaceChildren(tabs,heading,choices,navigation,sauceHelp);
   const stepButtons=steps.map((label,index)=>{
     const button=document.createElement('button');button.type='button';button.className='button outline';button.textContent=(index+1)+'. '+label;
     button.onclick=()=>{if(active&&!paused&&clip===null){step=index;renderControls();heading.focus({preventScroll:true});}};
     tabs.append(button);return button;
   });
   function renderControls(){
+    stopPour();sauceHelp.hidden=!(step===2&&recipe.toppings.includes('sauce')&&clip===null);
     const locked=!active||paused||clip!==null;
     stepButtons.forEach((button,index)=>{button.disabled=locked;button.setAttribute('aria-pressed',String(index===step));});
     heading.textContent=clip!==null?'Your dragon is enjoying its ice cream!':step===0?'Choose your cone':step===1?'Choose your ice cream':'Choose your toppings — mix as many as you like';
@@ -211,7 +271,11 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
         if(!active||paused||clip!==null||!iceIngredientUnlocked(kind,id,getUpgrades()))return;
         if(step===0)recipe.cone=id;else if(step===1)recipe.flavor=id;
         else recipe.toppings=recipe.toppings.includes(id)?recipe.toppings.filter(item=>item!==id):[...recipe.toppings,id];
+        if(step===2&&id==='sauce'){
+          recipe.sauceDrops=[];bottle={x:0,y:-30};
+        }
         audio.play('gem');renderControls();
+        if(step===2&&id==='sauce'&&recipe.toppings.includes('sauce'))canvas.scrollIntoView?.({block:'center',behavior:reduced?'auto':'smooth'});
         choices.children[Object.keys(options).indexOf(id)]?.focus({preventScroll:true});
       };
       choices.append(button);
@@ -239,15 +303,19 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
       if(clip>=5.5&&!spoken){spoken=true;audio.say('Yum! Thank you!',1.1);}
       if(clip>=ICE_CLIP_SECONDS)finish();
     }
+    if(canPour()&&squeezing)pourIceChocolate(recipe,bottle.x,bottle.y,dt);
     drawIceScene(ctx,recipe,canvas.width,canvas.height,clip,reduced);
+    if(active&&step===2&&clip===null&&recipe.toppings.includes('sauce')){
+      ctx.save();ctx.scale(canvas.width/900,canvas.height/620);drawChocolateBottle(ctx,bottle,squeezing&&!paused);ctx.restore();
+    }
     frame=requestAnimationFrame(tick);
   }
-  document.addEventListener?.('visibilitychange',()=>{last=0;if(document.hidden)audio.stop();},{signal:controller.signal});
+  document.addEventListener?.('visibilitychange',()=>{last=0;stopPour();if(document.hidden)audio.stop();},{signal:controller.signal});
   renderControls();frame=requestAnimationFrame(tick);
   return {
-    start(){audio.stop();audio.unlock();recipe=createIceRecipe();step=0;clip=null;spoken=false;active=true;paused=false;last=0;renderControls();stepButtons[0].focus({preventScroll:true});},
+    start(){stopPour();bottle={x:0,y:-30};audio.stop();audio.unlock();recipe=createIceRecipe();step=0;clip=null;spoken=false;active=true;paused=false;last=0;renderControls();stepButtons[0].focus({preventScroll:true});},
     pause(value){paused=value;last=0;if(value)audio.stop();renderControls();},
     setMuted:value=>audio.setMuted(value),
-    destroy(){if(destroyed)return;destroyed=true;active=false;controller.abort();audio.destroy();cancelAnimationFrame(frame);controls.replaceChildren();}
+    destroy(){if(destroyed)return;destroyed=true;active=false;stopPour();controller.abort();audio.destroy();cancelAnimationFrame(frame);controls.replaceChildren();}
   };
 }

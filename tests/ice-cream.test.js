@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createIceRecipe, createIceCream, drawIceScene, scatterIceChips, iceBiteCount } from '../src/ice-cream.js';
+import { createIceRecipe, createIceCream, drawIceScene, scatterIceChips, iceBiteCount, pourIceChocolate } from '../src/ice-cream.js';
 import { ICE_CONES, ICE_FLAVORS, ICE_TOPPINGS, ICE_SHOP_ITEMS, iceIngredientUnlocked } from '../src/ice-settings.js';
 import { createSystem } from '../src/system.js';
 
@@ -24,8 +24,9 @@ test('ice cream buttons preserve choices, toggle toppings, pause the ending, fin
   }
   let frame,finishes=0,now=100;
   const wallet=createSystem({getItem:()=>null,setItem(){}});let session=wallet.beginSession('ice-cream');
-  const ctx=new Proxy({},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
-  const controls=new IceElement(),canvas={width:900,height:620,getContext:()=>ctx};
+  const handlers={},drops=[];
+  const ctx=new Proxy({ellipse(x,y,rx,ry){if(this.fillStyle==='#633c32')drops.push({x,y,rx});}},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
+  const controls=new IceElement(),canvas={width:900,height:620,getContext:()=>ctx,addEventListener:(name,fn)=>handlers[name]=fn,focus(){},setPointerCapture(){},getBoundingClientRect:()=>({left:0,top:0,width:450,height:310})};
   globalThis.document={hidden:false,createElement:()=>new IceElement(),addEventListener(){}};
   globalThis.requestAnimationFrame=fn=>(frame=fn,1);globalThis.cancelAnimationFrame=()=>{};
   let engine;
@@ -39,6 +40,15 @@ test('ice cream buttons preserve choices, toggle toppings, pause the ending, fin
     next.onclick();choices.children[3].onclick();next.onclick();
     choices.children[0].onclick();choices.children[4].onclick();choices.children[0].onclick();
     assert.equal(choices.children[0].attributes['aria-pressed'],'false');assert.equal(choices.children[4].attributes['aria-pressed'],'true');
+    choices.children[2].onclick(); // Bring out the chocolate bottle.
+    const pointer={pointerId:7,button:0,clientX:225,clientY:94,preventDefault(){}};
+    handlers.pointerdown(pointer);advance(2);const tapSize=drops.at(-1).rx;
+    advance(5);assert.equal(drops.at(-1).rx>tapSize,true);
+    handlers.pointermove({...pointer,clientX:246});advance(2);
+    assert.equal(drops.some(drop=>drop.x>20),true);
+    handlers.pointerup(pointer);const released=drops.at(-1).rx;advance(4);
+    assert.equal(drops.at(-1).rx,released);
+    handlers.pointerdown({...pointer,clientX:246});handlers.pointercancel();advance(3);assert.equal(drops.at(-1).rx>=released,true);
     back.onclick();assert.equal(choices.children[3].attributes['aria-pressed'],'true');
     tabs.children[0].onclick();assert.equal(choices.children[2].attributes['aria-pressed'],'true');
     tabs.children[2].onclick();next.onclick();assert.equal(next.disabled,true);
@@ -83,4 +93,15 @@ test('chip scatter is stable, spread across the scoop, and bites advance in disc
   assert.equal(new Set(points.map(p=>p.angle)).size,22);
   assert.equal(iceBiteCount(1.9),0);assert.equal(iceBiteCount(2.2),1);
   assert.equal(iceBiteCount(3.2),2);assert.equal(iceBiteCount(4.1),3);assert.equal(iceBiteCount(5.1),4);
+});
+
+test('chocolate pours accumulate at the bottle location and remain bounded on the scoop',()=>{
+  const recipe=createIceRecipe();pourIceChocolate(recipe,0,-30,1);assert.equal(recipe.sauceDrops.length,0);
+  recipe.toppings.push('sauce');pourIceChocolate(recipe,-20,-40,.1);
+  const first=recipe.sauceDrops[0].amount;
+  pourIceChocolate(recipe,-20,-40,1);assert.equal(recipe.sauceDrops[0].amount>first,true);
+  pourIceChocolate(recipe,25,-10,.2);assert.equal(recipe.sauceDrops.length,2);
+  pourIceChocolate(recipe,400,400,1);assert.equal(recipe.sauceDrops.length,2);
+  for(let i=0;i<100;i++)pourIceChocolate(recipe,-20,-40,1);
+  assert.equal(recipe.sauceDrops[0].amount,3);
 });
