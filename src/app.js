@@ -42,6 +42,26 @@ $('#flight-form').onchange=()=>{
   if(running)return;
   try{system.setCharacter({...system.snapshot().character,flight:{background:$('#flight-background').value,animal:$('#flight-animal').value,difficulty:$('#flight-difficulty').value,color:$('#flight-color').value,pipe:$('#flight-pipe').value,pipeColor:$('#flight-pipe-color').value}});$('#flight-settings-status').textContent=system.isSaved()?'Flight settings saved. Ready to fly!':'Settings applied for this visit. Export to keep them.';}catch(error){notify(error.message);}
 };
+function pickRandom(values){return values[Math.floor(Math.random()*values.length)];}
+function randomizeSelect(id){
+  const select=$('#'+id),available=[...select.children].filter(option=>!option.disabled);
+  select.value=pickRandom(available).value;
+}
+$('#random-flight').onclick=()=>{
+  if(running)return;
+  randomizeSelect('flight-animal');
+  const current=$('#flight-color').value;
+  $('#flight-color').value=pickRandom([...COLORS,'#df8eb3','#68bf99','#f4c476','#b6c6dd'].filter(color=>color!==current));
+  $('#flight-form').onchange();
+};
+$('#random-knight').onclick=()=>{
+  if(running&&!paused)$('#pause-game').onclick();
+  for(const id of ['knight-armor','knight-helmet','dragon-style'])randomizeSelect(id);
+  $('#knight-color').value=pickRandom(COLORS.filter(color=>color!==$('#knight-color').value));
+  $('#knight-cape').checked=Math.random()<.5;
+  $('#knight-shield').checked=Math.random()<.5;
+  $('#knight-look-form').onchange();
+};
 $('#flap-button').onclick=()=>{if(running&&!paused){engine?.input?.();$('#game-canvas').focus();}};
 function syncKnightCustomizer(){
   const character=system.snapshot().character;

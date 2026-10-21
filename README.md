@@ -91,3 +91,5 @@ The four level buttons at the top of Knights and Dragons let you start any level
 Maze scenery uses shaded masonry, worn flagstones, subtle wall shadows, and faceted gems. Stone Keep has warm torchlight, Crystal Caverns has mineral clusters, Enchanted Ruins has moss and trailing vines, and Ember Fortress has glowing fissures in dark basalt. Static terrain is cached per canvas and level to keep the additional detail out of the frame-by-frame drawing work.
 
 Flappy Animals also offers a Hot dog with jetpack: a toasted bun and mustard-topped sausage with animated rocket flames and jet sounds. The color picker changes its jetpack color, and the selection persists in saves like the animal flyers.
+
+Both game customizers have a Random button that saves a random character appearance and updates its preview. Knights and Dragons mixes available armor, helmets, cape color, cape/shield toggles, and owned dragon styles; editing pauses an active maze run. Flappy Animals mixes flyer choice and color before a flight. Difficulty, scenery, pipe settings, wallet, and purchased boosts stay as selected. Locked looks are excluded.
