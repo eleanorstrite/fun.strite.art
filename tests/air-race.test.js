@@ -134,7 +134,7 @@ test('loss clip delays settlement and freezes while paused or hidden',()=>{
 });
 
 test('all five difficulties award exact per-hoop coins and randomized courses are flyable',()=>{
-  const expected={sloth:1,easy:2,medium:3,hard:5,expert:10};
+  const expected={sloth:1,easy:2,medium:3,hard:5,expert:20};
   let previousSpeed=0;
   for(const [difficulty,coins] of Object.entries(expected)){
     const config=AIR_DIFFICULTIES[difficulty];
@@ -157,8 +157,8 @@ test('difficulty settings migrate, persist and keep time records and wallet rewa
   assert.equal(copy.snapshot().character.plane.difficulty,'expert');
   assert.throws(()=>system.setCharacter({...system.snapshot().character,plane:{...system.snapshot().character.plane,difficulty:'impossible'}}));
   system.beginSession(airRecordId('sloth')).finish(12,22000);
-  system.beginSession(airRecordId('expert')).finish(120,11000);
-  assert.equal(system.snapshot().coins,132);
+  system.beginSession(airRecordId('expert')).finish(240,11000);
+  assert.equal(system.snapshot().coins,252);
   assert.equal(system.snapshot().stats[airRecordId('sloth')].bestTimeMs,22000);
   assert.equal(system.snapshot().stats[airRecordId('expert')].bestTimeMs,11000);
 });

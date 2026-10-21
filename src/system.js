@@ -22,7 +22,7 @@ export const AIR_DIFFICULTIES={
   easy:{name:'Easy',coins:2,speed:260,boost:380,spread:1.12,radius:.37,random:0,tilt:0},
   medium:{name:'Medium',coins:3,speed:310,boost:430,spread:1.4,radius:.35,random:0,tilt:0},
   hard:{name:'Hard',coins:5,speed:370,boost:490,spread:1.5,radius:.33,random:.22,tilt:.7},
-  expert:{name:'Expert',coins:10,speed:440,boost:560,spread:1.6,radius:.30,random:.35,tilt:1.1},
+  expert:{name:'Expert',coins:20,speed:440,boost:560,spread:1.6,radius:.30,random:.35,tilt:1.1},
 };
 export const airRecordId=difficulty=>difficulty==='sloth'?'hoop-flight':'hoop-flight-'+difficulty;
 export const PLANE_DEFAULTS={color:'#ed6e40',style:'sport',difficulty:'sloth',background:'valley'};
