@@ -19,8 +19,8 @@ export const UPGRADES = [
   { id:'forest-background',name:'Enchanted forest',group:'appearance',category:'BACKGROUND',icon:'☾',cost:350,description:'Unlock a glowing forest home background. Select it in Pick your scenery.' },
   { id:'emerald-armor',name:'Emerald armor',group:'appearance',category:'KNIGHT STYLE',icon:'♜',cost:250,description:'Unlock emerald armor in the customizer below the arrows. Appearance only.' },
   { id:'winged-helmet',name:'Wings of courage',group:'appearance',category:'KNIGHT STYLE',icon:'♛',cost:300,description:'Unlock a winged helmet in the knight customizer. Appearance only.' },
-  { id:'ember-dragons',name:'Ember dragons',group:'appearance',category:'DRAGON STYLE',icon:'♨',cost:350,description:'Dress the dragons in fiery colors. Choose in the customizer. Appearance only.' },
-  { id:'ice-dragons',name:'Ice dragons',group:'appearance',category:'DRAGON STYLE',icon:'❄',cost:500,description:'Give the dragons icy blue scales. Choose in the customizer. Appearance only.' },
+  { id:'ember-dragons',name:'Ember dragons',group:'appearance',category:'DRAGON STYLE',icon:'♨',cost:200,description:'Dress the dragons in fiery colors. Choose in the customizer. Appearance only.' },
+  { id:'ice-dragons',name:'Ice dragons',group:'appearance',category:'DRAGON STYLE',icon:'❄',cost:200,description:'Give the dragons icy blue scales. Choose in the customizer. Appearance only.' },
 ];
 export function freshSave() { return { version: 1, coins: 0, character: { name: 'Pip', color: COLORS[0], style: 'antenna', ...KNIGHT_DEFAULTS, robot:{...ROBOT_DEFAULTS}, flight:{...FLIGHT_DEFAULTS} }, upgrades: [], boosts: {boots:0,magnet:0,eliminator:0}, stats: {} }; }
 export function validateSave(data) {

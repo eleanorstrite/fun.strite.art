@@ -47,8 +47,8 @@ test('premium looks require purchases and remain selectable after exporting and 
   for(const change of [{armor:'emerald'},{helmet:'winged'},{dragon:'ice'},{dragon:'ember'}])assert.throws(()=>system.setCharacter({...c,...change}));
   system.beginSession('test-game').finish(1000);system.beginSession('test-game').finish(1000);
   for(const id of ['emerald-armor','winged-helmet','ice-dragons','ember-dragons'])system.buy(id);
-  assert.equal(system.snapshot().coins,600);system.setCharacter({...c,armor:'emerald',helmet:'winged',dragon:'ice'});
-  const copy=createSystem(memory());copy.importSave(system.exportSave());assert.deepEqual(copy.snapshot(),system.snapshot());assert.throws(()=>copy.buy('ice-dragons'));assert.equal(copy.snapshot().coins,600);
+  assert.equal(system.snapshot().coins,1050);system.setCharacter({...c,armor:'emerald',helmet:'winged',dragon:'ice'});
+  const copy=createSystem(memory());copy.importSave(system.exportSave());assert.deepEqual(copy.snapshot(),system.snapshot());assert.throws(()=>copy.buy('ice-dragons'));assert.equal(copy.snapshot().coins,1050);
 });
 
 test('speed and magnet cost five hundred coins and eliminator costs one thousand',()=>{
