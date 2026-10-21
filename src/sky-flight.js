@@ -37,7 +37,23 @@ export function drawFlyer(ctx,x,y,size,settings,time=0,tilt=0){
   ctx.save();ctx.translate(x,y);ctx.rotate(tilt);ctx.scale(size/80,size/80);
   const flap=Math.sin(time*(settings.animal==='hummingbird'?34:10)),color=settings.color;
   // Original animated silhouettes inspired by the supplied animal references.
-  if(settings.animal==='cat'||settings.animal==='dog'){
+  if(settings.animal==='hotdog'){
+    // Toasted bun, sausage, mustard, and a colorful strapped-on rocket pack.
+    polygon(ctx,[[-30,-5],[-75,7+flap*6],[-52,-9],[-76,-23-flap*6],[-29,-22]],'#f69945');
+    polygon(ctx,[[-31,-9],[-59,-7],[-44,-15],[-31,-18]],'#ffe898');
+    ctx.fillStyle=color;ctx.fillRect(-33,-31,29,33);
+    ctx.fillStyle='#d4e9ee';ctx.fillRect(-29,-27,7,23);
+    ctx.fillStyle='#3b4c5e';ctx.fillRect(-36,-22,6,17);
+    ctx.fillStyle='#b6783e';ctx.beginPath();ctx.ellipse(0,7,47,21,0,0,7);ctx.fill();
+    ctx.fillStyle='#efbd78';ctx.beginPath();ctx.ellipse(0,10,44,15,0,0,7);ctx.fill();
+    ctx.fillStyle='#a64a35';ctx.beginPath();ctx.ellipse(2,-3,46,12,0,0,7);ctx.fill();
+    ctx.fillStyle='#d77b52';ctx.beginPath();ctx.ellipse(0,-7,39,5,0,0,7);ctx.fill();
+    ctx.strokeStyle='#f8d75a';ctx.lineWidth=3;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();
+    for(let i=0;i<9;i++){const xx=-29+i*6,yy=-4+(i%2?4:-3);i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy);}ctx.stroke();
+    ctx.strokeStyle='#536b83';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(-16,-16);ctx.lineTo(-15,23);ctx.stroke();
+    ctx.fillStyle='#fff1cf';for(const xx of [-27,-5,12]){ctx.beginPath();ctx.ellipse(xx,15,2,1,-.4,0,7);ctx.fill();}
+    ctx.strokeStyle='#65392e';ctx.lineWidth=2;ctx.beginPath();ctx.arc(34,1,5,.1,2.5);ctx.stroke();
+  }else if(settings.animal==='cat'||settings.animal==='dog'){
     const cat=settings.animal==='cat';
     // A curved cat tail or a wagging dog tail, behind the rocket pack.
     ctx.strokeStyle=color;ctx.lineWidth=7;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-20,11);
@@ -185,7 +201,7 @@ export function createSkyFlight({canvas,character,onHud,onFinish}){
     if(!active||paused||document.hidden||state.status!=='playing')return;
     audio.unlock();flapFlight(state);
     if(state.time-flapSoundAt>=.08){
-      audio.play({dragon:'flap',hummingbird:'chirp',eagle:'whoosh',capybara:'jet',cat:'jet',dog:'jet'}[state.settings.animal]);
+      audio.play({dragon:'flap',hummingbird:'chirp',eagle:'whoosh',capybara:'jet',cat:'jet',dog:'jet',hotdog:'jet'}[state.settings.animal]);
       flapSoundAt=state.time;
     }
   }

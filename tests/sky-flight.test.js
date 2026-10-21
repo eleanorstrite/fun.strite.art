@@ -22,7 +22,7 @@ test('flapping lifts the flyer and pipes, floor, and ceiling end a run',()=>{
 });
 test('flyer and pipe customization validate and persist with game saves',()=>{
   const data=new Map(),storage={getItem:k=>data.get(k),setItem:(k,v)=>data.set(k,v)},system=createSystem(storage);
-  for(const animal of ['capybara','cat','dog']){
+  for(const animal of ['capybara','cat','dog','hotdog']){
   const flight={background:'classic',animal,color:'#34bf96',pipe:'crystal',pipeColor:'#7744cc',difficulty:'expert'};
   system.setCharacter({...system.snapshot().character,flight});assert.deepEqual(createSystem(storage).snapshot().character.flight,flight);
   const restored=createSystem({getItem:()=>null,setItem(){}});restored.importSave(system.exportSave());assert.deepEqual(restored.snapshot().character.flight,flight);
@@ -40,7 +40,7 @@ test('flight engine pauses, resumes, closes once, and supports each animal',()=>
   const original={requestAnimationFrame:globalThis.requestAnimationFrame,cancelAnimationFrame:globalThis.cancelAnimationFrame,document:globalThis.document};let frame;
   globalThis.requestAnimationFrame=fn=>(frame=fn,1);globalThis.cancelAnimationFrame=()=>{};globalThis.document={hidden:false};
   const ctx=new Proxy({createLinearGradient:()=>({addColorStop(){}})},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)}),canvas={width:540,height:720,getContext:()=>ctx,addEventListener(){},focus(){}};
-  try{for(const animal of ['dragon','hummingbird','eagle','capybara','cat','dog']){let updates=0,finishes=0;const engine=createSkyFlight({canvas,character:{flight:{...FLIGHT_DEFAULTS,animal}},onHud(){updates++;},onFinish(){finishes++;}});engine.start();frame(100);const count=updates;engine.pause(true);frame(200);assert.equal(updates,count);engine.pause(false);frame(300);assert.equal(updates>count,true);engine.destroy();engine.destroy();assert.equal(finishes,1);}}finally{Object.assign(globalThis,original);}
+  try{for(const animal of ['dragon','hummingbird','eagle','capybara','cat','dog','hotdog']){let updates=0,finishes=0;const engine=createSkyFlight({canvas,character:{flight:{...FLIGHT_DEFAULTS,animal}},onHud(){updates++;},onFinish(){finishes++;}});engine.start();frame(100);const count=updates;engine.pause(true);frame(200);assert.equal(updates,count);engine.pause(false);frame(300);assert.equal(updates>count,true);engine.destroy();engine.destroy();assert.equal(finishes,1);}}finally{Object.assign(globalThis,original);}
 });
 
 test('crash animation delays results, freezes while paused or hidden, and settles once',()=>{

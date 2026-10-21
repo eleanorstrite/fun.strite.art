@@ -5,7 +5,7 @@ export const FLIGHT_LEVELS = {
   hard: { name:'Hard', speed:275, gap:135, reward:5 },
   expert: { name:'Expert', speed:340, gap:110, reward:10 },
 };
-export const FLIGHT_ANIMALS = { dragon:'Dragon', hummingbird:'Hummingbird', eagle:'Eagle', capybara:'Capybara with jetpack', cat:'Cat with jetpack', dog:'Dog with jetpack' };
+export const FLIGHT_ANIMALS = { dragon:'Dragon', hummingbird:'Hummingbird', eagle:'Eagle', capybara:'Capybara with jetpack', cat:'Cat with jetpack', dog:'Dog with jetpack', hotdog:'Hot dog with jetpack' };
 export const PIPE_STYLES = { classic:'Classic pipes', stone:'Castle pillars', vines:'Vine towers', crystal:'Crystal towers' };
 export const FLIGHT_BACKGROUNDS = {
   classic:{name:'Original skies'},

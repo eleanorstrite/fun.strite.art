@@ -89,3 +89,5 @@ Knights and Dragons now has four levels: Stone Keep, Crystal Caverns, Enchanted 
 The four level buttons at the top of Knights and Dragons let you start any level immediately, including during a round or ending. Switching settles earned coins once, starts the selected level with fresh lives and collectibles, and saves the selection. The current level is highlighted; unused boosts remain in the bag.
 
 Maze scenery uses shaded masonry, worn flagstones, subtle wall shadows, and faceted gems. Stone Keep has warm torchlight, Crystal Caverns has mineral clusters, Enchanted Ruins has moss and trailing vines, and Ember Fortress has glowing fissures in dark basalt. Static terrain is cached per canvas and level to keep the additional detail out of the frame-by-frame drawing work.
+
+Flappy Animals also offers a Hot dog with jetpack: a toasted bun and mustard-topped sausage with animated rocket flames and jet sounds. The color picker changes its jetpack color, and the selection persists in saves like the animal flyers.
