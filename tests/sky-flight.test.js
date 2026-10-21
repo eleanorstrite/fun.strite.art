@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { FLIGHT_LEVELS, FLIGHT_DEFAULTS, validateFlightSettings } from '../src/flight-settings.js';
-import { createFlightState, flapFlight, tickFlight, createSkyFlight } from '../src/sky-flight.js';
-import { createSystem } from '../src/system.js';
+import { FLIGHT_BACKGROUNDS, FLIGHT_LEVELS, FLIGHT_DEFAULTS, validateFlightSettings } from '../src/flight-settings.js';
+import { drawFlight, createFlightState, flapFlight, tickFlight, createSkyFlight } from '../src/sky-flight.js';
+import { createSystem, freshSave, validateSave, UPGRADES } from '../src/system.js';
 test('four difficulties get faster and tighter with exact rewards',()=>{
   const levels=Object.values(FLIGHT_LEVELS);assert.deepEqual(levels.map(l=>l.reward),[1,3,5,10]);
   for(let i=1;i<levels.length;i++){assert.equal(levels[i].speed>levels[i-1].speed,true);assert.equal(levels[i].gap<levels[i-1].gap,true);}
@@ -20,7 +20,7 @@ test('flapping lifts the flyer and pipes, floor, and ceiling end a run',()=>{
 test('flyer and pipe customization validate and persist with game saves',()=>{
   const data=new Map(),storage={getItem:k=>data.get(k),setItem:(k,v)=>data.set(k,v)},system=createSystem(storage);
   for(const animal of ['capybara','cat','dog']){
-  const flight={animal,color:'#34bf96',pipe:'crystal',pipeColor:'#7744cc',difficulty:'expert'};
+  const flight={background:'classic',animal,color:'#34bf96',pipe:'crystal',pipeColor:'#7744cc',difficulty:'expert'};
   system.setCharacter({...system.snapshot().character,flight});assert.deepEqual(createSystem(storage).snapshot().character.flight,flight);
   const restored=createSystem({getItem:()=>null,setItem(){}});restored.importSave(system.exportSave());assert.deepEqual(restored.snapshot().character.flight,flight);
   }
@@ -57,4 +57,36 @@ test('crash animation delays results, freezes while paused or hidden, and settle
   engine.start();for(let i=0;i<200&&!hud.includes('Bonk');i++)frames(1);
   engine.destroy();engine.destroy();assert.equal(finished,2);
  }finally{engine?.destroy();Object.assign(globalThis,original);}
+});
+
+test('flight backgrounds require separate two-hundred-coin purchases and survive reload and export',()=>{
+ const data=new Map(),storage={getItem:k=>data.get(k),setItem:(k,v)=>data.set(k,v)},system=createSystem(storage);
+ const old=freshSave();delete old.character.flight.background;
+ assert.equal(validateSave(old).character.flight.background,'classic');
+ assert.throws(()=>validateFlightSettings({background:'unknown'}));
+ system.beginSession('test').finish(1000);system.buy('aurora-background');
+ for(const [background,scene] of Object.entries(FLIGHT_BACKGROUNDS)){
+  if(!scene.upgrade)continue;
+  const before=system.snapshot();
+  assert.throws(()=>system.setCharacter({...before.character,flight:{...before.character.flight,background}}));
+  assert.deepEqual(system.snapshot(),before);
+  const item=UPGRADES.find(item=>item.id===scene.upgrade);assert.equal(item.cost,200);
+  assert.equal(item.category.includes('FLAPPY BIRD'),true);assert.equal(item.description.includes('not the home screen'),true);
+  system.buy(scene.upgrade);assert.equal(system.snapshot().coins,before.coins-200);
+  system.setCharacter({...before.character,flight:{...before.character.flight,background}});
+  assert.equal(createSystem(storage).snapshot().character.flight.background,background);
+  const copy=createSystem({getItem:()=>null,setItem(){}});copy.importSave(system.exportSave());
+  assert.equal(copy.snapshot().character.flight.background,background);assert.throws(()=>copy.buy(scene.upgrade));
+ }
+});
+test('each flight scenery renders distinctly while preserving physics and rewards',()=>{
+ const signatures=new Set();
+ for(const background of Object.keys(FLIGHT_BACKGROUNDS)){
+  const calls=[];
+  const ctx=new Proxy({createLinearGradient:()=>({addColorStop:(...args)=>calls.push(args)})},{get:(o,k)=>o[k]||((...args)=>calls.push([k,...args])),set:(o,k,v)=>(o[k]=v,true)});
+  const s=createFlightState({...FLIGHT_DEFAULTS,background},()=>.5);
+  const before=JSON.stringify(s);drawFlight(ctx,s,540,720);assert.equal(JSON.stringify(s),before);
+  signatures.add(JSON.stringify(calls));
+ }
+ assert.equal(signatures.size,Object.keys(FLIGHT_BACKGROUNDS).length);
 });

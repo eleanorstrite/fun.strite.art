@@ -1,4 +1,4 @@
-import { FLIGHT_DEFAULTS, validateFlightSettings } from './flight-settings.js';
+import { FLIGHT_BACKGROUNDS, FLIGHT_DEFAULTS, validateFlightSettings } from './flight-settings.js';
 /** Shared, renderer-independent progression API. No game owns the wallet. */
 export const SAVE_KEY = 'sidequest.save.v1';
 export const COLORS = ['#ed6e40', '#86966a', '#9b85bb', '#6e9eae', '#d5aa4d'];
@@ -15,6 +15,10 @@ export const UPGRADES = [
   { id:'boots',name:'Super speed',group:'gameplay',category:'CHARACTER',icon:'👟',cost:500,description:'One use: move 25% faster for 15 seconds. Tap the shoe above the maze to activate.' },
   { id:'eliminator',name:'Dragon eliminator',group:'gameplay',category:'EQUIPMENT',icon:'🐉',cost:1000,description:'One use: make all dragons disappear for 15 seconds. They return to their same positions. Activate above the maze.' },
   { id:'magnet',name:'Gem magnet',group:'gameplay',category:'EQUIPMENT',icon:'🧲',cost:500,description:'One use: collect gems from adjacent corridors for 15 seconds. Tap the magnet above the maze.' },
+  ...Object.values(FLIGHT_BACKGROUNDS).filter(scene=>scene.upgrade).map(scene=>({
+    id:scene.upgrade,name:scene.name,group:'appearance',category:'SKYBOUND / FLAPPY BIRD BACKGROUND',icon:'🌄',cost:200,
+    description:'For Skybound (Flappy Bird) only — not the home screen. Unlock permanently, then choose it in the flight background chooser.'
+  })),
   { id:'aurora-background',name:'Northern lights',group:'appearance',category:'BACKGROUND',icon:'✧',cost:200,description:'Unlock an aurora home background. Select it in Pick your scenery.' },
   { id:'forest-background',name:'Enchanted forest',group:'appearance',category:'BACKGROUND',icon:'☾',cost:350,description:'Unlock a glowing forest home background. Select it in Pick your scenery.' },
   { id:'emerald-armor',name:'Emerald armor',group:'appearance',category:'KNIGHT STYLE',icon:'♜',cost:250,description:'Unlock emerald armor in the customizer below the arrows. Appearance only.' },
@@ -33,6 +37,9 @@ export function validateSave(data) {
   for (const field of Object.keys(look)) if (data.character[field] !== undefined) look[field] = data.character[field];
   if (!Object.hasOwn(ARMORS, look.armor) || !Object.hasOwn(HELMETS, look.helmet) || typeof look.cape !== 'boolean' || typeof look.shield !== 'boolean' || !Object.hasOwn(DRAGON_STYLES,look.dragon)) throw new Error('Invalid knight appearance in save file.');
   for(const required of [ARMORS[look.armor].upgrade,look.helmet==='winged'?'winged-helmet':null,DRAGON_STYLES[look.dragon].upgrade])if(required&&!data.upgrades.includes(required))throw new Error('Buy this appearance in the shop first.');
+  const flight=validateFlightSettings(data.character.flight);
+  const flightUpgrade=FLIGHT_BACKGROUNDS[flight.background].upgrade;
+  if(flightUpgrade&&!data.upgrades.includes(flightUpgrade))throw new Error('Buy this Skybound background in the shop first.');
   const boosts = data.boosts === undefined
     ? {boots:Number(data.upgrades.includes('boots')),magnet:Number(data.upgrades.includes('magnet'))}
     : data.boosts;
@@ -43,7 +50,7 @@ export function validateSave(data) {
     if (!/^[a-z][a-z0-9-]{0,40}$/.test(id) || !stat || !validInt(stat.plays) || !validInt(stat.best)) throw new Error('Invalid game progress in save file.');
     Object.defineProperty(stats, id, { value: { plays: stat.plays, best: stat.best }, enumerable: true, writable: true, configurable: true });
   }
-  return { version: 1, coins: Math.min(1000000000,data.coins+(data.upgrades.includes('garden')?60:0)), character: { name: data.character.name.trim(), color: data.character.color, style: data.character.style, ...look, flight:validateFlightSettings(data.character.flight), robot:{outfit:robot.outfit,hat:robot.hat,color:robot.color,glasses:robot.glasses,headphones:robot.headphones,backpack:robot.backpack} }, upgrades: [...new Set(data.upgrades.filter(id=>!['garden','boots','magnet','eliminator'].includes(id)))], boosts:{boots:boosts.boots,magnet:boosts.magnet,eliminator}, stats };
+  return { version: 1, coins: Math.min(1000000000,data.coins+(data.upgrades.includes('garden')?60:0)), character: { name: data.character.name.trim(), color: data.character.color, style: data.character.style, ...look, flight, robot:{outfit:robot.outfit,hat:robot.hat,color:robot.color,glasses:robot.glasses,headphones:robot.headphones,backpack:robot.backpack} }, upgrades: [...new Set(data.upgrades.filter(id=>!['garden','boots','magnet','eliminator'].includes(id)))], boosts:{boots:boosts.boots,magnet:boosts.magnet,eliminator}, stats };
 }
 export function createSystem(storage, onStorageError = () => {}) {
   let state = freshSave();

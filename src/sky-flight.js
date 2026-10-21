@@ -108,12 +108,29 @@ function drawPipe(ctx,p,s){
 }
 export function drawFlight(ctx,s,width,height,reducedMotion=false){
   ctx.save();ctx.scale(width/FLIGHT_WIDTH,height/FLIGHT_HEIGHT);
-  const dragon=s.settings.animal==='dragon',eagle=s.settings.animal==='eagle';
-  const sky=ctx.createLinearGradient(0,0,0,FLIGHT_HEIGHT);sky.addColorStop(0,dragon?'#d98883':eagle?'#96b6d3':'#97d3d1');sky.addColorStop(1,dragon?'#ffe4ac':'#e2efd5');ctx.fillStyle=sky;ctx.fillRect(0,0,540,720);
-  ctx.fillStyle='#fff0c7';ctx.beginPath();ctx.arc(420,125,53,0,7);ctx.fill();
-  for(let i=0;i<5;i++){const x=((i*170-s.distance*.15)%850+850)%850-150;ctx.fillStyle='#ffffff66';ctx.beginPath();ctx.ellipse(x,140+i%3*70,70,18,0,0,7);ctx.fill();}
-  polygon(ctx,[[0,560],[100,360],[230,550],[340,330],[540,530],[540,720],[0,720]],dragon?'#ad8c9c':'#93b8ad');
-  polygon(ctx,[[0,610],[180,480],[370,600],[540,460],[540,720],[0,720]],dragon?'#8d8799':'#77a597');
+  const dragon=s.settings.animal==='dragon',eagle=s.settings.animal==='eagle',background=s.settings.background;
+  const night=background==='stars',city=background==='city',sunset=background==='sunset';
+  const colors=night?['#151e45','#626b9f','#384973','#293b60']:city?['#849cc4','#f8cda7','#6b7d9d','#445c79']:sunset?['#d86c86','#ffdb8b','#b17791','#785f82']:[dragon?'#d98883':eagle?'#96b6d3':'#97d3d1',dragon?'#ffe4ac':'#e2efd5',dragon?'#ad8c9c':'#93b8ad',dragon?'#8d8799':'#77a597'];
+  const sky=ctx.createLinearGradient(0,0,0,FLIGHT_HEIGHT);sky.addColorStop(0,colors[0]);sky.addColorStop(1,colors[1]);ctx.fillStyle=sky;ctx.fillRect(0,0,540,720);
+  ctx.fillStyle=night?'#edf3ff':'#fff0c7';ctx.beginPath();ctx.arc(420,125,night?34:53,0,7);ctx.fill();
+  if(night){
+    for(let i=0;i<55;i++){const x=((i*97-s.distance*.06)%540+540)%540,y=35+(i*73)%440;ctx.fillStyle=i%3?'#dce9ff':'#fff2bd';ctx.fillRect(x,y,i%3?2:3,i%3?2:3);}
+  }else{
+    for(let i=0;i<5;i++){const x=((i*170-s.distance*.15)%850+850)%850-150;ctx.fillStyle='#ffffff66';ctx.beginPath();ctx.ellipse(x,140+i%3*70,70,18,0,0,7);ctx.fill();}
+  }
+  if(city){
+    for(let layer=0;layer<2;layer++)for(let i=0;i<12;i++){
+      const x=((i*72-s.distance*(.08+layer*.06))%864+864)%864-100,h=100+(i*43+layer*57)%180,y=FLIGHT_FLOOR-h;
+      ctx.fillStyle=colors[2+layer];ctx.fillRect(x,y,58,h);
+      ctx.fillRect(x+25,y-16,8,16);
+      ctx.fillStyle=layer?'#f6d492':'#b9d5e9';
+      for(let yy=y+18;yy<FLIGHT_FLOOR;yy+=26)for(let xx=x+10;xx<x+48;xx+=17)ctx.fillRect(xx,yy,7,10);
+    }
+  }else{
+    polygon(ctx,[[0,560],[100,360],[230,550],[340,330],[540,530],[540,720],[0,720]],colors[2]);
+    polygon(ctx,[[0,610],[180,480],[370,600],[540,460],[540,720],[0,720]],colors[3]);
+    if(sunset){polygon(ctx,[[77,405],[100,360],[134,410],[106,399],[96,408]],'#ffe9d1');polygon(ctx,[[311,387],[340,330],[374,385],[344,374],[333,388]],'#ffe9d1');}
+  }
   for(const p of s.pipes)drawPipe(ctx,p,s);
   ctx.fillStyle='#e6d8af';ctx.fillRect(0,FLIGHT_FLOOR,540,40);ctx.fillStyle='#688575';ctx.fillRect(0,FLIGHT_FLOOR,540,6);
   const crash=s.status==='lost',t=s.crashTime;
@@ -127,9 +144,9 @@ export function drawFlight(ctx,s,width,height,reducedMotion=false){
       ctx.fillStyle=i%2?'#fff2ba':'#e9ab43';ctx.font='bold 20px sans-serif';
       ctx.fillText('✦',s.x+Math.cos(angle)*r,flyerY+Math.sin(angle)*r);
     }
-    ctx.fillStyle='#233747';ctx.font='bold 28px sans-serif';ctx.fillText(t<.65?'BONK!':'What a flight!',270,280);
+    ctx.fillStyle=night?'#f6edcf':'#233747';ctx.font='bold 28px sans-serif';ctx.fillText(t<.65?'BONK!':'What a flight!',270,280);
   }
-  ctx.textAlign='center';ctx.font='bold 38px monospace';ctx.fillStyle='#233747';ctx.fillText(String(s.passed),270,62);ctx.font='15px monospace';ctx.fillText(`${s.level.name} · ${s.level.reward} coin${s.level.reward===1?'':'s'} per pipe`,270,90);
+  ctx.textAlign='center';ctx.font='bold 38px monospace';ctx.fillStyle=night?'#f6edcf':'#233747';ctx.fillText(String(s.passed),270,62);ctx.font='15px monospace';ctx.fillText(`${s.level.name} · ${s.level.reward} coin${s.level.reward===1?'':'s'} per pipe`,270,90);
   ctx.restore();
 }
 export function drawFlightPreview(canvas,character){const ctx=canvas.getContext('2d');if(!ctx)return;const s=createFlightState(character.flight);s.pipes=[{x:380,width:70,center:330}];drawFlight(ctx,s,canvas.width,canvas.height);}
