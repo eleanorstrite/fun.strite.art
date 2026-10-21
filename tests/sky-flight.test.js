@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { FLIGHT_BACKGROUNDS, FLIGHT_LEVELS, FLIGHT_DEFAULTS, validateFlightSettings } from '../src/flight-settings.js';
-import { drawFlight, createFlightState, flapFlight, tickFlight, createSkyFlight } from '../src/sky-flight.js';
+import { drawFlight, createFlightState, flapFlight, tickFlight, createSkyFlight, projectFlightGate } from '../src/sky-flight.js';
 import { createSystem, freshSave, validateSave, UPGRADES } from '../src/system.js';
 test('five difficulties get faster and tighter with exact rewards',()=>{
   const levels=Object.values(FLIGHT_LEVELS);
@@ -23,7 +23,7 @@ test('flapping lifts the flyer and pipes, floor, and ceiling end a run',()=>{
 test('flyer and pipe customization validate and persist with game saves',()=>{
   const data=new Map(),storage={getItem:k=>data.get(k),setItem:(k,v)=>data.set(k,v)},system=createSystem(storage);
   for(const animal of ['capybara','cat','dog','hotdog','burger','pizza','taco','duck']){
-  const flight={background:'classic',animal,color:'#34bf96',pipe:'coral',pipeColor:'#7744cc',difficulty:'expert'};
+  const flight={view:'side',background:'classic',animal,color:'#34bf96',pipe:'coral',pipeColor:'#7744cc',difficulty:'expert'};
   system.setCharacter({...system.snapshot().character,flight});assert.deepEqual(createSystem(storage).snapshot().character.flight,flight);
   const restored=createSystem({getItem:()=>null,setItem(){}});restored.importSave(system.exportSave());assert.deepEqual(restored.snapshot().character.flight,flight);
   }
@@ -117,4 +117,48 @@ test('existing Sunset Peaks owners retain their scene and receive one refund',()
  assert.equal(migrated.coins,235);assert.equal(migrated.character.flight.background,'sunset');
  assert.deepEqual(migrated.upgrades,['flight-city']);
  assert.deepEqual(validateSave(migrated),migrated);
+});
+
+test('first-person view persists, migrates old saves, and rejects invalid cameras',()=>{
+  const old=freshSave();delete old.character.flight.view;assert.equal(validateSave(old).character.flight.view,'side');
+  const data=new Map(),storage={getItem:key=>data.get(key),setItem:(key,value)=>data.set(key,value)},system=createSystem(storage);
+  system.setCharacter({...system.snapshot().character,flight:{...system.snapshot().character.flight,view:'firstperson'}});
+  const restored=createSystem(storage);assert.equal(restored.snapshot().character.flight.view,'firstperson');
+  const copy=createSystem({getItem:()=>null,setItem(){}});copy.importSave(restored.exportSave());assert.equal(copy.snapshot().character.flight.view,'firstperson');
+  assert.throws(()=>validateFlightSettings({...FLIGHT_DEFAULTS,view:'invalid'}));
+});
+test('both camera modes have identical flight physics, collisions, and rewards',()=>{
+  for(const difficulty of Object.keys(FLIGHT_LEVELS)){
+    const side=createFlightState({...FLIGHT_DEFAULTS,difficulty,view:'side'},()=>.5);
+    const first=createFlightState({...FLIGHT_DEFAULTS,difficulty,view:'firstperson'},()=>.5);
+    for(const state of [side,first]){state.status='playing';state.y=340;state.pipes=[{x:50,width:70,center:340,scored:false},{x:2000,width:70,center:340,scored:false},{x:2300,width:70,center:340,scored:false}];}
+    for(let i=0;i<120;i++){
+      if(i%20===0){flapFlight(side);flapFlight(first);}
+      tickFlight(side,.02);tickFlight(first,.02);
+      for(const key of ['y','velocity','passed','earned','status','distance'])assert.equal(side[key],first[key]);
+    }
+    assert.equal(first.earned,FLIGHT_LEVELS[difficulty].reward);
+  }
+});
+test('first-person projection follows the gap, grows toward the camera, and skips passed poles',()=>{
+  const s=createFlightState({...FLIGHT_DEFAULTS,view:'firstperson'}),p={x:500,width:70,center:330};
+  const far=projectFlightGate(s,p);p.x=157;const near=projectFlightGate(s,p);
+  assert.equal(near.front.scale>far.front.scale,true);
+  assert.equal(near.front.top,360-s.level.gap/2);assert.equal(near.front.bottom,360+s.level.gap/2);
+  s.y+=50;assert.equal(projectFlightGate(s,p).front.top,near.front.top-50);
+  p.x=0;assert.equal(projectFlightGate(s,p).behind,true);
+});
+test('first-person scenery, poles and animal perspectives render without changing gameplay state',()=>{
+  const ctx=new Proxy({createLinearGradient:()=>({addColorStop(){}})},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
+  for(const animal of ['cat','dog','dragon','eagle','duck','hummingbird','capybara','hotdog','pizza','burger','taco']){
+    for(const pipe of ['classic','stone','vines','crystal','coral']){
+      const state=createFlightState({...FLIGHT_DEFAULTS,animal,pipe,view:'firstperson'},()=>.5);
+      for(const background of Object.keys(FLIGHT_BACKGROUNDS)){
+        state.settings.background=background;const before=JSON.stringify(state);
+        drawFlight(ctx,state,540,720);drawFlight(ctx,state,270,360,true);
+        assert.equal(JSON.stringify(state),before);
+      }
+      state.status='lost';drawFlight(ctx,state,540,720);
+    }
+  }
 });

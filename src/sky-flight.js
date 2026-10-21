@@ -186,7 +186,85 @@ function drawPipe(ctx,p,s){
     ctx.fillStyle=c;ctx.fillRect(p.x-7,edge,p.width+14,20);ctx.strokeStyle='#26374566';ctx.lineWidth=2;ctx.strokeRect(p.x-7,edge,p.width+14,20);
   }
 }
-export function drawFlight(ctx,s,width,height,reducedMotion=false){
+// The same obstacle coordinates and physics drive both camera views.
+export function projectFlightGate(s,pipe){
+  const front=pipe.x-7-s.x,back=pipe.x+pipe.width+7-s.x;
+  const scale=z=>260/Math.max(65,260+z);
+  const project=k=>({left:270-340*k,right:270+340*k,top:360+(pipe.center-s.level.gap/2-s.y)*k,bottom:360+(pipe.center+s.level.gap/2-s.y)*k,ceiling:360-s.y*k,floor:360+(FLIGHT_FLOOR-s.y)*k,scale:k});
+  return {front:project(scale(front)),back:project(scale(back)),behind:back< -s.radius};
+}
+export function drawFirstPersonFlight(ctx,s,width,height,reducedMotion=false){
+  drawFlight(ctx,s,width,height,reducedMotion,true);
+  ctx.save();ctx.scale(width/540,height/720);
+  // Perspective lines mark the flight corridor and make forward motion visible.
+  ctx.strokeStyle='#ffffff35';ctx.lineWidth=2;
+  for(const x of [-500,0,540,1040]){ctx.beginPath();ctx.moveTo(270,360);ctx.lineTo(x,720);ctx.stroke();}
+  for(let i=0;i<6;i++){
+    const z=(i*150+s.distance%150),k=260/(260+z),y=360+(FLIGHT_FLOOR-s.y)*k;
+    ctx.beginPath();ctx.moveTo(270-340*k,y);ctx.lineTo(270+340*k,y);ctx.stroke();
+  }
+  for(const pipe of [...s.pipes].reverse()){
+    const gate=projectFlightGate(s,pipe);if(gate.behind)continue;
+    const f=gate.front,b=gate.back,c=s.settings.pipeColor;
+    for(const upper of [true,false]){
+      const edge=upper?f.top:f.bottom,farEdge=upper?b.top:b.bottom;
+      const outer=upper?Math.min(-200,f.ceiling):Math.max(920,f.floor);
+      const farOuter=upper?Math.min(-200,b.ceiling):Math.max(920,b.floor);
+      ctx.fillStyle=c;ctx.fillRect(f.left,Math.min(edge,outer),f.right-f.left,Math.abs(outer-edge));
+      polygon(ctx,[[f.left,edge],[f.right,edge],[b.right,farEdge],[b.left,farEdge]],c);
+      polygon(ctx,[[f.left,edge],[f.right,edge],[b.right,farEdge],[b.left,farEdge]],upper?'#142c4655':'#ffffff44');
+      polygon(ctx,[[f.right,outer],[f.right,edge],[b.right,farEdge],[b.right,farOuter]],'#142c4655');
+      const cap=12*f.scale;
+      ctx.fillStyle=c;ctx.fillRect(f.left-5*f.scale,upper?edge-cap:edge,f.right-f.left+10*f.scale,cap);
+      ctx.strokeStyle='#243f4b99';ctx.lineWidth=Math.max(1,2*f.scale);ctx.strokeRect(f.left-5*f.scale,upper?edge-cap:edge,f.right-f.left+10*f.scale,cap);
+      ctx.save();ctx.beginPath();ctx.rect(f.left,Math.min(edge,outer),f.right-f.left,Math.abs(outer-edge));ctx.clip();
+      ctx.fillStyle='#ffffff24';ctx.fillRect(f.left+22*f.scale,Math.min(edge,outer),28*f.scale,Math.abs(outer-edge));
+      if(s.settings.pipe==='stone'){
+        ctx.strokeStyle='#25343955';ctx.lineWidth=2;
+        for(let row=0;row<12;row++){const y=edge+(upper?-1:1)*row*34*f.scale;ctx.beginPath();ctx.moveTo(f.left,y);ctx.lineTo(f.right,y);ctx.moveTo(270+(row%2?40:-40)*f.scale,y);ctx.lineTo(270+(row%2?40:-40)*f.scale,y+(upper?-1:1)*34*f.scale);ctx.stroke();}
+      }else if(s.settings.pipe==='vines'||s.settings.pipe==='coral'){
+        ctx.strokeStyle=s.settings.pipe==='coral'?'#f6b6bb':'#234c42';ctx.lineWidth=5*f.scale;
+        for(const side of [-1,1]){
+          const x=270+side*190*f.scale;ctx.beginPath();ctx.moveTo(x,edge);ctx.bezierCurveTo(x-30*f.scale,edge-70*f.scale,x+30*f.scale,edge-120*f.scale,x,outer);ctx.stroke();
+          for(let i=1;i<5;i++){const y=edge+(upper?-1:1)*i*35*f.scale;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+side*28*f.scale,y-18*f.scale);ctx.stroke();}
+        }
+      }else if(s.settings.pipe==='crystal')polygon(ctx,[[f.left,edge],[270,edge+(upper?-1:1)*150*f.scale],[f.right,edge],[270,outer]],'#ffffff33');
+      ctx.restore();
+    }
+  }
+  const next=s.pipes.find(pipe=>!projectFlightGate(s,pipe).behind);
+  // The reticle is the animal's collision center. Keep it inside the opening.
+  ctx.strokeStyle='#fff8d6';ctx.lineWidth=2;ctx.beginPath();ctx.arc(270,360,s.radius,0,Math.PI*2);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(263,360);ctx.lineTo(277,360);ctx.moveTo(270,353);ctx.lineTo(270,367);ctx.stroke();
+  // First-person paws or wings: no external side-view animal in this camera.
+  const animal=s.settings.animal,color=s.settings.color,bird=['duck','eagle','hummingbird','dragon'].includes(animal);
+  const bob=reducedMotion?0:Math.sin(s.time*10)*6;
+  for(const side of [-1,1]){
+    ctx.save();ctx.translate(270+side*185,660+bob);ctx.scale(side,1);
+    if(bird){
+      polygon(ctx,[[-22,45],[14,-40],[105,-70],[75,-20],[100,-30],[60,20],[80,14],[28,55]],color);
+      if(animal==='dragon')polygon(ctx,[[10,-22],[84,-55],[55,-10],[68,-13],[25,27]],'#f5b37c');
+      else{ctx.strokeStyle='#ffffff66';ctx.lineWidth=3;for(let i=0;i<3;i++){ctx.beginPath();ctx.moveTo(5+i*12,30);ctx.lineTo(55+i*15,-35-i*8);ctx.stroke();}}
+    }else{
+      ctx.fillStyle=color;ctx.beginPath();ctx.ellipse(0,20,37,58,-.25,0,7);ctx.fill();
+      ctx.fillStyle=animal==='cat'?'#efb3bf':'#f5d4a1';ctx.beginPath();ctx.ellipse(-3,-2,14,18,0,0,7);ctx.fill();
+      for(let i=0;i<3;i++){ctx.beginPath();ctx.ellipse(-21+i*16,-26,6,8,0,0,7);ctx.fill();}
+    }
+    ctx.restore();
+  }
+  ctx.fillStyle='#20374ce8';ctx.fillRect(15,15,510,86);ctx.fillStyle='#fff1d1';ctx.textAlign='center';ctx.font='bold 32px sans-serif';ctx.fillText(String(s.passed),270,49);
+  ctx.font='15px sans-serif';ctx.fillText(s.level.name+' · '+s.level.reward+' coins per pipe · 3D view',270,79);
+  ctx.fillStyle='#20374ce8';ctx.fillRect(60,108,420,36);ctx.fillStyle='#fff1d1';ctx.font='15px sans-serif';
+  const aligned=next&&s.y-s.radius>next.center-s.level.gap/2&&s.y+s.radius<next.center+s.level.gap/2;
+  ctx.fillText(s.status==='lost'?'BONK! Coming in for a landing…':aligned?'Lined up — keep the circle in the gap':next&&s.y>next.center?'Tap to rise toward the opening':'Let yourself fall toward the opening',270,131);
+  if(s.status==='lost'){
+    ctx.strokeStyle='#edb681';ctx.lineWidth=8;ctx.strokeRect(4,4,532,712);
+    ctx.fillStyle='#20374ce8';ctx.fillRect(115,295,310,60);ctx.fillStyle='#fff1d1';ctx.font='bold 28px sans-serif';ctx.fillText('What a flight!',270,335);
+  }
+  ctx.restore();
+}
+export function drawFlight(ctx,s,width,height,reducedMotion=false,backgroundOnly=false){
+  if(s.settings.view==='firstperson'&&!backgroundOnly){drawFirstPersonFlight(ctx,s,width,height,reducedMotion);return;}
   ctx.save();ctx.scale(width/FLIGHT_WIDTH,height/FLIGHT_HEIGHT);
   const dragon=s.settings.animal==='dragon',eagle=s.settings.animal==='eagle',background=s.settings.background;
   const underwater=background==='underwater',night=background==='stars',city=background==='city',sunset=background==='sunset';
@@ -254,6 +332,7 @@ export function drawFlight(ctx,s,width,height,reducedMotion=false){
     polygon(ctx,[[0,610],[180,480],[370,600],[540,460],[540,720],[0,720]],colors[3]);
     if(sunset||background==='snow'){polygon(ctx,[[77,405],[100,360],[134,410],[106,399],[96,408]],'#ffe9d1');polygon(ctx,[[311,387],[340,330],[374,385],[344,374],[333,388]],'#ffe9d1');}
   }
+  if(backgroundOnly){ctx.restore();return;}
   for(const p of s.pipes)drawPipe(ctx,p,s);
   ctx.fillStyle=background==='snow'?'#edf6fb':'#e6d8af';ctx.fillRect(0,FLIGHT_FLOOR,540,40);ctx.fillStyle=background==='snow'?'#b3cedd':'#688575';ctx.fillRect(0,FLIGHT_FLOOR,540,6);
   const crash=s.status==='lost',t=s.crashTime;

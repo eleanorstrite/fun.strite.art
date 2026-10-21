@@ -1,5 +1,5 @@
 import { drawAirplane, formatRaceTime } from './air-race.js';
-import { FLIGHT_LEVELS, FLIGHT_ANIMALS, FLIGHT_BACKGROUNDS, PIPE_STYLES } from './flight-settings.js';
+import { FLIGHT_VIEWS, FLIGHT_LEVELS, FLIGHT_ANIMALS, FLIGHT_BACKGROUNDS, PIPE_STYLES } from './flight-settings.js';
 import { drawFlyer } from './sky-flight.js';
 import { initBackgroundPicker } from './backgrounds.js';
 import { drawKnight, KNIGHT_LEVELS } from './knight-maze.js';
@@ -84,18 +84,18 @@ function syncFlightCustomizer(){
     const scene=FLIGHT_BACKGROUNDS[option.value],locked=scene.upgrade&&!state.upgrades.includes(scene.upgrade);
     option.disabled=Boolean(locked);option.textContent=scene.name+(locked?' · Buy for 200 coins in the shop':scene.upgrade?' · Owned':' · Free');
   }
-  for(const [field,id] of [['background','flight-background'],['animal','flight-animal'],['difficulty','flight-difficulty'],['color','flight-color'],['pipe','flight-pipe'],['pipeColor','flight-pipe-color']])$('#'+id).value=settings[field];
+  for(const [field,id] of [['view','flight-view'],['background','flight-background'],['animal','flight-animal'],['difficulty','flight-difficulty'],['color','flight-color'],['pipe','flight-pipe'],['pipeColor','flight-pipe-color']])$('#'+id).value=settings[field];
   const level=FLIGHT_LEVELS[settings.difficulty];$('#flight-rate').textContent=`${level.name} · ${level.reward} coin${level.reward===1?'':'s'} per pipe`;
   const ctx=$('#flyer-preview').getContext('2d');if(ctx){ctx.clearRect(0,0,240,150);drawFlyer(ctx,120,90,100,settings);}
 }
-for(const [id,values] of [['flight-background',Object.entries(FLIGHT_BACKGROUNDS).map(([id,scene])=>[id,scene.name])],['flight-animal',Object.entries(FLIGHT_ANIMALS)],['flight-pipe',Object.entries(PIPE_STYLES)],['flight-difficulty',Object.entries(FLIGHT_LEVELS).map(([id,l])=>[id,`${l.name} · ${l.reward} coins / pipe`])]])for(const [value,label] of values){const option=document.createElement('option');option.value=value;option.textContent=label;$('#'+id).append(option);}
+for(const [id,values] of [['flight-view',Object.entries(FLIGHT_VIEWS)],['flight-background',Object.entries(FLIGHT_BACKGROUNDS).map(([id,scene])=>[id,scene.name])],['flight-animal',Object.entries(FLIGHT_ANIMALS)],['flight-pipe',Object.entries(PIPE_STYLES)],['flight-difficulty',Object.entries(FLIGHT_LEVELS).map(([id,l])=>[id,`${l.name} · ${l.reward} coins / pipe`])]])for(const [value,label] of values){const option=document.createElement('option');option.value=value;option.textContent=label;$('#'+id).append(option);}
 $('#flight-form').onsubmit=e=>e.preventDefault();
 $('#flight-form').onchange=()=>{
   if(running)return;
   if($('#flight-background').value==='underwater'&&system.snapshot().character.flight.background!=='underwater'){
     $('#flight-pipe').value='coral';$('#flight-pipe-color').value='#de879a';
   }
-  try{system.setCharacter({...system.snapshot().character,flight:{background:$('#flight-background').value,animal:$('#flight-animal').value,difficulty:$('#flight-difficulty').value,color:$('#flight-color').value,pipe:$('#flight-pipe').value,pipeColor:$('#flight-pipe-color').value}});$('#flight-settings-status').textContent=system.isSaved()?'Flight settings saved. Ready to fly!':'Settings applied for this visit. Export to keep them.';}catch(error){notify(error.message);}
+  try{system.setCharacter({...system.snapshot().character,flight:{view:$('#flight-view').value,background:$('#flight-background').value,animal:$('#flight-animal').value,difficulty:$('#flight-difficulty').value,color:$('#flight-color').value,pipe:$('#flight-pipe').value,pipeColor:$('#flight-pipe-color').value}});$('#flight-settings-status').textContent=system.isSaved()?'Flight settings saved. Ready to fly!':'Settings applied for this visit. Export to keep them.';}catch(error){notify(error.message);}
 };
 function pickRandom(values){return values[Math.floor(Math.random()*values.length)];}
 function randomizeSelect(id){

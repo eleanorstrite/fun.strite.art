@@ -18,10 +18,11 @@ export const FLIGHT_BACKGROUNDS = {
   city:{name:'City skyline',upgrade:'flight-city'},
   stars:{name:'Starlight valley',upgrade:'flight-stars'},
 };
-export const FLIGHT_DEFAULTS = { animal:'dragon', color:'#d36a40', pipe:'classic', pipeColor:'#599b78', difficulty:'easy', background:'classic' };
+export const FLIGHT_VIEWS={side:'2D · Side view',firstperson:'3D · First-person view'};
+export const FLIGHT_DEFAULTS = { view:'side', animal:'dragon', color:'#d36a40', pipe:'classic', pipeColor:'#599b78', difficulty:'easy', background:'classic' };
 export function validateFlightSettings(value=FLIGHT_DEFAULTS){
   if(!value||typeof value!=='object'||Array.isArray(value))throw Error('Invalid flying game settings.');
   const settings={...FLIGHT_DEFAULTS,...value};
-  if(!Object.hasOwn(FLIGHT_BACKGROUNDS,settings.background)||!Object.hasOwn(FLIGHT_ANIMALS,settings.animal)||!Object.hasOwn(PIPE_STYLES,settings.pipe)||!Object.hasOwn(FLIGHT_LEVELS,settings.difficulty)||![settings.color,settings.pipeColor].every(c=>typeof c==='string'&&/^#[0-9a-f]{6}$/i.test(c)))throw Error('Invalid flying game settings.');
-  return {background:settings.background,animal:settings.animal,color:settings.color,pipe:settings.pipe,pipeColor:settings.pipeColor,difficulty:settings.difficulty};
+  if(!Object.hasOwn(FLIGHT_VIEWS,settings.view)||!Object.hasOwn(FLIGHT_BACKGROUNDS,settings.background)||!Object.hasOwn(FLIGHT_ANIMALS,settings.animal)||!Object.hasOwn(PIPE_STYLES,settings.pipe)||!Object.hasOwn(FLIGHT_LEVELS,settings.difficulty)||![settings.color,settings.pipeColor].every(c=>typeof c==='string'&&/^#[0-9a-f]{6}$/i.test(c)))throw Error('Invalid flying game settings.');
+  return {view:settings.view,background:settings.background,animal:settings.animal,color:settings.color,pipe:settings.pipe,pipeColor:settings.pipeColor,difficulty:settings.difficulty};
 }
