@@ -3,8 +3,11 @@ import assert from 'node:assert/strict';
 import { FLIGHT_BACKGROUNDS, FLIGHT_LEVELS, FLIGHT_DEFAULTS, validateFlightSettings } from '../src/flight-settings.js';
 import { drawFlight, createFlightState, flapFlight, tickFlight, createSkyFlight } from '../src/sky-flight.js';
 import { createSystem, freshSave, validateSave, UPGRADES } from '../src/system.js';
-test('four difficulties get faster and tighter with exact rewards',()=>{
-  const levels=Object.values(FLIGHT_LEVELS);assert.deepEqual(levels.map(l=>l.reward),[1,3,5,10]);
+test('five difficulties get faster and tighter with exact rewards',()=>{
+  const levels=Object.values(FLIGHT_LEVELS);
+  assert.deepEqual(Object.keys(FLIGHT_LEVELS),['sloth','easy','medium','hard','expert']);
+  assert.deepEqual(levels.map(l=>l.speed),[105,150,205,275,340]);
+  assert.deepEqual(levels.map(l=>l.gap),[260,215,175,135,110]);assert.deepEqual(levels.map(l=>l.reward),[1,1,3,5,10]);
   for(let i=1;i<levels.length;i++){assert.equal(levels[i].speed>levels[i-1].speed,true);assert.equal(levels[i].gap<levels[i-1].gap,true);}
 });
 test('passing a pipe pair scores exactly once at the selected rate',()=>{
@@ -24,6 +27,9 @@ test('flyer and pipe customization validate and persist with game saves',()=>{
   system.setCharacter({...system.snapshot().character,flight});assert.deepEqual(createSystem(storage).snapshot().character.flight,flight);
   const restored=createSystem({getItem:()=>null,setItem(){}});restored.importSave(system.exportSave());assert.deepEqual(restored.snapshot().character.flight,flight);
   }
+  const sloth=validateFlightSettings({...FLIGHT_DEFAULTS,difficulty:'sloth'});
+  system.setCharacter({...system.snapshot().character,flight:sloth});
+  assert.equal(createSystem(storage).snapshot().character.flight.difficulty,'sloth');
   for(const invalid of [{animal:'unknown'},{color:'red'},{pipe:'unknown'},{difficulty:'impossible'},null])assert.throws(()=>validateFlightSettings(invalid));
 });
 test('long flights pay all coins into the shared wallet without a thousand-coin cutoff',()=>{

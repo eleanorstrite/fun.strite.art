@@ -64,14 +64,15 @@ The knight and dragon are original code-drawn pixel sprites inspired by the supp
 
 Choose Dragon, Hummingbird, Eagle, or a Capybara, Cat, or Dog with a jetpack, any animal color, and Classic pipes, Castle pillars, Vine towers, or Crystal towers with a custom color. Settings are saved with your character and included in exported saves. The animals are original canvas artwork inspired by the supplied reference images; the photos are not bundled.
 
-Tap the canvas or **Flap ↑**, or press Space / Arrow Up to flap. Hit a pipe, the ground, or the top of the screen and the flight ends. Each fully cleared pipe pair pays once: Easy **1**, Medium **3**, Hard **5**, Expert **10** coins. All earned coins enter the shared wallet at the end of a flight, including when closing early. There is no 40-coin maze cap on flights. Difficulty and appearance are chosen before starting and locked for that run. Pause and hidden tabs freeze physics. Speed and magnet shop upgrades affect the maze only.
+Tap the canvas or **Flap ↑**, or press Space / Arrow Up to flap. Hit a pipe, the ground, or the top of the screen and the flight ends. Each fully cleared pipe pair pays once: Sloth **1**, Easy **1**, Medium **3**, Hard **5**, Expert **10** coins. All earned coins enter the shared wallet at the end of a flight, including when closing early. There is no 40-coin maze cap on flights. Difficulty and appearance are chosen before starting and locked for that run. Pause and hidden tabs freeze physics. Speed and magnet shop upgrades affect the maze only.
 
 | Difficulty | Scroll speed (world pixels/second) | Gap (world pixels) | Coins per pair |
 | --- | ---: | ---: | ---: |
-| Easy | 105 | 260 | 1 |
-| Medium | 150 | 215 | 3 |
-| Hard | 205 | 175 | 5 |
-| Expert | 275 | 135 | 10 |
+| Sloth | 105 | 260 | 1 |
+| Easy | 150 | 215 | 1 |
+| Medium | 205 | 175 | 3 |
+| Hard | 275 | 135 | 5 |
+| Expert | 340 | 110 | 10 |
 
 `src/flight-settings.js` defines validated settings, and `src/sky-flight.js` contains the physics, collision/scoring rules, renderer, and lifecycle. The portrait canvas scales to the screen while preserving the same physics on phones and desktops.
 

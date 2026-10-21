@@ -1,8 +1,9 @@
 export const FLIGHT_LEVELS = {
-  easy: { name:'Easy', speed:105, gap:260, reward:1 },
-  medium: { name:'Medium', speed:150, gap:215, reward:3 },
-  hard: { name:'Hard', speed:205, gap:175, reward:5 },
-  expert: { name:'Expert', speed:275, gap:135, reward:10 },
+  sloth: { name:'Sloth', speed:105, gap:260, reward:1 },
+  easy: { name:'Easy', speed:150, gap:215, reward:1 },
+  medium: { name:'Medium', speed:205, gap:175, reward:3 },
+  hard: { name:'Hard', speed:275, gap:135, reward:5 },
+  expert: { name:'Expert', speed:340, gap:110, reward:10 },
 };
 export const FLIGHT_ANIMALS = { dragon:'Dragon', hummingbird:'Hummingbird', eagle:'Eagle', capybara:'Capybara with jetpack', cat:'Cat with jetpack', dog:'Dog with jetpack' };
 export const PIPE_STYLES = { classic:'Classic pipes', stone:'Castle pillars', vines:'Vine towers', crystal:'Crystal towers' };
