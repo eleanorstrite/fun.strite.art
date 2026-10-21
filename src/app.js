@@ -3,7 +3,7 @@ import { FLIGHT_LEVELS, FLIGHT_ANIMALS, FLIGHT_BACKGROUNDS, PIPE_STYLES } from '
 import { drawFlyer } from './sky-flight.js';
 import { initBackgroundPicker } from './backgrounds.js';
 import { drawKnight, KNIGHT_LEVELS } from './knight-maze.js';
-import { createSystem, COLORS, UPGRADES, ARMORS, HELMETS, DRAGON_STYLES, ROBOT_OUTFITS, ROBOT_HATS, PLANE_STYLES, AIR_DIFFICULTIES, airRecordId, AIR_BACKGROUNDS, PLANE_UNLOCKS } from './system.js';
+import { createSystem, COLORS, UPGRADES, ARMORS, HELMETS, DRAGON_STYLES, ROBOT_OUTFITS, ROBOT_HATS, PLANE_STYLES, AIR_DIFFICULTIES, airRecordId, AIR_BACKGROUNDS, PLANE_UNLOCKS, PLANE_HATS, PLANE_SCARVES } from './system.js';
 import { GAMES, drawPreview } from './games.js';
 const $ = selector => document.querySelector(selector);
 let toastTimer;
@@ -23,6 +23,7 @@ function syncPlaneCustomizer(){
     }
   }
   $('#plane-background').value=plane.background;
+  $('#plane-hat').value=plane.hat;$('#plane-scarf').value=plane.scarf;$('#plane-accessory-color').value=plane.accessoryColor;
   $('#plane-color').value=plane.color;$('#plane-style').value=plane.style;$('#plane-difficulty').value=plane.difficulty;
   const ctx=$('#plane-preview').getContext('2d');
   if(ctx){ctx.clearRect(0,0,240,150);drawAirplane(ctx,120,70,140,plane);}
@@ -36,12 +37,23 @@ for(const [value,scene] of Object.entries(AIR_BACKGROUNDS)){
 for(const [value,level] of Object.entries(AIR_DIFFICULTIES)){
   const option=document.createElement('option');option.value=value;option.textContent=level.name+' — '+level.coins+' coin'+(level.coins===1?'':'s')+' per hoop';$('#plane-difficulty').append(option);
 }
+for(const [id,choices] of [['plane-hat',PLANE_HATS],['plane-scarf',PLANE_SCARVES]]){
+  for(const [value,label] of Object.entries(choices)){
+    const option=document.createElement('option');option.value=value;option.textContent=label;$('#'+id).append(option);
+  }
+}
+for(const page of ['design','accessories'])$('#plane-'+page+'-button').onclick=()=>{
+  for(const name of ['design','accessories']){
+    $('#plane-'+name+'-page').hidden=name!==page;
+    $('#plane-'+name+'-button').setAttribute('aria-pressed',String(name===page));
+  }
+};
 $('#plane-form').onsubmit=e=>e.preventDefault();
 $('#plane-form').onchange=()=>{
   if(running)return;
-  try{system.setCharacter({...system.snapshot().character,plane:{color:$('#plane-color').value,style:$('#plane-style').value,difficulty:$('#plane-difficulty').value,background:$('#plane-background').value}});$('#plane-status').textContent='Airplane saved. Ready to race!';}catch(error){notify(error.message);}
+  try{system.setCharacter({...system.snapshot().character,plane:{color:$('#plane-color').value,style:$('#plane-style').value,difficulty:$('#plane-difficulty').value,background:$('#plane-background').value,hat:$('#plane-hat').value,scarf:$('#plane-scarf').value,accessoryColor:$('#plane-accessory-color').value}});$('#plane-status').textContent='Airplane saved. Ready to race!';}catch(error){notify(error.message);}
 };
-$('#random-plane').onclick=()=>{if(running)return;randomizeSelect('plane-style');randomizeSelect('plane-background');$('#plane-color').value=pickRandom(COLORS);$('#plane-form').onchange();};
+$('#random-plane').onclick=()=>{if(running)return;randomizeSelect('plane-style');randomizeSelect('plane-background');randomizeSelect('plane-hat');randomizeSelect('plane-scarf');$('#plane-accessory-color').value=pickRandom(COLORS);$('#plane-color').value=pickRandom(COLORS);$('#plane-form').onchange();};
 // Keep held steering keys active when the pointer toggles Boost.
 $('#race-boost').addEventListener('pointerdown',event=>event.preventDefault());
 $('#race-boost').onclick=()=>{

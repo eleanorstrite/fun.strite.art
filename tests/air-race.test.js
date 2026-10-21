@@ -50,7 +50,7 @@ test('race records keep the fastest finish and survive failed attempts, reloads 
 test('airplane customization persists and old saves receive a default airplane',()=>{
   const old=freshSave();delete old.character.plane;assert.equal(validateSave(old).character.plane.style,'sport');
   const system=createSystem({getItem:()=>null,setItem(){}});system.setCharacter({...system.snapshot().character,plane:{style:'jet',color:'#55aabb'}});
-  const copy=createSystem({getItem:()=>null,setItem(){}});copy.importSave(system.exportSave());assert.deepEqual(copy.snapshot().character.plane,{color:'#55aabb',style:'jet',difficulty:'sloth',background:'valley'});
+  const copy=createSystem({getItem:()=>null,setItem(){}});copy.importSave(system.exportSave());assert.deepEqual(copy.snapshot().character.plane,{color:'#55aabb',style:'jet',difficulty:'sloth',background:'valley',hat:'none',scarf:'none',accessoryColor:'#d34c65'});
   assert.throws(()=>system.setCharacter({...system.snapshot().character,plane:{style:'unknown',color:'#55aabb'}}));
 });
 test('air race pauses time and falling, handles drag and boost, and closes only once',()=>{
@@ -229,4 +229,21 @@ test('all airplane designs and scenic backgrounds draw distinctly without affect
     marks=[];drawAirplane(ctx,450,315,90,{style,color:'#5599aa'});planes.add(JSON.stringify(marks));
   }
   assert.equal(scenes.size,8);assert.equal(planes.size,8);assert.equal(JSON.stringify(state),before);
+});
+
+test('plane accessories are free, persist across reloads, and migrate from old saves',()=>{
+  const data=new Map(),storage={getItem:key=>data.get(key),setItem:(key,value)=>data.set(key,value)};
+  const system=createSystem(storage);
+  system.setCharacter({...system.snapshot().character,plane:{...system.snapshot().character.plane,hat:'crown',scarf:'long',accessoryColor:'#9876ab'}});
+  const saved=createSystem(storage).snapshot();
+  assert.equal(saved.character.plane.hat,'crown');assert.equal(saved.character.plane.scarf,'long');assert.equal(saved.character.plane.accessoryColor,'#9876ab');assert.equal(saved.coins,0);
+  for(const patch of [{hat:'unknown'},{scarf:'unknown'},{accessoryColor:'red'}])assert.throws(()=>system.setCharacter({...saved.character,plane:{...saved.character.plane,...patch}}));
+  const old=freshSave();delete old.character.plane.hat;delete old.character.plane.scarf;delete old.character.plane.accessoryColor;
+  const migrated=validateSave(old).character.plane;assert.equal(migrated.hat,'none');assert.equal(migrated.scarf,'none');
+  const ctx=new Proxy({createLinearGradient:()=>({addColorStop(){}})},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
+  for(const hat of ['none','cap','tophat','crown','beanie'])for(const scarf of ['none','short','long']){
+    const look={...saved.character.plane,hat,scarf};
+    drawAirplane(ctx,120,70,140,look);
+    for(const won of [true,false])drawAirEnding(ctx,won,4,look,900,650);
+  }
 });
