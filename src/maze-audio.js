@@ -15,6 +15,8 @@ export function createMazeAudio(Context = globalThis.AudioContext || globalThis.
     voices.clear();
   }
   const cues = {
+    thunder: [[70, 35, .4], [55, 25, .5]],
+    cackle: [[320, 620, .12], [500, 280, .16], [340, 680, .12], [540, 260, .18], [300, 560, .14], [440, 190, .3]],
     flap: [[380, 760, .055], [680, 460, .045]],
     chirp: [[1100, 1800, .035], [1500, 950, .04]],
     whoosh: [[180, 420, .07], [360, 190, .055]],
