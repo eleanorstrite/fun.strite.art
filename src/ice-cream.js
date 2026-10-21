@@ -1,20 +1,42 @@
 import { createMazeAudio } from './maze-audio.js';
 
-export const ICE_CONES={waffle:'Waffle cone',sugar:'Sugar cone',chocolate:'Chocolate cone',cup:'Rainbow cup'};
-export const ICE_FLAVORS={vanilla:{name:'Vanilla',color:'#fff0ce'},chocolate:{name:'Chocolate',color:'#976047'},strawberry:{name:'Strawberry',color:'#f2a1b8'},mint:{name:'Mint chip',color:'#9ddcc1'},blueberry:{name:'Blueberry',color:'#aaa0db'},rainbow:{name:'Rainbow',color:'#f4b0cb'}};
-export const ICE_TOPPINGS={sprinkles:'Rainbow sprinkles',chips:'Chocolate chips',sauce:'Chocolate drizzle',cream:'Whipped cream',cherry:'Cherry',stars:'Candy stars'};
-export const ICE_CLIP_SECONDS=6;
+import { ICE_CONES, ICE_FLAVORS, ICE_TOPPINGS, ICE_UNLOCKS, iceIngredientUnlocked } from './ice-settings.js';
+
+export const ICE_CLIP_SECONDS=7.5;
 export function createIceRecipe(){return {cone:'waffle',flavor:'vanilla',toppings:[]};}
 const iceClamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+// Seeded scatter stays still between frames, without rows or a repeating grid.
+export function scatterIceChips(count=22,seed=9137){
+  let value=seed;
+  const random=()=>{value=(value*1664525+1013904223)>>>0;return value/4294967296;};
+  const points=[];
+  while(points.length<count){
+    const x=random()*110-55,y=random()*85-75;
+    if((x/60)**2+((y+30)/50)**2>1||points.some(p=>Math.hypot(p.x-x,p.y-y)<9))continue;
+    points.push({x,y,angle:random()*Math.PI,size:3+random()*3});
+  }
+  return points;
+}
+const ICE_CHIP_POINTS=scatterIceChips();
+export const ICE_BITES=[{x:29,y:-65,r:60},{x:-32,y:-40,r:65},{x:12,y:30,r:73},{x:0,y:113,r:66}];
+export function iceBiteCount(time){return ICE_BITES.filter((_,i)=>time>=2.1+i*.95).length;}
 function iceOval(ctx,x,y,rx,ry,color){
   ctx.fillStyle=color;ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2);ctx.fill();
 }
 function iceShape(ctx,points,color){
   ctx.fillStyle=color;ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();ctx.fill();
 }
-export function drawIceDessert(ctx,recipe,x,y,scale=1){
+export function drawIceDessert(ctx,recipe,x,y,scale=1,bites=0){
   ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);
-  const coneColor={waffle:'#dca25e',sugar:'#edc88b',chocolate:'#6b4336',cup:'#8fcfd3'}[recipe.cone];
+  // Intersect the dessert with the outside of each bite; the remaining portion
+  // keeps its original size and position, with visible scalloped bite edges.
+  if(bites>0){ctx.beginPath();ctx.rect(-200,-82,400,282);ctx.clip();}
+  for(const bite of ICE_BITES.slice(0,bites)){
+    ctx.beginPath();ctx.rect(-200,-200,400,400);
+    ctx.moveTo(bite.x+bite.r,bite.y);ctx.arc(bite.x,bite.y,bite.r,0,Math.PI*2);
+    ctx.clip('evenodd');
+  }
+  const coneColor={waffle:'#dca25e',sugar:'#edc88b',chocolate:'#6b4336',cup:'#8fcfd3',pretzel:'#a96f36',cookie:'#cfab73'}[recipe.cone];
   if(recipe.cone==='cup'){
     iceShape(ctx,[[-63,5],[63,5],[47,100],[-47,100]],coneColor);
     for(let i=0;i<5;i++){ctx.fillStyle=['#ef90ad','#f3c871','#b3d8af'][i%3];ctx.fillRect(-42+i*18,25,12,55);}
@@ -28,6 +50,10 @@ export function drawIceDessert(ctx,recipe,x,y,scale=1){
     }
     ctx.restore();iceOval(ctx,0,6,57,9,'#f3d29d');
   }
+  if(recipe.cone==='pretzel'||recipe.cone==='cookie'){
+    ctx.fillStyle=recipe.cone==='pretzel'?'#fff0ca':'#6f4837';
+    for(const [x,y] of [[-30,25],[20,21],[0,43],[-15,69],[12,85],[0,117]])ctx.fillRect(x,y,recipe.cone==='cookie'?6:3,4);
+  }
   const flavor=ICE_FLAVORS[recipe.flavor];
   iceOval(ctx,0,-30,69,61,flavor.color);
   for(let i=0;i<6;i++)iceOval(ctx,-52+i*21,7,16,13,flavor.color);
@@ -37,8 +63,11 @@ export function drawIceDessert(ctx,recipe,x,y,scale=1){
     ctx.restore();
   }
   iceOval(ctx,-22,-57,24,10,'#ffffff44');
-  if(recipe.flavor==='mint'||recipe.toppings.includes('chips')){
-    ctx.fillStyle='#69463e';for(let i=0;i<17;i++){const x=((i*31)%100)-50,y=-63+(i*19)%61;ctx.fillRect(x,y,5,6);}
+  if(recipe.flavor==='mint'||recipe.flavor==='cookies'||recipe.toppings.includes('chips')){
+    for(const chip of ICE_CHIP_POINTS){
+      ctx.save();ctx.translate(chip.x,chip.y);ctx.rotate(chip.angle);
+      iceShape(ctx,[[-chip.size,2],[0,-chip.size],[chip.size,1],[1,chip.size]],'#69463e');ctx.restore();
+    }
   }
   if(recipe.toppings.includes('sauce')){
     ctx.strokeStyle='#633c32';ctx.lineWidth=7;ctx.lineCap='round';
@@ -52,6 +81,16 @@ export function drawIceDessert(ctx,recipe,x,y,scale=1){
     const x=-44+(i*29)%90,y=-63+(i*23)%60;
     iceShape(ctx,Array.from({length:10},(_,j)=>[x+Math.cos(j*Math.PI/5-Math.PI/2)*(j%2?3:8),y+Math.sin(j*Math.PI/5-Math.PI/2)*(j%2?3:8)]),'#ffe18b');
   }
+  if(recipe.toppings.includes('caramel')){
+    ctx.strokeStyle='#bc792e';ctx.lineWidth=6;ctx.lineCap='round';ctx.beginPath();
+    ctx.moveTo(-47,-42);ctx.bezierCurveTo(-22,-80,-20,0,1,-40);ctx.bezierCurveTo(25,-78,24,0,46,-26);ctx.stroke();
+  }
+  if(recipe.toppings.includes('marshmallows'))for(const [x,y] of [[-37,-41],[5,-63],[35,-30],[-7,-12]]){
+    ctx.fillStyle='#fff8ef';ctx.beginPath();ctx.roundRect(x-7,y-6,14,13,4);ctx.fill();iceOval(ctx,x,y-5,7,3,'#ffe5ee');
+  }
+  if(recipe.toppings.includes('berries'))for(const [x,y,i] of [[-42,-27,0],[-18,-64,1],[23,-47,0],[37,-15,1]]){
+    iceOval(ctx,x,y,8,8,i?'#686ba6':'#cf5479');iceOval(ctx,x-2,y-3,2,2,'#ffffff88');
+  }
   if(recipe.toppings.includes('cream')){
     iceOval(ctx,0,-87,28,12,'#fffaf0');iceOval(ctx,2,-101,20,11,'#fffaf0');iceOval(ctx,5,-113,11,9,'#fffaf0');
   }
@@ -62,7 +101,7 @@ export function drawIceDessert(ctx,recipe,x,y,scale=1){
   }
   ctx.restore();
 }
-function drawIceDragon(ctx,x,y,time,mouth){
+function drawIceDragon(ctx,x,y,time,mouth,headX=0,headY=0){
   ctx.save();ctx.translate(x,y);
   // A friendly, round dragon with folded wings, little horns and expressive eyes.
   iceShape(ctx,[[45,60],[130,20],[114,120],[65,105]],'#6899a4');
@@ -71,6 +110,9 @@ function drawIceDragon(ctx,x,y,time,mouth){
   iceOval(ctx,35,118,63,75,'#71a991');iceOval(ctx,15,127,36,56,'#bdd4a0');
   iceOval(ctx,-1,185,30,12,'#578c79');iceOval(ctx,67,185,30,12,'#578c79');
   for(let i=0;i<4;i++)iceShape(ctx,[[64+i*10,44+i*26],[86+i*9,54+i*26],[66+i*9,66+i*26]],'#e4c177');
+  ctx.strokeStyle='#81b69b';ctx.lineWidth=48;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(28,80);ctx.quadraticCurveTo(20+headX,60+headY,headX+8,headY+28);ctx.stroke();
+  ctx.save();ctx.translate(headX,headY);
   iceOval(ctx,0,19,64,62,'#81b69b');
   iceShape(ctx,[[-34,-29],[-44,-66],[-13,-38]],'#f3dfac');
   iceShape(ctx,[[24,-34],[42,-65],[43,-17]],'#f3dfac');
@@ -87,6 +129,7 @@ function drawIceDragon(ctx,x,y,time,mouth){
   }else{
     ctx.strokeStyle='#426d61';ctx.lineWidth=3;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-78,53);ctx.quadraticCurveTo(-56,67,-35,51);ctx.stroke();
   }
+  ctx.restore();
   ctx.save();ctx.translate(-6,92);ctx.rotate(Math.sin(time*4)*.08);
   iceOval(ctx,-15,0,30,13,'#81b69b');ctx.restore();
   ctx.restore();
@@ -106,11 +149,19 @@ export function drawIceScene(ctx,recipe,width,height,clipTime=null,reducedMotion
     drawIceDessert(ctx,recipe,450,307,1.15);
     ctx.font='20px sans-serif';ctx.fillStyle='#fff6e8';ctx.fillText(ICE_FLAVORS[recipe.flavor].name+' · '+ICE_CONES[recipe.cone],450,566);
   }else{
-    const t=reducedMotion?(clipTime<2?1:clipTime<4?3:5):clipTime;
-    const arrive=iceClamp(t/1.6,0,1),bite=iceClamp((t-2)/1.3,0,1);
-    drawIceDragon(ctx,900-arrive*330,277,t,t>1.6&&t<3.3?.8:0);
-    if(bite<1)drawIceDessert(ctx,recipe,420+bite*80,314+bite*18,1-bite);
-    if(t>=3.3){
+    const t=clipTime;
+    const arrive=iceClamp(t/1.4,0,1),bites=iceBiteCount(t);
+    const biteIndex=Math.min(3,Math.max(0,Math.floor((t-1.5)/.95)));
+    const phase=iceClamp((t-1.5-biteIndex*.95)/.95,0,1),target=ICE_BITES[biteIndex];
+    const lunge=t>=1.5&&t<5.35?(reducedMotion ? .65 :Math.sin(phase*Math.PI)):0;
+    const mouth=lunge>.3&&phase<.65?.9:lunge>.15?.15:0;
+    drawIceDragon(ctx,900-arrive*330,277,reducedMotion?0:t,mouth,(420+target.x-516)*lunge,(314+target.y-333)*lunge);
+    if(bites<4)drawIceDessert(ctx,recipe,420,314,1,bites);
+    if(!reducedMotion&&bites>0&&t<5.5){
+      const bite=ICE_BITES[bites-1],elapsed=t-(2.1+(bites-1)*.95);
+      if(elapsed<.35)for(let i=0;i<5;i++)iceOval(ctx,420+bite.x+(i-2)*9,314+bite.y+elapsed*95+i*4,3,3,ICE_FLAVORS[recipe.flavor].color);
+    }
+    if(t>=5.5){
       ctx.fillStyle='#fff8e8';ctx.beginPath();ctx.roundRect(200,167,280,95,22);ctx.fill();
       iceShape(ctx,[[470,239],[505,270],[454,254]],'#fff8e8');
       ctx.fillStyle='#533e4a';ctx.font='bold 33px sans-serif';ctx.fillText('Yum! Thank you!',340,224);
@@ -124,11 +175,11 @@ export function drawIcePreview(canvas){
   const ctx=canvas.getContext('2d');if(!ctx)return;
   drawIceScene(ctx,{cone:'waffle',flavor:'strawberry',toppings:['sprinkles','cream','cherry']},canvas.width,canvas.height);
 }
-export function createIceCream({canvas,onHud,onFinish,controls=document.querySelector('#ice-controls')}){
+export function createIceCream({canvas,onHud,onFinish,controls=document.querySelector('#ice-controls'),getUpgrades=()=>[]}){
   const ctx=canvas.getContext('2d');if(!ctx)throw Error('Your browser does not support canvas.');
   const audio=createMazeAudio(),controller=new AbortController();
   const reduced=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false;
-  let recipe=createIceRecipe(),step=0,active=false,paused=false,clip=null,spoken=false,destroyed=false,last=0,frame;
+  let recipe=createIceRecipe(),step=0,active=false,paused=false,clip=null,spoken=false,lastBites=0,destroyed=false,last=0,frame;
   const steps=['Cone','Ice cream','Toppings'];
   const tabs=document.createElement('div');tabs.className='ice-steps';
   const heading=document.createElement('h3');heading.tabIndex=-1;
@@ -149,11 +200,13 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
     choices.replaceChildren();
     const options=step===0?ICE_CONES:step===1?Object.fromEntries(Object.entries(ICE_FLAVORS).map(([id,f])=>[id,f.name])):ICE_TOPPINGS;
     for(const [id,label] of Object.entries(options)){
-      const button=document.createElement('button');button.type='button';button.className='button outline';button.textContent=label;button.disabled=locked;
+      const button=document.createElement('button');button.type='button';button.className='button outline';const kind=step===0?'cone':step===1?'flavor':'topping',owned=iceIngredientUnlocked(kind,id,getUpgrades());
+      button.textContent=label+(!owned?' · Shop: 200 coins':ICE_UNLOCKS[kind]?.[id]?' · Owned':'');
+      button.disabled=locked||!owned;
       const selected=step===0?recipe.cone===id:step===1?recipe.flavor===id:recipe.toppings.includes(id);
       button.setAttribute('aria-pressed',String(selected));
       button.onclick=()=>{
-        if(!active||paused||clip!==null)return;
+        if(!active||paused||clip!==null||!iceIngredientUnlocked(kind,id,getUpgrades()))return;
         if(step===0)recipe.cone=id;else if(step===1)recipe.flavor=id;
         else recipe.toppings=recipe.toppings.includes(id)?recipe.toppings.filter(item=>item!==id):[...recipe.toppings,id];
         audio.play('gem');renderControls();
@@ -163,12 +216,12 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
     }
     back.disabled=locked||step===0;next.disabled=locked;
     next.textContent=step===2?'Done — feed the dragon!':'Next: '+steps[step+1]+' →';
-    onHud({text:clip!==null?'Watch your dragon enjoy the treat!':steps[step]+' · '+recipe.toppings.length+' toppings · All choices are free'});
+    onHud({text:clip!==null?'Watch your dragon enjoy the treat!':steps[step]+' · '+recipe.toppings.length+' toppings · More ingredients in the Appearance shop'});
   }
   back.onclick=()=>{if(active&&!paused&&clip===null&&step>0){step--;renderControls();heading.focus({preventScroll:true});}};
   next.onclick=()=>{
     if(!active||paused||clip!==null)return;
-    if(step<2)step++;else{clip=0;spoken=false;audio.play('win');}
+    if(step<2)step++;else{clip=0;spoken=false;lastBites=0;audio.play('win');}
     renderControls();heading.focus({preventScroll:true});
   };
   function finish(){
@@ -180,7 +233,8 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
     const dt=last?Math.min(.1,(now-last)/1000):0;last=now;
     if(active&&!paused&&!document.hidden&&clip!==null){
       clip=Math.min(ICE_CLIP_SECONDS,clip+dt);
-      if(clip>=3.3&&!spoken){spoken=true;audio.say('Yum! Thank you!',1.1);}
+      const bites=iceBiteCount(clip);if(bites>lastBites){lastBites=bites;audio.play('gulp');}
+      if(clip>=5.5&&!spoken){spoken=true;audio.say('Yum! Thank you!',1.1);}
       if(clip>=ICE_CLIP_SECONDS)finish();
     }
     drawIceScene(ctx,recipe,canvas.width,canvas.height,clip,reduced);
