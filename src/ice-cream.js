@@ -104,34 +104,36 @@ export function drawIceDessert(ctx,recipe,x,y,scale=1,bites=0){
 function drawIceDragon(ctx,x,y,time,mouth,headX=0,headY=0){
   ctx.save();ctx.translate(x,y);
   // A friendly, round dragon with folded wings, little horns and expressive eyes.
-  iceShape(ctx,[[45,60],[130,20],[114,120],[65,105]],'#6899a4');
-  iceShape(ctx,[[52,64],[114,40],[99,93],[64,100]],'#acc6cf');
-  iceShape(ctx,[[40,139],[127,151],[148,124],[135,170],[65,174]],'#71a991');
-  iceOval(ctx,35,118,63,75,'#71a991');iceOval(ctx,15,127,36,56,'#bdd4a0');
-  iceOval(ctx,-1,185,30,12,'#578c79');iceOval(ctx,67,185,30,12,'#578c79');
-  for(let i=0;i<4;i++)iceShape(ctx,[[64+i*10,44+i*26],[86+i*9,54+i*26],[66+i*9,66+i*26]],'#e4c177');
-  ctx.strokeStyle='#81b69b';ctx.lineWidth=48;ctx.lineCap='round';
+  iceShape(ctx,[[45,60],[130,20],[114,120],[65,105]],'#8260bb');
+  iceShape(ctx,[[52,64],[114,40],[99,93],[64,100]],'#d899de');
+  iceShape(ctx,[[40,139],[127,151],[148,124],[135,170],[65,174]],'#32b9b0');
+  iceOval(ctx,35,118,63,75,'#32b9b0');iceOval(ctx,15,127,36,56,'#ffdb79');
+  for(const [x,y,color] of [[60,94,'#a1ece0'],[73,113,'#89d9e8'],[62,139,'#bba4ee'],[50,159,'#f6b9d1']])iceOval(ctx,x,y,6,4,color);
+  iceOval(ctx,-1,185,30,12,'#26949e');iceOval(ctx,67,185,30,12,'#26949e');
+  for(let i=0;i<4;i++)iceShape(ctx,[[64+i*10,44+i*26],[86+i*9,54+i*26],[66+i*9,66+i*26]],['#ff8d9b','#ffc961','#aa8ce7','#ee89c1'][i]);
+  ctx.strokeStyle='#55c9bd';ctx.lineWidth=48;ctx.lineCap='round';
   ctx.beginPath();ctx.moveTo(28,80);ctx.quadraticCurveTo(20+headX,60+headY,headX+8,headY+28);ctx.stroke();
   ctx.save();ctx.translate(headX,headY);
-  iceOval(ctx,0,19,64,62,'#81b69b');
-  iceShape(ctx,[[-34,-29],[-44,-66],[-13,-38]],'#f3dfac');
-  iceShape(ctx,[[24,-34],[42,-65],[43,-17]],'#f3dfac');
-  iceOval(ctx,-46,43,44,25,'#9dcaab');
+  iceOval(ctx,0,19,64,62,'#55c9bd');
+  iceShape(ctx,[[-34,-29],[-44,-66],[-13,-38]],'#ffcb65');
+  iceShape(ctx,[[24,-34],[42,-65],[43,-17]],'#ffcb65');
+  iceOval(ctx,39,21,7,5,'#b4a2ef');iceOval(ctx,47,34,5,4,'#f4aacb');
+  iceOval(ctx,-46,43,44,25,'#98e4c2');
   iceOval(ctx,-17,0,15,20,'#fff7e8');iceOval(ctx,23,0,14,19,'#fff7e8');
   iceOval(ctx,-22,2,6,10,'#29464e');iceOval(ctx,18,2,6,10,'#29464e');
   iceOval(ctx,-24,-2,2,3,'#fff');iceOval(ctx,16,-2,2,3,'#fff');
-  iceOval(ctx,-66,36,3,3,'#537e6e');iceOval(ctx,-44,31,3,3,'#537e6e');
-  iceOval(ctx,-29,29,11,5,'#eba99c');
+  iceOval(ctx,-66,36,3,3,'#287e80');iceOval(ctx,-44,31,3,3,'#287e80');
+  iceOval(ctx,-29,29,11,5,'#f58da9');
   if(mouth>0){
     iceOval(ctx,-54,56,29,8+mouth*22,'#5b3a49');
     iceOval(ctx,-56,65+mouth*10,17,5,'#eb9baf');
     iceShape(ctx,[[-73,48],[-65,48],[-68,59]],'#fff7de');
   }else{
-    ctx.strokeStyle='#426d61';ctx.lineWidth=3;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-78,53);ctx.quadraticCurveTo(-56,67,-35,51);ctx.stroke();
+    ctx.strokeStyle='#287e80';ctx.lineWidth=3;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-78,53);ctx.quadraticCurveTo(-56,67,-35,51);ctx.stroke();
   }
   ctx.restore();
   ctx.save();ctx.translate(-6,92);ctx.rotate(Math.sin(time*4)*.08);
-  iceOval(ctx,-15,0,30,13,'#81b69b');ctx.restore();
+  iceOval(ctx,-15,0,30,13,'#55c9bd');ctx.restore();
   ctx.restore();
 }
 export function drawIceScene(ctx,recipe,width,height,clipTime=null,reducedMotion=false){
