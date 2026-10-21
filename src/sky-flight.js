@@ -147,6 +147,23 @@ export function drawFlyer(ctx,x,y,size,settings,time=0,tilt=0){
 }
 function drawPipe(ctx,p,s){
   const top=p.center-s.level.gap/2,bottom=p.center+s.level.gap/2,c=s.settings.pipeColor;
+  if(s.settings.pipe==='coral'){
+    for(const [y,h] of [[0,top],[bottom,FLIGHT_FLOOR-bottom]]){
+      ctx.save();ctx.beginPath();ctx.rect(p.x-7,y,p.width+14,h);ctx.clip();
+      ctx.fillStyle=c;ctx.fillRect(p.x-7,y,p.width+14,h);
+      ctx.fillStyle='#00000022';ctx.fillRect(p.x+p.width-10,y,17,h);
+      ctx.strokeStyle='#fff0dd88';ctx.lineWidth=5;ctx.lineCap='round';
+      for(let yy=y+22;yy<y+h;yy+=44){
+        const xx=p.x+20+(Math.floor(yy/44)%2)*20;
+        ctx.beginPath();ctx.moveTo(xx,yy+24);ctx.lineTo(xx,yy-10);ctx.moveTo(xx,yy+9);ctx.lineTo(xx-14,yy);ctx.lineTo(xx-16,yy-10);ctx.moveTo(xx,yy);ctx.lineTo(xx+14,yy-10);ctx.stroke();
+      }
+      ctx.fillStyle='#ffffff44';
+      for(let yy=y+9;yy<y+h;yy+=21)for(let xx=p.x+4;xx<p.x+p.width;xx+=19){ctx.beginPath();ctx.arc(xx,yy,2,0,7);ctx.fill();}
+      ctx.strokeStyle='#753e6266';ctx.lineWidth=2;ctx.strokeRect(p.x-7,y,p.width+14,h);
+      ctx.restore();
+    }
+    return;
+  }
   for(const [y,h,edge] of [[0,top,top-20],[bottom,FLIGHT_FLOOR-bottom,bottom]]){
     ctx.fillStyle=c;ctx.fillRect(p.x,y,p.width,h);ctx.fillStyle='#ffffff26';ctx.fillRect(p.x+8,y,12,h);ctx.fillStyle='#00000020';ctx.fillRect(p.x+p.width-12,y,12,h);
     if(s.settings.pipe==='stone'){ctx.strokeStyle='#25343955';ctx.lineWidth=2;for(let yy=y+28;yy<y+h;yy+=35){ctx.beginPath();ctx.moveTo(p.x,yy);ctx.lineTo(p.x+p.width,yy);ctx.moveTo(p.x+((Math.floor(yy/35)%2)?22:47),yy);ctx.lineTo(p.x+((Math.floor(yy/35)%2)?22:47),Math.min(yy+35,y+h));ctx.stroke();}}
@@ -158,17 +175,35 @@ function drawPipe(ctx,p,s){
 export function drawFlight(ctx,s,width,height,reducedMotion=false){
   ctx.save();ctx.scale(width/FLIGHT_WIDTH,height/FLIGHT_HEIGHT);
   const dragon=s.settings.animal==='dragon',eagle=s.settings.animal==='eagle',background=s.settings.background;
-  const night=background==='stars',city=background==='city',sunset=background==='sunset';
-  const freePalettes={ocean:['#70bfdc','#d9f0ee','#56adbf','#368fa9'],meadow:['#92cae5','#eff2c9','#a2c58b','#78a66c'],desert:['#e6b67c','#fae3ae','#d7a06b','#bc8157'],snow:['#8caeca','#e6f2f5','#b5cddd','#8daac5']};
+  const underwater=background==='underwater',night=background==='stars',city=background==='city',sunset=background==='sunset';
+  const freePalettes={underwater:['#469fbb','#123d68','#27758b','#20546e'],ocean:['#70bfdc','#d9f0ee','#56adbf','#368fa9'],meadow:['#92cae5','#eff2c9','#a2c58b','#78a66c'],desert:['#e6b67c','#fae3ae','#d7a06b','#bc8157'],snow:['#8caeca','#e6f2f5','#b5cddd','#8daac5']};
   const colors=freePalettes[background]||(night?['#151e45','#626b9f','#384973','#293b60']:city?['#849cc4','#f8cda7','#6b7d9d','#445c79']:sunset?['#d86c86','#ffdb8b','#b17791','#785f82']:[dragon?'#d98883':eagle?'#96b6d3':'#97d3d1',dragon?'#ffe4ac':'#e2efd5',dragon?'#ad8c9c':'#93b8ad',dragon?'#8d8799':'#77a597']);
   const sky=ctx.createLinearGradient(0,0,0,FLIGHT_HEIGHT);sky.addColorStop(0,colors[0]);sky.addColorStop(1,colors[1]);ctx.fillStyle=sky;ctx.fillRect(0,0,540,720);
-  ctx.fillStyle=night?'#edf3ff':'#fff0c7';ctx.beginPath();ctx.arc(420,125,night?34:53,0,7);ctx.fill();
-  if(night){
+  if(!underwater){ctx.fillStyle=night?'#edf3ff':'#fff0c7';ctx.beginPath();ctx.arc(420,125,night?34:53,0,7);ctx.fill();}
+  if(underwater){
+    for(let i=0;i<4;i++)polygon(ctx,[[i*150-50,0],[i*150+3,0],[i*150+170,550],[i*150+30,550]],'#b5f4ec0d');
+    for(let i=0;i<19;i++){
+      const x=((i*73-s.distance*.1)%540+540)%540,y=70+((i*67-s.time*12)%550+550)%550;
+      ctx.strokeStyle='#c0eff35c';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(x,y,3+i%5,0,7);ctx.stroke();
+    }
+    for(let i=0;i<7;i++){
+      const x=((i*97-s.distance*.18)%620+620)%620-40,y=240+(i*67)%280;
+      ctx.fillStyle=i%2?'#79c0be88':'#e7be8e88';ctx.beginPath();ctx.ellipse(x,y,11,5,0,0,7);ctx.fill();
+      polygon(ctx,[[x-9,y],[x-17,y-6],[x-17,y+6]],ctx.fillStyle);
+    }
+  }else if(night){
     for(let i=0;i<55;i++){const x=((i*97-s.distance*.06)%540+540)%540,y=35+(i*73)%440;ctx.fillStyle=i%3?'#dce9ff':'#fff2bd';ctx.fillRect(x,y,i%3?2:3,i%3?2:3);}
   }else{
     for(let i=0;i<5;i++){const x=((i*170-s.distance*.15)%850+850)%850-150;ctx.fillStyle='#ffffff66';ctx.beginPath();ctx.ellipse(x,140+i%3*70,70,18,0,0,7);ctx.fill();}
   }
-  if(background==='ocean'){
+  if(underwater){
+    polygon(ctx,[[0,620],[90,570],[180,625],[300,585],[440,610],[540,565],[540,720],[0,720]],'#245773');
+    for(let i=0;i<14;i++){
+      const x=i*43-10;ctx.strokeStyle=i%2?'#57a99a':'#3d8c8c';ctx.lineWidth=5;ctx.lineCap='round';
+      ctx.beginPath();ctx.moveTo(x,680);ctx.bezierCurveTo(x-18,645,x+18,622,x+Math.sin(i)*15,590+i%3*15);ctx.stroke();
+      if(i%3===0){ctx.strokeStyle='#bf829a';ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(x+15,680);ctx.lineTo(x+15,638);ctx.moveTo(x+15,658);ctx.lineTo(x+1,647);ctx.moveTo(x+15,649);ctx.lineTo(x+29,635);ctx.stroke();}
+    }
+  }else if(background==='ocean'){
     ctx.fillStyle=colors[2];ctx.fillRect(0,440,540,240);
     for(let row=0;row<6;row++){
       ctx.strokeStyle=row%2?'#bce9ea':'#6ec3d1';ctx.lineWidth=3;ctx.beginPath();
@@ -218,9 +253,9 @@ export function drawFlight(ctx,s,width,height,reducedMotion=false){
       ctx.fillStyle=i%2?'#fff2ba':'#e9ab43';ctx.font='bold 20px sans-serif';
       ctx.fillText('✦',s.x+Math.cos(angle)*r,flyerY+Math.sin(angle)*r);
     }
-    ctx.fillStyle=night?'#f6edcf':'#233747';ctx.font='bold 28px sans-serif';ctx.fillText(t<.65?'BONK!':'What a flight!',270,280);
+    ctx.fillStyle=(night||underwater)?'#f6edcf':'#233747';ctx.font='bold 28px sans-serif';ctx.fillText(t<.65?'BONK!':'What a flight!',270,280);
   }
-  ctx.textAlign='center';ctx.font='bold 38px monospace';ctx.fillStyle=night?'#f6edcf':'#233747';ctx.fillText(String(s.passed),270,62);ctx.font='15px monospace';ctx.fillText(`${s.level.name} · ${s.level.reward} coin${s.level.reward===1?'':'s'} per pipe`,270,90);
+  ctx.textAlign='center';ctx.font='bold 38px monospace';ctx.fillStyle=(night||underwater)?'#f6edcf':'#233747';ctx.fillText(String(s.passed),270,62);ctx.font='15px monospace';ctx.fillText(`${s.level.name} · ${s.level.reward} coin${s.level.reward===1?'':'s'} per pipe`,270,90);
   ctx.restore();
 }
 export function drawFlightPreview(canvas,character){const ctx=canvas.getContext('2d');if(!ctx)return;const s=createFlightState(character.flight);s.pipes=[{x:380,width:70,center:330}];drawFlight(ctx,s,canvas.width,canvas.height);}

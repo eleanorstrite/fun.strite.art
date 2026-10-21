@@ -40,6 +40,9 @@ for(const [id,values] of [['flight-background',Object.entries(FLIGHT_BACKGROUNDS
 $('#flight-form').onsubmit=e=>e.preventDefault();
 $('#flight-form').onchange=()=>{
   if(running)return;
+  if($('#flight-background').value==='underwater'&&system.snapshot().character.flight.background!=='underwater'){
+    $('#flight-pipe').value='coral';$('#flight-pipe-color').value='#de879a';
+  }
   try{system.setCharacter({...system.snapshot().character,flight:{background:$('#flight-background').value,animal:$('#flight-animal').value,difficulty:$('#flight-difficulty').value,color:$('#flight-color').value,pipe:$('#flight-pipe').value,pipeColor:$('#flight-pipe-color').value}});$('#flight-settings-status').textContent=system.isSaved()?'Flight settings saved. Ready to fly!':'Settings applied for this visit. Export to keep them.';}catch(error){notify(error.message);}
 };
 function pickRandom(values){return values[Math.floor(Math.random()*values.length)];}

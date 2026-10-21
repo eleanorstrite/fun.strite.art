@@ -23,7 +23,7 @@ test('flapping lifts the flyer and pipes, floor, and ceiling end a run',()=>{
 test('flyer and pipe customization validate and persist with game saves',()=>{
   const data=new Map(),storage={getItem:k=>data.get(k),setItem:(k,v)=>data.set(k,v)},system=createSystem(storage);
   for(const animal of ['capybara','cat','dog','hotdog','burger','pizza','taco']){
-  const flight={background:'classic',animal,color:'#34bf96',pipe:'crystal',pipeColor:'#7744cc',difficulty:'expert'};
+  const flight={background:'classic',animal,color:'#34bf96',pipe:'coral',pipeColor:'#7744cc',difficulty:'expert'};
   system.setCharacter({...system.snapshot().character,flight});assert.deepEqual(createSystem(storage).snapshot().character.flight,flight);
   const restored=createSystem({getItem:()=>null,setItem(){}});restored.importSave(system.exportSave());assert.deepEqual(restored.snapshot().character.flight,flight);
   }
@@ -90,7 +90,7 @@ test('each flight scenery renders distinctly while preserving physics and reward
  for(const background of Object.keys(FLIGHT_BACKGROUNDS)){
   const calls=[];
   const ctx=new Proxy({createLinearGradient:()=>({addColorStop:(...args)=>calls.push(args)})},{get:(o,k)=>o[k]||((...args)=>calls.push([k,...args])),set:(o,k,v)=>(o[k]=v,true)});
-  const s=createFlightState({...FLIGHT_DEFAULTS,background},()=>.5);
+  const s=createFlightState({...FLIGHT_DEFAULTS,background,pipe:background==='underwater'?'coral':'classic'},()=>.5);
   const before=JSON.stringify(s);drawFlight(ctx,s,540,720);assert.equal(JSON.stringify(s),before);
   signatures.add(JSON.stringify(calls));
  }
@@ -100,7 +100,7 @@ test('each flight scenery renders distinctly while preserving physics and reward
 test('most flight scenes are free and only two appear in the shop',()=>{
  const system=createSystem({getItem:()=>null,setItem(){}});
  const free=Object.entries(FLIGHT_BACKGROUNDS).filter(([,scene])=>!scene.upgrade);
- assert.equal(free.length,6);
+ assert.equal(free.length,7);
  assert.equal(Object.values(FLIGHT_BACKGROUNDS).filter(scene=>scene.upgrade).length,2);
  for(const [background] of free){
   system.setCharacter({...system.snapshot().character,flight:{...system.snapshot().character.flight,background}});
