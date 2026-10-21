@@ -23,6 +23,7 @@ test('ice cream buttons preserve choices, toggle toppings, pause the ending, fin
     focus(){}
   }
   let frame,finishes=0,now=100;
+  const wallet=createSystem({getItem:()=>null,setItem(){}});let session=wallet.beginSession('ice-cream');
   const ctx=new Proxy({},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
   const controls=new IceElement(),canvas={width:900,height:620,getContext:()=>ctx};
   globalThis.document={hidden:false,createElement:()=>new IceElement(),addEventListener(){}};
@@ -30,7 +31,7 @@ test('ice cream buttons preserve choices, toggle toppings, pause the ending, fin
   let engine;
   const advance=n=>{for(let i=0;i<n;i++){frame(now);now+=100;}};
   try{
-    engine=createIceCream({canvas,controls,onHud(){},onFinish:(coins,result)=>{assert.equal(coins,0);assert.equal(result.title,'Your dragon loved it!');finishes++;}});
+    engine=createIceCream({canvas,controls,onHud(){},onFinish:(coins,result)=>{assert.equal(coins,5);session.finish(coins);assert.equal(result.title,'Your dragon loved it!');finishes++;}});
     const [tabs,,choices,navigation]=controls.children,[back,next]=navigation.children;
     assert.equal(next.disabled,true);engine.start();
     assert.equal(choices.children[4].disabled,true);choices.children[4].onclick();assert.equal(choices.children[4].attributes['aria-pressed'],'false');
@@ -45,9 +46,11 @@ test('ice cream buttons preserve choices, toggle toppings, pause the ending, fin
     engine.pause(true);advance(100);assert.equal(finishes,0);
     engine.pause(false);globalThis.document.hidden=true;advance(100);assert.equal(finishes,0);
     globalThis.document.hidden=false;advance(65);assert.equal(finishes,1);
-    advance(20);assert.equal(finishes,1);
-    engine.start();assert.equal(next.disabled,false);assert.equal(choices.children[0].attributes['aria-pressed'],'true');
-    engine.destroy();engine.destroy();assert.equal(finishes,1);assert.equal(controls.children.length,0);
+    advance(20);assert.equal(finishes,1);assert.equal(wallet.snapshot().coins,5);
+    session=wallet.beginSession('ice-cream');engine.start();assert.equal(next.disabled,false);assert.equal(choices.children[0].attributes['aria-pressed'],'true');
+    tabs.children[2].onclick();next.onclick();advance(80);assert.equal(finishes,2);assert.equal(wallet.snapshot().coins,10);
+    session=wallet.beginSession('ice-cream');engine.start();
+    engine.destroy();engine.destroy();assert.equal(finishes,2);assert.equal(wallet.snapshot().coins,10);assert.equal(controls.children.length,0);
   }finally{engine?.destroy();Object.assign(globalThis,original);}
 });
 

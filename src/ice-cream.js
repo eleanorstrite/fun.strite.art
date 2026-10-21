@@ -226,7 +226,7 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
   };
   function finish(){
     if(!active)return;active=false;
-    onFinish(0,{title:'Your dragon loved it!',detail:'Make another delicious creation!'});
+    onFinish(5,{title:'Your dragon loved it!',detail:'Make another delicious creation!'});
   }
   function tick(now){
     if(destroyed)return;
