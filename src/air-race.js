@@ -1,3 +1,4 @@
+import { AIR_DIFFICULTIES } from './system.js';
 import { createMazeAudio } from './maze-audio.js';
 
 export const AIR_WIDTH=900, AIR_HEIGHT=650;
@@ -9,8 +10,26 @@ export const HOOP_RADIUS=.38;
 const airClamp=(value,min,max)=>Math.max(min,Math.min(max,value));
 export const formatRaceTime=ms=>ms==null?'—':(ms/1000).toFixed(2)+'s';
 
-export function createAirState(){
-  return {x:0,y:0,bank:0,distance:0,time:0,energy:100,passed:0,earned:0,status:'ready',fallTime:0,flash:0,boost:false};
+export function createAirCourse(difficulty='sloth',random=Math.random){
+  const config=AIR_DIFFICULTIES[difficulty]||AIR_DIFFICULTIES.sloth;
+  let previous={x:0,y:0};
+  return AIR_COURSE.map((gate,index)=>{
+    const jitter=()=>config.random*(random()*2-1);
+    // Limit travel between successive gates so every course remains flyable at boost speed.
+    const x=index===0?0:airClamp(gate.x*config.spread+jitter(),Math.max(-1.15,previous.x-1.3),Math.min(1.15,previous.x+1.3));
+    const y=index===0?0:airClamp(gate.y*config.spread+jitter(),Math.max(-.75,previous.y-.85),Math.min(.75,previous.y+.85));
+    previous={x,y};
+    return {...gate,x,y,angle:config.tilt?(random()*2-1)*config.tilt:0,squash:config.tilt ? .78+random()*.18 : 1};
+  });
+}
+export function insideAirHoop(s,gate){
+  const config=AIR_DIFFICULTIES[s.difficulty]||AIR_DIFFICULTIES.sloth,angle=gate.angle||0;
+  const dx=s.x-gate.x,dy=s.y-gate.y;
+  return Math.hypot((dx*Math.cos(angle)+dy*Math.sin(angle))/(gate.squash||1),-dx*Math.sin(angle)+dy*Math.cos(angle))<=config.radius;
+}
+export function createAirState(difficulty='sloth'){
+  if(!Object.hasOwn(AIR_DIFFICULTIES,difficulty))difficulty='sloth';
+  return {difficulty,course:createAirCourse(difficulty),x:0,y:0,bank:0,distance:0,time:0,energy:100,passed:0,earned:0,status:'ready',fallTime:0,flash:0,boost:false};
 }
 export function tickAirRace(s,dt,controls={},emit=()=>{}){
   if(s.status==='falling'){
@@ -21,7 +40,7 @@ export function tickAirRace(s,dt,controls={},emit=()=>{}){
   if(s.status!=='playing')return;
   let remaining=airClamp(dt,0,.1);
   while(remaining>1e-8&&s.status==='playing'){
-    const speed=controls.boost?340:220,gate=AIR_COURSE[s.passed];
+    const config=AIR_DIFFICULTIES[s.difficulty],speed=controls.boost?config.boost:config.speed,gate=s.course[s.passed];
     // Split exactly at each hoop plane so race times do not depend on frame rate.
     const untilGate=(gate.z-s.distance)/speed;
     const step=Math.min(remaining,1/120,Math.max(0,untilGate));
@@ -32,11 +51,11 @@ export function tickAirRace(s,dt,controls={},emit=()=>{}){
     s.energy=Math.max(0,s.energy-(controls.boost?32:14)*step);
     s.flash=Math.max(0,s.flash-step);remaining-=step;
     if(s.distance>=gate.z-1e-7){
-      if(Math.hypot(s.x-gate.x,s.y-gate.y)>HOOP_RADIUS){
+      if(!insideAirHoop(s,gate)){
         s.energy=0;s.status='falling';emit('crash');break;
       }
-      s.passed++;s.earned=s.passed;s.energy=100;s.flash=.3;emit('flightCoin');
-      if(s.passed===AIR_COURSE.length){s.status='won';emit('win');break;}
+      s.passed++;s.earned=s.passed*config.coins;s.energy=100;s.flash=.3;emit('flightCoin');
+      if(s.passed===s.course.length){s.status='won';emit('win');break;}
     }else if(s.energy<=0){s.status='falling';emit('crash');break;}
   }
 }
@@ -102,19 +121,19 @@ export function drawAirRace(ctx,s,look,width,height,bestMs=null,reducedMotion=fa
   shape(ctx,[[0,490],[100,340],[250,490],[410,350],[600,495],[770,370],[900,460],[900,650],[0,650]],'#739c9c');
   shape(ctx,[[0,550],[170,450],[350,560],[570,450],[770,530],[900,480],[900,650],[0,650]],'#638f7b');
   shape(ctx,[[390,470],[480,470],[720,650],[220,650]],'#7eb5bf');
-  const next=AIR_COURSE[s.passed];
+  const config=AIR_DIFFICULTIES[s.difficulty],course=s.course,next=course[s.passed];
   // Far hoops are smaller; their centers converge toward the horizon.
-  for(let index=AIR_COURSE.length-1;index>=s.passed;index--){
-    const gate=AIR_COURSE[index],z=gate.z-s.distance;if(z>1900)continue;
-    const scale=420/(420+Math.max(0,z)),x=450+gate.x*230*scale,y=315+gate.y*230*scale,r=HOOP_RADIUS*230*scale;
+  for(let index=course.length-1;index>=s.passed;index--){
+    const gate=course[index],z=gate.z-s.distance;if(z>1900)continue;
+    const scale=420/(420+Math.max(0,z)),x=450+gate.x*230*scale,y=315+gate.y*230*scale,r=config.radius*230*scale;
     ctx.strokeStyle=index===s.passed?'#fce494':'#d6ecda99';ctx.lineWidth=Math.max(2,10*scale);
-    ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.stroke();
+    ctx.beginPath();ctx.ellipse(x,y,r*gate.squash,r,gate.angle,0,Math.PI*2);ctx.stroke();
     ctx.strokeStyle=index===s.passed?'#b87b38':'#648a8e';ctx.lineWidth=Math.max(1,3*scale);
-    ctx.beginPath();ctx.arc(x,y,r+5*scale,0,Math.PI*2);ctx.stroke();
+    ctx.beginPath();ctx.ellipse(x,y,(r+5*scale)*gate.squash,r+5*scale,gate.angle,0,Math.PI*2);ctx.stroke();
     if(index===s.passed){ctx.font=`bold ${Math.max(11,19*scale)}px sans-serif`;ctx.textAlign='center';ctx.fillStyle='#2b4652';ctx.fillText(String(index+1),x,y-r-12);}
   }
   if(next&&s.status!=='falling'&&s.status!=='lost'){
-    const aligned=Math.hypot(s.x-next.x,s.y-next.y)<=HOOP_RADIUS;
+    const aligned=insideAirHoop(s,next);
     ctx.fillStyle='#203f4dd9';ctx.fillRect(245,92,410,34);
     ctx.fillStyle=aligned?'#c0f0b4':'#fff1ce';ctx.textAlign='center';ctx.font='15px sans-serif';
     ctx.fillText(aligned?'LINED UP — keep your heading!':'Steer toward the gold hoop',450,114);
@@ -126,11 +145,11 @@ export function drawAirRace(ctx,s,look,width,height,bestMs=null,reducedMotion=fa
   ctx.fillText(formatRaceTime(Math.round(s.time*1000)),38,46);
   ctx.font='13px sans-serif';ctx.fillText('BEST '+formatRaceTime(bestMs),38,65);
   ctx.textAlign='center';ctx.font='bold 18px sans-serif';ctx.fillText(`HOOPS ${s.passed} / ${AIR_COURSE.length}`,450,44);
-  ctx.font='12px sans-serif';ctx.fillText(s.boost?'BOOSTING':'CRUISING',450,65);
+  ctx.font='12px sans-serif';ctx.fillText(config.name.toUpperCase()+' · '+(s.boost?'BOOSTING':'CRUISING'),450,65);
   ctx.textAlign='right';ctx.font='13px sans-serif';ctx.fillText('ENERGY',858,39);
   ctx.fillStyle='#102e3e';ctx.fillRect(698,49,160,12);
   ctx.fillStyle=s.energy>30?'#9cdaa5':'#ef9870';ctx.fillRect(698,49,160*s.energy/100,12);
-  if(s.flash>0){ctx.fillStyle='#163f4f';ctx.textAlign='center';ctx.font='bold 20px sans-serif';ctx.fillText('ENERGY RESTORED +1 COIN',450,560);}
+  if(s.flash>0){ctx.fillStyle='#163f4f';ctx.textAlign='center';ctx.font='bold 20px sans-serif';ctx.fillText('ENERGY RESTORED +'+config.coins+(config.coins===1?' COIN':' COINS'),450,560);}
   if(falling){ctx.fillStyle='#213d50';ctx.textAlign='center';ctx.font='bold 28px sans-serif';ctx.fillText('MISSED HOOP — OUT OF ENERGY!',450,205);}
   if(s.status==='won'){ctx.fillStyle='#183e51e8';ctx.fillRect(210,190,480,100);ctx.fillStyle='#ffeba7';ctx.font='bold 32px sans-serif';ctx.textAlign='center';ctx.fillText('FINISH!',450,232);ctx.font='22px sans-serif';ctx.fillText(formatRaceTime(Math.round(s.time*1000)),450,270);}
   ctx.restore();
@@ -262,20 +281,20 @@ export function drawAirEnding(ctx,won,time,look,width,height,reducedMotion=false
 }
 export function drawAirPreview(canvas,character){
   const ctx=canvas.getContext('2d');if(!ctx)return;
-  const s=createAirState();s.distance=300;drawAirRace(ctx,s,character.plane,canvas.width,canvas.height);
+  const s=createAirState(character.plane?.difficulty);s.distance=300;drawAirRace(ctx,s,character.plane,canvas.width,canvas.height);
 }
-export function createAirRace({canvas,character,bestTimeMs=null,onHud,onFinish}){
+export function createAirRace({canvas,character,bestTimeMs=null,bestTimes={},onHud,onFinish}){
   const ctx=canvas.getContext('2d');if(!ctx)throw Error('Your browser does not support canvas.');
   const audio=createMazeAudio(),controller=new AbortController(),options={signal:controller.signal},keys=new Set();
   const reduced=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false;
-  let state=createAirState(),active=false,paused=false,destroyed=false,frame,last=0,target=null,touchBoost=false,pointer=null;
-  let look={...character.plane},best=bestTimeMs,ending=null;
+  let state=createAirState(character.plane?.difficulty),active=false,paused=false,destroyed=false,frame,last=0,target=null,touchBoost=false,pointer=null;
+  let look={...character.plane},best=bestTimes[state.difficulty]??bestTimeMs,ending=null;
   function clearInput(){keys.clear();target=null;pointer=null;touchBoost=false;state.boost=false;}
-  function hud(){onHud({raceBoost:state.boost&&state.status==='playing',text:`Hoops ${state.passed}/${AIR_COURSE.length} · ${formatRaceTime(Math.round(state.time*1000))} · Best ${formatRaceTime(best)} · Energy ${Math.ceil(state.energy)}%`});}
+  function hud(){onHud({raceBoost:state.boost&&state.status==='playing',text:`${AIR_DIFFICULTIES[state.difficulty].name} · ${state.earned} coins · Hoops ${state.passed}/${AIR_COURSE.length} · ${formatRaceTime(Math.round(state.time*1000))} · Best ${formatRaceTime(best)} · Energy ${Math.ceil(state.energy)}%`});}
   function finish(){
     if(!active)return;active=false;
     const timeMs=state.status==='won'?Math.max(1,Math.round(state.time*1000)):null,newBest=timeMs!==null&&(best===null||timeMs<best);
-    if(newBest)best=timeMs;
+    if(newBest){best=timeMs;bestTimes[state.difficulty]=timeMs;}
     onFinish(state.earned,{title:state.status==='won'?(newBest?'New personal best!':'Course complete!'):state.status==='lost'?'Your plane ran out of energy.':'Flight saved.',
       timeMs,detail:`${state.passed}/${AIR_COURSE.length} hoops · ${state.status==='won'?'Finish':'Attempt'} ${formatRaceTime(Math.round(state.time*1000))} · Best ${formatRaceTime(best)}`});
   }
@@ -319,10 +338,10 @@ export function createAirRace({canvas,character,bestTimeMs=null,onHud,onFinish})
   }
   frame=requestAnimationFrame(tick);
   return {
-    start(){audio.stop();audio.unlock();clearInput();ending=null;state=createAirState();state.status='playing';active=true;paused=false;last=0;hud();canvas.focus();},
+    start(){audio.stop();audio.unlock();clearInput();ending=null;state=createAirState(look.difficulty);best=bestTimes[state.difficulty]??(state.difficulty==='sloth'?bestTimeMs:null);state.status='playing';active=true;paused=false;last=0;hud();canvas.focus();},
     pause(value){paused=value;last=0;clearInput();if(value)audio.stop();},
     setBoost(value){if(active&&!paused&&state.status==='playing'){touchBoost=Boolean(value);canvas.focus({preventScroll:true});}},
-    setCharacter(value){look={...value.plane};},
+    setCharacter(value){look={...value.plane};if(!active&&state.difficulty!==(look.difficulty??'sloth')){state=createAirState(look.difficulty);ending=null;best=bestTimes[state.difficulty]??(state.difficulty==='sloth'?bestTimeMs:null);}},
     setMuted:value=>audio.setMuted(value),
     destroy(){if(destroyed)return;destroyed=true;cancelAnimationFrame(frame);controller.abort();audio.destroy();finish();}
   };

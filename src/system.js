@@ -11,7 +11,15 @@ export const ROBOT_OUTFITS={none:'Classic robot',hoodie:'Cozy hoodie',overalls:'
 export const ROBOT_HATS={none:'No hat',cap:'Baseball cap',beanie:'Beanie',tophat:'Top hat'};
 export const ROBOT_DEFAULTS={outfit:'none',hat:'none',color:'#6e9eae',glasses:false,headphones:false,backpack:false};
 export const PLANE_STYLES={sport:'Sport plane',swept:'Swept wings',biplane:'Biplane',jet:'Passenger jet'};
-export const PLANE_DEFAULTS={color:'#ed6e40',style:'sport'};
+export const AIR_DIFFICULTIES={
+  sloth:{name:'Sloth (slow)',coins:1,speed:220,boost:340,spread:1,radius:.38,random:0,tilt:0},
+  easy:{name:'Easy',coins:2,speed:260,boost:380,spread:1.12,radius:.37,random:0,tilt:0},
+  medium:{name:'Medium',coins:3,speed:310,boost:430,spread:1.4,radius:.35,random:0,tilt:0},
+  hard:{name:'Hard',coins:5,speed:370,boost:490,spread:1.5,radius:.33,random:.22,tilt:.7},
+  expert:{name:'Expert',coins:10,speed:440,boost:560,spread:1.6,radius:.30,random:.35,tilt:1.1},
+};
+export const airRecordId=difficulty=>difficulty==='sloth'?'hoop-flight':'hoop-flight-'+difficulty;
+export const PLANE_DEFAULTS={color:'#ed6e40',style:'sport',difficulty:'sloth'};
 export const KNIGHT_DEFAULTS = { armor: 'silver', helmet: 'plume', cape: true, shield: false, dragon: 'classic' };
 export const UPGRADES = [
   { id:'boots',name:'Super speed',group:'gameplay',category:'CHARACTER',icon:'👟',cost:500,description:'One use: move 25% faster for 15 seconds. Tap the shoe above the maze to activate.' },
@@ -37,6 +45,8 @@ export function validateSave(data) {
   if(data.character.robot!==undefined&&(!data.character.robot||typeof data.character.robot!=='object'||Array.isArray(data.character.robot)))throw new Error('Invalid robot appearance.');
   const plane=data.character.plane===undefined?{...PLANE_DEFAULTS}:data.character.plane;
   if(!plane||Array.isArray(plane)||!Object.hasOwn(PLANE_STYLES,plane.style)||typeof plane.color!=='string'||!/^#[0-9a-f]{6}$/i.test(plane.color))throw Error('Invalid airplane appearance.');
+  const planeDifficulty=plane.difficulty??'sloth';
+  if(!Object.hasOwn(AIR_DIFFICULTIES,planeDifficulty))throw Error('Invalid airplane difficulty.');
   const robot={...ROBOT_DEFAULTS,...data.character.robot};
   if(!Object.hasOwn(ROBOT_OUTFITS,robot.outfit)||!Object.hasOwn(ROBOT_HATS,robot.hat)||!COLORS.includes(robot.color)||['glasses','headphones','backpack'].some(key=>typeof robot[key]!=='boolean'))throw new Error('Invalid robot appearance.');
   const look = { ...KNIGHT_DEFAULTS };
@@ -57,7 +67,7 @@ export function validateSave(data) {
     if(stat.bestTimeMs!==undefined&&(!validInt(stat.bestTimeMs)||stat.bestTimeMs===0))throw Error('Invalid best race time.');
     Object.defineProperty(stats, id, { value: { plays: stat.plays, best: stat.best,...(stat.bestTimeMs===undefined?{}:{bestTimeMs:stat.bestTimeMs}) }, enumerable: true, writable: true, configurable: true });
   }
-  return { version: 1, mazeLevel, coins: Math.min(1000000000,data.coins+(data.upgrades.includes('garden')?60:0)+(data.upgrades.includes('flight-sunset')?200:0)), character: { name: data.character.name.trim(), color: data.character.color, style: data.character.style, ...look, flight, plane:{color:plane.color,style:plane.style}, robot:{outfit:robot.outfit,hat:robot.hat,color:robot.color,glasses:robot.glasses,headphones:robot.headphones,backpack:robot.backpack} }, upgrades: [...new Set(data.upgrades.filter(id=>!['garden','flight-sunset','boots','magnet','eliminator'].includes(id)))], boosts:{boots:boosts.boots,magnet:boosts.magnet,eliminator}, stats };
+  return { version: 1, mazeLevel, coins: Math.min(1000000000,data.coins+(data.upgrades.includes('garden')?60:0)+(data.upgrades.includes('flight-sunset')?200:0)), character: { name: data.character.name.trim(), color: data.character.color, style: data.character.style, ...look, flight, plane:{color:plane.color,style:plane.style,difficulty:planeDifficulty}, robot:{outfit:robot.outfit,hat:robot.hat,color:robot.color,glasses:robot.glasses,headphones:robot.headphones,backpack:robot.backpack} }, upgrades: [...new Set(data.upgrades.filter(id=>!['garden','flight-sunset','boots','magnet','eliminator'].includes(id)))], boosts:{boots:boosts.boots,magnet:boosts.magnet,eliminator}, stats };
 }
 export function createSystem(storage, onStorageError = () => {}) {
   let state = freshSave();

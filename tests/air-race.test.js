@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { AIR_COURSE, createAirState, tickAirRace, createAirRace, drawAirRace, drawAirEnding } from '../src/air-race.js';
-import { createSystem, freshSave, validateSave } from '../src/system.js';
+import { AIR_COURSE, createAirState, tickAirRace, createAirRace, drawAirRace, drawAirEnding, createAirCourse, insideAirHoop } from '../src/air-race.js';
+import { createSystem, freshSave, validateSave, AIR_DIFFICULTIES, airRecordId } from '../src/system.js';
 
 function flyCourse(boost=false,dt=.02){
   const s=createAirState();s.status='playing';
@@ -50,7 +50,7 @@ test('race records keep the fastest finish and survive failed attempts, reloads 
 test('airplane customization persists and old saves receive a default airplane',()=>{
   const old=freshSave();delete old.character.plane;assert.equal(validateSave(old).character.plane.style,'sport');
   const system=createSystem({getItem:()=>null,setItem(){}});system.setCharacter({...system.snapshot().character,plane:{style:'jet',color:'#55aabb'}});
-  const copy=createSystem({getItem:()=>null,setItem(){}});copy.importSave(system.exportSave());assert.deepEqual(copy.snapshot().character.plane,{color:'#55aabb',style:'jet'});
+  const copy=createSystem({getItem:()=>null,setItem(){}});copy.importSave(system.exportSave());assert.deepEqual(copy.snapshot().character.plane,{color:'#55aabb',style:'jet',difficulty:'sloth'});
   assert.throws(()=>system.setCharacter({...system.snapshot().character,plane:{style:'unknown',color:'#55aabb'}}));
 });
 test('air race pauses time and falling, handles drag and boost, and closes only once',()=>{
@@ -131,4 +131,43 @@ test('loss clip delays settlement and freezes while paused or hidden',()=>{
     assert.equal(captions.includes('You lose.'),true);
     engine.destroy();assert.equal(finishes,1);
   }finally{engine?.destroy();Object.assign(globalThis,original);}
+});
+
+test('all five difficulties award exact per-hoop coins and randomized courses are flyable',()=>{
+  const expected={sloth:1,easy:2,medium:3,hard:5,expert:10};
+  let previousSpeed=0;
+  for(const [difficulty,coins] of Object.entries(expected)){
+    const config=AIR_DIFFICULTIES[difficulty];
+    assert.equal(config.coins,coins);assert.equal(config.speed>previousSpeed,true);previousSpeed=config.speed;
+    for(let seed=1;seed<=30;seed++){
+      let value=seed;const random=()=>((value=(value*1664525+1013904223)>>>0)/4294967296);
+      for(const boost of [false,true]){
+        const s=createAirState(difficulty);s.course=createAirCourse(difficulty,random);s.status='playing';
+        for(let i=0;i<4000&&s.status==='playing';i++)tickAirRace(s,.02,{target:s.course[s.passed],boost});
+        assert.equal(s.status,'won');assert.equal(s.earned,12*coins);
+      }
+    }
+  }
+});
+test('difficulty settings migrate, persist and keep time records and wallet rewards separate',()=>{
+  const system=createSystem({getItem:()=>null,setItem(){}});
+  assert.equal(system.snapshot().character.plane.difficulty,'sloth');
+  system.setCharacter({...system.snapshot().character,plane:{...system.snapshot().character.plane,difficulty:'expert'}});
+  const copy=createSystem({getItem:()=>null,setItem(){}});copy.importSave(system.exportSave());
+  assert.equal(copy.snapshot().character.plane.difficulty,'expert');
+  assert.throws(()=>system.setCharacter({...system.snapshot().character,plane:{...system.snapshot().character.plane,difficulty:'impossible'}}));
+  system.beginSession(airRecordId('sloth')).finish(12,22000);
+  system.beginSession(airRecordId('expert')).finish(120,11000);
+  assert.equal(system.snapshot().coins,132);
+  assert.equal(system.snapshot().stats[airRecordId('sloth')].bestTimeMs,22000);
+  assert.equal(system.snapshot().stats[airRecordId('expert')].bestTimeMs,11000);
+});
+test('tilted hoop collision follows the visible elliptical opening and misses earn nothing',()=>{
+  const s=createAirState('expert'),gate={x:0,y:0,angle:Math.PI/2,squash:.8};
+  s.x=.28;s.y=0;assert.equal(insideAirHoop(s,gate),true);
+  s.x=0;s.y=.28;assert.equal(insideAirHoop(s,gate),false);
+  s.status='playing';s.x=1;s.distance=499;tickAirRace(s,.02);
+  assert.equal(s.status,'falling');assert.equal(s.earned,0);
+  assert.equal(JSON.stringify(createAirCourse('sloth',()=>0)),JSON.stringify(createAirCourse('sloth',()=>1)));
+  assert.equal(JSON.stringify(createAirCourse('expert',()=>0))!==JSON.stringify(createAirCourse('expert',()=>1)),true);
 });
