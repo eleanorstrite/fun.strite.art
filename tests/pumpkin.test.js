@@ -50,6 +50,12 @@ test('pumpkin drawing, tools, undo, pause, replay and wallet settlement work tog
     assert.equal(hud.includes('1 cuts'),true);
     clear.onclick();assert.equal(done.disabled,true);
     handlers.keydown({key:' ',preventDefault(){}});handlers.keydown({key:'ArrowRight',preventDefault(){}});keys.keyup({key:' '});
+    done.onclick();assert.equal(done.disabled,false);
+    const panel=controls.children[5],hats=panel.children[1],extras=panel.children[3];
+    assert.equal(panel.hidden,false);hats.children[1].onclick();extras.children[0].onclick();extras.children[1].onclick();
+    assert.equal(hats.children[1].attrs['aria-pressed'],'true');assert.equal(extras.children[0].attrs['aria-pressed'],'true');
+    handlers.pointerdown(pointer);assert.equal(wallet.snapshot().coins,0);
+    actions.children[4].onclick();assert.equal(panel.hidden,true);done.onclick();assert.equal(hats.children[1].attrs['aria-pressed'],'true');
     done.onclick();assert.equal(done.disabled,true);
     advance(20);assert.equal(wallet.snapshot().coins,0);
     engine.pause(true);advance(100);assert.equal(finishes,0);
@@ -58,7 +64,7 @@ test('pumpkin drawing, tools, undo, pause, replay and wallet settlement work tog
     advance(20);assert.equal(finishes,1);
     session=wallet.beginSession('carve-pumpkin');engine.start();assert.equal(done.disabled,true);assert.equal(clean.hidden,false);
     clean.onclick();clean.onclick();clean.onclick();
-    handlers.pointerdown(pointer);handlers.pointerup(pointer);done.onclick();advance(80);
+    handlers.pointerdown(pointer);handlers.pointerup(pointer);done.onclick();done.onclick();advance(80);
     assert.equal(finishes,2);assert.equal(wallet.snapshot().coins,10);
     session=wallet.beginSession('carve-pumpkin');engine.start();handlers.pointerdown(pointer);engine.destroy();engine.destroy();
     assert.equal(finishes,2);assert.equal(wallet.snapshot().coins,10);assert.equal(controls.children.length,0);
