@@ -61,3 +61,6 @@ html[data-background="aurora"]{--home-scene:url('./assets/backgrounds/aurora.svg
 .maze-boosts{margin:12px 0}.maze-boosts p{font-size:.85rem;margin:0 0 8px}.maze-boosts>div{display:flex;gap:8px;flex-wrap:wrap}.maze-boosts button{min-height:44px;flex:1;padding:10px}.maze-boosts button:disabled{opacity:.65}
 
 #next-level[hidden]{display:none}
+
+.maze-levels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:14px 0}.maze-levels[hidden]{display:none}.maze-levels button{min-height:48px;white-space:normal;text-align:left;border-top:4px solid var(--level-accent);font-size:13px}.maze-levels button[aria-pressed="true"]{background:#263747;color:#fff;box-shadow:inset 0 0 0 2px var(--level-accent)}
+@media(min-width:700px){.maze-levels{grid-template-columns:repeat(4,minmax(0,1fr))}}

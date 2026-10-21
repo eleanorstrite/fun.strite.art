@@ -223,5 +223,9 @@ export function createKnightMaze({canvas,character,modifiers,consumeBoost,onHud,
   }
   document.addEventListener?.('visibilitychange',()=>{last=0;if(document.hidden)audio.stop();},options);
   frame=requestAnimationFrame(tick);
-  return {activateBoost(id){if(!active||paused||ending||document.hidden)return false;const used=activateMazeBoost(state,id,consumeBoost);hud();canvas.focus();return used;},selectNextLevel(){if(active||state.status!=='won'||state.level>=KNIGHT_LEVELS.length-1)return false;level=state.level+1;onLevelChange(level);state=createMazeState(modifiers,level);ending=null;return true;},start(){audio.stop();audio.unlock();ending=null;state=createMazeState(modifiers,level);active=true;paused=false;last=0;hud();canvas.focus();},pause(value){paused=value;last=0;pointer=null;if(value)audio.stop();else audio.unlock();hud();},setCharacter(value){character={...value};},setMuted:value=>audio.setMuted(value),input:turn,destroy(){if(destroyed)return;destroyed=true;cancelAnimationFrame(frame);controller.abort();audio.destroy();finish();}};
+  return {selectLevel(value){
+    if(destroyed||!Number.isInteger(value)||!KNIGHT_LEVELS[value])return false;
+    audio.stop();finish();level=value;state=createMazeState(modifiers,level);
+    ending=null;paused=false;last=0;pointer=null;onLevelChange(level);hud();return true;
+  },activateBoost(id){if(!active||paused||ending||document.hidden)return false;const used=activateMazeBoost(state,id,consumeBoost);hud();canvas.focus();return used;},selectNextLevel(){if(active||state.status!=='won'||state.level>=KNIGHT_LEVELS.length-1)return false;level=state.level+1;onLevelChange(level);state=createMazeState(modifiers,level);ending=null;return true;},start(){audio.stop();audio.unlock();ending=null;state=createMazeState(modifiers,level);active=true;paused=false;last=0;hud();canvas.focus();},pause(value){paused=value;last=0;pointer=null;if(value)audio.stop();else audio.unlock();hud();},setCharacter(value){character={...value};},setMuted:value=>audio.setMuted(value),input:turn,destroy(){if(destroyed)return;destroyed=true;cancelAnimationFrame(frame);controller.abort();audio.destroy();finish();}};
 }

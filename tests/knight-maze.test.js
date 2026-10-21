@@ -201,3 +201,23 @@ test('winning offers replay or next level, each run resets, and the last level e
   engine.destroy();assert.equal(finishes,5);
  }finally{engine?.destroy();KNIGHT_LEVELS.forEach((l,i)=>l.maze.splice(0,l.maze.length,...mazes[i]));Object.assign(globalThis,original);}
 });
+
+test('direct level selection settles the previous run once and resets a paused game',()=>{
+ const original={requestAnimationFrame:globalThis.requestAnimationFrame,cancelAnimationFrame:globalThis.cancelAnimationFrame,document:globalThis.document};
+ let frame,hud,finishes=0;const changes=[];
+ globalThis.requestAnimationFrame=fn=>(frame=fn,1);globalThis.cancelAnimationFrame=()=>{};globalThis.document={hidden:false};
+ const ctx=new Proxy({},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
+ const canvas={width:760,height:760,getContext:()=>ctx,addEventListener(){},focus(){}};
+ let engine;
+ try{
+  engine=createKnightMaze({canvas,character:{color:'#ed6e40'},onHud:v=>hud=v,onFinish(){finishes++;},onLevelChange:level=>changes.push(level)});
+  assert.equal(engine.selectLevel(3),true);assert.equal(finishes,0);engine.start();
+  assert.equal(hud.text.includes('Ember Fortress'),true);
+  engine.pause(true);assert.equal(engine.selectLevel(1),true);assert.equal(finishes,1);
+  assert.equal(engine.selectLevel(9),false);assert.equal(finishes,1);
+  engine.start();assert.equal(hud.lives,3);assert.equal(hud.canBoost,true);
+  assert.equal(hud.text.includes('Crystal Caverns'),true);frame(100);frame(200);
+  engine.selectLevel(0);assert.equal(finishes,2);assert.deepEqual(changes,[3,1,0]);
+  engine.destroy();engine.destroy();assert.equal(finishes,2);assert.equal(engine.selectLevel(2),false);
+ }finally{engine?.destroy();Object.assign(globalThis,original);}
+});
