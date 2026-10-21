@@ -29,6 +29,8 @@ $('#plane-form').onchange=()=>{
   try{system.setCharacter({...system.snapshot().character,plane:{color:$('#plane-color').value,style:$('#plane-style').value}});$('#plane-status').textContent='Airplane saved. Ready to race!';}catch(error){notify(error.message);}
 };
 $('#random-plane').onclick=()=>{if(running)return;randomizeSelect('plane-style');$('#plane-color').value=pickRandom(COLORS);$('#plane-form').onchange();};
+// Keep held steering keys active when the pointer toggles Boost.
+$('#race-boost').addEventListener('pointerdown',event=>event.preventDefault());
 $('#race-boost').onclick=()=>{
   if(!running||paused||!currentGame?.airRace)return;
   const enabled=$('#race-boost').getAttribute('aria-pressed')!=='true';

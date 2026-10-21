@@ -21,12 +21,12 @@ export function tickAirRace(s,dt,controls={},emit=()=>{}){
   if(s.status!=='playing')return;
   let remaining=airClamp(dt,0,.1);
   while(remaining>1e-8&&s.status==='playing'){
-    const speed=controls.boost?240:150,gate=AIR_COURSE[s.passed];
+    const speed=controls.boost?340:220,gate=AIR_COURSE[s.passed];
     // Split exactly at each hoop plane so race times do not depend on frame rate.
     const untilGate=(gate.z-s.distance)/speed;
     const step=Math.min(remaining,1/120,Math.max(0,untilGate));
-    const dx=controls.target?airClamp((controls.target.x-s.x)*5,-1.6,1.6):airClamp(controls.x||0,-1,1)*1.6;
-    const dy=controls.target?airClamp((controls.target.y-s.y)*5,-1.6,1.6):airClamp(controls.y||0,-1,1)*1.6;
+    const dx=controls.target?airClamp((controls.target.x-s.x)*6,-2.2,2.2):airClamp(controls.x||0,-1,1)*2.2;
+    const dy=controls.target?airClamp((controls.target.y-s.y)*6,-2.2,2.2):airClamp(controls.y||0,-1,1)*2.2;
     s.x=airClamp(s.x+dx*step,-1.45,1.45);s.y=airClamp(s.y+dy*step,-.95,.95);
     s.bank=dx*.25;s.boost=Boolean(controls.boost);s.time+=step;s.distance+=speed*step;
     s.energy=Math.max(0,s.energy-(controls.boost?32:14)*step);
@@ -46,6 +46,29 @@ function shape(ctx,points,color){
 export function drawAirplane(ctx,x,y,size,look={},bank=0,time=0){
   ctx.save();ctx.translate(x,y);ctx.rotate(bank);ctx.scale(size/100,size/100);
   const color=look.color||'#ed6e40',swept=look.style==='swept',biplane=look.style==='biplane';
+  if(look.style==='jet'){
+    // Passenger jet seen from above, with twin engines and colorful tail accents.
+    ctx.strokeStyle='#263b48';ctx.lineWidth=1.8;ctx.lineJoin='round';
+    const panel=(points,fill)=>{shape(ctx,points,fill);ctx.stroke();};
+    for(const side of [-1,1]){
+      ctx.fillStyle='#eaf0f5';ctx.beginPath();ctx.ellipse(side*27,13,7,15,0,0,7);ctx.fill();ctx.stroke();
+      ctx.fillStyle='#555889';ctx.beginPath();ctx.ellipse(side*27,2,5,4,0,0,7);ctx.fill();ctx.stroke();
+    }
+    panel([[-8,-13],[-58,19],[-57,27],[-8,11],[8,11],[57,27],[58,19],[8,-13]],'#f8faf9');
+    panel([[-8,26],[-26,40],[-24,44],[0,36],[24,44],[26,40],[8,26]],'#f8faf9');
+    ctx.fillStyle='#f8faf9';ctx.beginPath();ctx.ellipse(0,0,11,44,0,0,7);ctx.fill();ctx.stroke();
+    panel([[-7,-30],[7,-30],[8,-23],[-8,-23]],'#37b5d4');
+    ctx.fillStyle=color;
+    for(const side of [-1,1]){
+      ctx.fillRect(side<0?-9:6,-15,3,33);
+      for(let row=0;row<6;row++){ctx.fillStyle='#315572';ctx.fillRect(side<0?-8:5,-13+row*5,3,3);}
+      ctx.fillStyle=color;
+    }
+    panel([[0,18],[-4,40],[0,47],[4,40]],color);
+    panel([[-53,20],[-49,18],[-48,24],[-53,25]],color);
+    panel([[53,20],[49,18],[48,24],[53,25]],color);
+    ctx.restore();return;
+  }
   // Rear chase view: long wings, tail fins, cockpit and spinning propeller.
   ctx.fillStyle='#19364a55';ctx.beginPath();ctx.ellipse(0,24,45,7,0,0,7);ctx.fill();
   shape(ctx,swept?[[-8,-8],[-54,22],[-48,29],[-4,12],[4,12],[48,29],[54,22],[8,-8]]:
@@ -134,7 +157,7 @@ export function createAirRace({canvas,character,bestTimeMs=null,onHud,onFinish})
   canvas.addEventListener('keydown',e=>{
     const key=e.key.length===1?e.key.toLowerCase():e.key;
     if(!['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','a','s','d',' '].includes(key))return;
-    e.preventDefault();if(active&&!paused&&state.status==='playing'){keys.add(key);target=null;audio.unlock();}
+    e.preventDefault();if(active&&!paused&&state.status==='playing'){keys.add(key);if(key!==' ')target=null;audio.unlock();}
   },options);
   globalThis.window?.addEventListener('keyup',e=>keys.delete(e.key.length===1?e.key.toLowerCase():e.key),options);
   canvas.addEventListener('blur',clearInput,options);
@@ -160,7 +183,7 @@ export function createAirRace({canvas,character,bestTimeMs=null,onHud,onFinish})
   return {
     start(){audio.stop();audio.unlock();clearInput();state=createAirState();state.status='playing';active=true;paused=false;last=0;hud();canvas.focus();},
     pause(value){paused=value;last=0;clearInput();if(value)audio.stop();},
-    setBoost(value){if(active&&!paused&&state.status==='playing')touchBoost=Boolean(value);},
+    setBoost(value){if(active&&!paused&&state.status==='playing'){touchBoost=Boolean(value);canvas.focus({preventScroll:true});}},
     setCharacter(value){look={...value.plane};},
     setMuted:value=>audio.setMuted(value),
     destroy(){if(destroyed)return;destroyed=true;cancelAnimationFrame(frame);controller.abort();audio.destroy();finish();}

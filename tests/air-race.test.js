@@ -16,7 +16,7 @@ test('all twelve hoops are reachable, restore energy, and boost improves the fin
   for(const state of [cruise,fast,coarse]){assert.equal(state.status,'won');assert.equal(state.passed,12);assert.equal(state.earned,12);assert.equal(state.energy,100);}
   assert.equal(fast.time<cruise.time,true);
   assert.equal(Math.abs(fast.time-coarse.time)<1e-7,true);
-  assert.equal(Math.round(fast.time*1000),20417);
+  assert.equal(Math.round(fast.time*1000),14412);
 });
 test('a missed hoop immediately removes energy and ends with a fall without awarding that hoop',()=>{
   const s=createAirState();s.status='playing';s.x=1;s.distance=499;
@@ -49,8 +49,8 @@ test('race records keep the fastest finish and survive failed attempts, reloads 
 });
 test('airplane customization persists and old saves receive a default airplane',()=>{
   const old=freshSave();delete old.character.plane;assert.equal(validateSave(old).character.plane.style,'sport');
-  const system=createSystem({getItem:()=>null,setItem(){}});system.setCharacter({...system.snapshot().character,plane:{style:'biplane',color:'#55aabb'}});
-  const copy=createSystem({getItem:()=>null,setItem(){}});copy.importSave(system.exportSave());assert.deepEqual(copy.snapshot().character.plane,{color:'#55aabb',style:'biplane'});
+  const system=createSystem({getItem:()=>null,setItem(){}});system.setCharacter({...system.snapshot().character,plane:{style:'jet',color:'#55aabb'}});
+  const copy=createSystem({getItem:()=>null,setItem(){}});copy.importSave(system.exportSave());assert.deepEqual(copy.snapshot().character.plane,{color:'#55aabb',style:'jet'});
   assert.throws(()=>system.setCharacter({...system.snapshot().character,plane:{style:'unknown',color:'#55aabb'}}));
 });
 test('air race pauses time and falling, handles drag and boost, and closes only once',()=>{
@@ -76,6 +76,30 @@ test('air race pauses time and falling, handles drag and boost, and closes only 
 test('air race scenery and airplane variants render without changing the simulation',()=>{
   const ctx=new Proxy({createLinearGradient:()=>({addColorStop(){}})},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
   const s=createAirState(),before=JSON.stringify(s);
-  for(const style of ['sport','swept','biplane'])drawAirRace(ctx,s,{style,color:'#5599aa'},900,650,24000);
+  for(const style of ['sport','swept','biplane','jet'])drawAirRace(ctx,s,{style,color:'#5599aa'},900,650,24000);
   assert.equal(JSON.stringify(s),before);
+});
+
+test('boost restores canvas focus and preserves both keyboard and drag steering',()=>{
+  const original={requestAnimationFrame:globalThis.requestAnimationFrame,cancelAnimationFrame:globalThis.cancelAnimationFrame,document:globalThis.document,window:globalThis.window};
+  let frame,position,focused=false,boosting=false;const handlers={},windowHandlers={};
+  globalThis.requestAnimationFrame=fn=>(frame=fn,1);globalThis.cancelAnimationFrame=()=>{};
+  globalThis.document={hidden:false};globalThis.window={addEventListener:(name,fn)=>windowHandlers[name]=fn};
+  const ctx=new Proxy({createLinearGradient:()=>({addColorStop(){}}),translate(x,y){if(x>100)position={x,y};}},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
+  const canvas={width:900,height:650,getContext:()=>ctx,getBoundingClientRect:()=>({left:0,top:0,width:900,height:650}),addEventListener:(name,fn)=>handlers[name]=fn,focus(){focused=true;},setPointerCapture(){}};
+  let engine;
+  try{
+    engine=createAirRace({canvas,character:{plane:{style:'jet',color:'#55aabb'}},onHud:value=>boosting=value.raceBoost,onFinish(){}});
+    engine.start();frame(100);focused=false;
+    handlers.blur();engine.setBoost(true);assert.equal(focused,true);
+    handlers.keydown({key:'ArrowRight',preventDefault(){}});frame(200);
+    assert.equal(boosting,true);assert.equal(position.x>450,true);
+    windowHandlers.keyup({key:'ArrowRight'});
+    handlers.pointerdown({pointerId:1,clientX:650,clientY:220,preventDefault(){}});
+    const previous={...position};
+    handlers.keydown({key:' ',preventDefault(){}});frame(300);
+    assert.equal(boosting,true);assert.equal(position.x>previous.x,true);assert.equal(position.y<previous.y,true);
+    engine.setBoost(false);windowHandlers.keyup({key:' '});frame(400);assert.equal(boosting,false);
+    engine.pause(true);frame(500);assert.equal(boosting,false);
+  }finally{engine?.destroy();Object.assign(globalThis,original);}
 });

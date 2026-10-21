@@ -66,3 +66,5 @@ html[data-background="aurora"]{--home-scene:url('./assets/backgrounds/aurora.svg
 @media(min-width:700px){.maze-levels{grid-template-columns:repeat(4,minmax(0,1fr))}}
 
 #air-controls[hidden]{display:none}#air-controls{margin:16px 0}#race-boost{min-height:52px;min-width:140px}#race-boost[aria-pressed="true"]{background:#d38342;color:#152c3a}#plane-options{border:0;padding:0;display:grid;gap:10px}#plane-preview{max-width:100%}#game-canvas{touch-action:none}
+
+#air-controls .flight-customizer{margin-top:20px;padding:22px;border:2px solid #b7d3db;border-radius:18px;background:#f1f8fa}#plane-preview{background:linear-gradient(#c5e8f4,#edf5df);border-radius:14px}#air-controls .flight-customizer h3{margin-top:0}
