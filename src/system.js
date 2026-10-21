@@ -1,3 +1,4 @@
+import { FLIGHT_DEFAULTS, validateFlightSettings } from './flight-settings.js';
 /** Shared, renderer-independent progression API. No game owns the wallet. */
 export const SAVE_KEY = 'sidequest.save.v1';
 export const COLORS = ['#ed6e40', '#86966a', '#9b85bb', '#6e9eae', '#d5aa4d'];
@@ -20,7 +21,7 @@ export const UPGRADES = [
   { id:'ember-dragons',name:'Ember dragons',group:'appearance',category:'DRAGON STYLE',icon:'♨',cost:350,description:'Dress the dragons in fiery colors. Choose in the customizer. Appearance only.' },
   { id:'ice-dragons',name:'Ice dragons',group:'appearance',category:'DRAGON STYLE',icon:'❄',cost:500,description:'Give the dragons icy blue scales. Choose in the customizer. Appearance only.' },
 ];
-export function freshSave() { return { version: 1, coins: 0, character: { name: 'Pip', color: COLORS[0], style: 'antenna', ...KNIGHT_DEFAULTS, robot:{...ROBOT_DEFAULTS} }, upgrades: [], stats: {} }; }
+export function freshSave() { return { version: 1, coins: 0, character: { name: 'Pip', color: COLORS[0], style: 'antenna', ...KNIGHT_DEFAULTS, robot:{...ROBOT_DEFAULTS}, flight:{...FLIGHT_DEFAULTS} }, upgrades: [], stats: {} }; }
 export function validateSave(data) {
   const validInt = n => Number.isSafeInteger(n) && n >= 0 && n <= 1000000000;
   if (!data || data.version !== 1 || !validInt(data.coins) || !data.character || typeof data.character.name !== 'string' || !data.character.name.trim() || data.character.name.length > 24 || !COLORS.includes(data.character.color) || !['antenna', 'ears', 'plain'].includes(data.character.style) || !Array.isArray(data.upgrades) || data.upgrades.some(id => id !== 'garden' && !UPGRADES.some(u => u.id === id)) || !data.stats || typeof data.stats !== 'object' || Array.isArray(data.stats)) throw new Error('This is not a valid Sidequest save file.');
@@ -36,7 +37,7 @@ export function validateSave(data) {
     if (!/^[a-z][a-z0-9-]{0,40}$/.test(id) || !stat || !validInt(stat.plays) || !validInt(stat.best)) throw new Error('Invalid game progress in save file.');
     Object.defineProperty(stats, id, { value: { plays: stat.plays, best: stat.best }, enumerable: true, writable: true, configurable: true });
   }
-  return { version: 1, coins: Math.min(1000000000,data.coins+(data.upgrades.includes('garden')?60:0)), character: { name: data.character.name.trim(), color: data.character.color, style: data.character.style, ...look, robot:{outfit:robot.outfit,hat:robot.hat,color:robot.color,glasses:robot.glasses,headphones:robot.headphones,backpack:robot.backpack} }, upgrades: [...new Set(data.upgrades.filter(id=>id!=='garden'))], stats };
+  return { version: 1, coins: Math.min(1000000000,data.coins+(data.upgrades.includes('garden')?60:0)), character: { name: data.character.name.trim(), color: data.character.color, style: data.character.style, ...look, flight:validateFlightSettings(data.character.flight), robot:{outfit:robot.outfit,hat:robot.hat,color:robot.color,glasses:robot.glasses,headphones:robot.headphones,backpack:robot.backpack} }, upgrades: [...new Set(data.upgrades.filter(id=>id!=='garden'))], stats };
 }
 export function createSystem(storage, onStorageError = () => {}) {
   let state = freshSave();
@@ -68,7 +69,7 @@ export function createSystem(storage, onStorageError = () => {}) {
       let settled = false;
       return { finish(coins) {
         if (settled) return false;
-        if (!Number.isInteger(coins) || coins < 0 || coins > 1000) throw new Error('Invalid session reward.');
+        if (!Number.isSafeInteger(coins) || coins < 0 || coins > 1000000000) throw new Error('Invalid session reward.');
         settled = true;
         const previous = Object.hasOwn(state.stats, gameId) ? state.stats[gameId] : { plays: 0, best: 0 };
         state.coins = Math.min(1000000000, state.coins + coins);

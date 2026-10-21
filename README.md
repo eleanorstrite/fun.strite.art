@@ -1,6 +1,6 @@
 # Sidequest
 
-A static game playground for GitHub Pages. Includes Knights and Dragons (a 2D knight-and-dragon maze), a shared character studio, a wallet, and character/environment/equipment upgrades. No runtime dependencies, bundler, account, or backend required.
+A static game playground for GitHub Pages. Includes Knights and Dragons (a 2D knight-and-dragon maze) and Skybound (a flap-to-fly obstacle game), a shared character studio, a wallet, and character/environment/equipment upgrades. No runtime dependencies, bundler, account, or backend required.
 
 ## Homepage robot wardrobe
 
@@ -42,7 +42,7 @@ The shop is split into **Gameplay** (speed and magnet) and **Appearance** (backg
 
 1. Add a renderer module and import its factory in `src/games.js`.
 2. Add a `GAMES` entry with a unique lowercase hyphenated `id`, `name`, `dimension` (`2D` or `3D`), `genre`, `description`, `tone`, and `create` factory. Supply a `preview` function for the new game's artwork.
-3. The factory receives `{ canvas, game, character, modifiers, onHud, onFinish }`. Return `start()`, `pause(boolean)`, and `destroy()`. `start()` begins or resets a round, `onHud({ remaining, earned })` updates the status, and `onFinish(integerCoins, optionalResult)` settles the reward; `optionalResult` can contain `title` and `detail`. `onHud({ text })` supports custom status text. Registry entries may set `mode`, `instructions`, canvas `width` / `height`, and a `preview(canvas, character, modifiers)` function. Games with `directional: true` expose `input(direction)` to use the on-screen controls. The host creates the shared session and protects against duplicate settlement. Rewards must be integers from 0 to 1000 per session.
+3. The factory receives `{ canvas, game, character, modifiers, onHud, onFinish }`. Return `start()`, `pause(boolean)`, and `destroy()`. `start()` begins or resets a round, `onHud({ remaining, earned })` updates the status, and `onFinish(integerCoins, optionalResult)` settles the reward; `optionalResult` can contain `title` and `detail`. `onHud({ text })` supports custom status text. Registry entries may set `mode`, `instructions`, canvas `width` / `height`, and a `preview(canvas, character, modifiers)` function. Games with `directional: true` expose `input(direction)` to use the on-screen controls. The host creates the shared session and protects against duplicate settlement. Rewards must be safe integers from 0 to 1,000,000,000 per session. Each game defines its own economy; the maze remains capped at 40 coins, while flight pays the full per-pipe total.
 4. Release animation loops and event handlers in `destroy()`. If a game ends on exit, call `onFinish` there. Honor the passed character and shared modifiers; keep wallet writes in the shared system. Adapt the host's timer/instructions UI for games with other session rules.
 5. Add new global upgrade definitions in `UPGRADES`, implement their effects in `modifiers()`, and consume those effects in each renderer. Game-specific upgrades can be added by extending the save schema with a migration.
 
@@ -59,3 +59,18 @@ With Node.js 22 or later installed, run `npm test` (or `node --test tests/*.test
 ## Knights and Dragons artwork
 
 The knight and dragon are original code-drawn pixel sprites inspired by the supplied armored-knight and winged-dragon references. The reference GIFs are not bundled. The maze is an original layout rather than the supplied Pac-Man board.
+
+## Skybound
+
+Choose Dragon, Hummingbird, or Eagle, any animal color, and Classic pipes, Castle pillars, Vine towers, or Crystal towers with a custom color. Settings are saved with your character and included in exported saves. The animals are original canvas artwork inspired by the supplied reference images; the photos are not bundled.
+
+Tap the canvas or **Flap ↑**, or press Space / Arrow Up to flap. Hit a pipe, the ground, or the top of the screen and the flight ends. Each fully cleared pipe pair pays once: Easy **1**, Medium **3**, Hard **5**, Expert **10** coins. All earned coins enter the shared wallet at the end of a flight, including when closing early. There is no 40-coin maze cap on flights. Difficulty and appearance are chosen before starting and locked for that run. Pause and hidden tabs freeze physics. Speed and magnet shop upgrades affect the maze only.
+
+| Difficulty | Scroll speed (world pixels/second) | Gap (world pixels) | Coins per pair |
+| --- | ---: | ---: | ---: |
+| Easy | 105 | 260 | 1 |
+| Medium | 150 | 215 | 3 |
+| Hard | 205 | 175 | 5 |
+| Expert | 275 | 135 | 10 |
+
+`src/flight-settings.js` defines validated settings, and `src/sky-flight.js` contains the physics, collision/scoring rules, renderer, and lifecycle. The portrait canvas scales to the screen while preserving the same physics on phones and desktops.
