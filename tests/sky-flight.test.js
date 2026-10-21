@@ -90,3 +90,25 @@ test('each flight scenery renders distinctly while preserving physics and reward
  }
  assert.equal(signatures.size,Object.keys(FLIGHT_BACKGROUNDS).length);
 });
+
+test('most flight scenes are free and only two appear in the shop',()=>{
+ const system=createSystem({getItem:()=>null,setItem(){}});
+ const free=Object.entries(FLIGHT_BACKGROUNDS).filter(([,scene])=>!scene.upgrade);
+ assert.equal(free.length,6);
+ assert.equal(Object.values(FLIGHT_BACKGROUNDS).filter(scene=>scene.upgrade).length,2);
+ for(const [background] of free){
+  system.setCharacter({...system.snapshot().character,flight:{...system.snapshot().character.flight,background}});
+  assert.equal(system.snapshot().character.flight.background,background);
+ }
+ assert.equal(system.snapshot().coins,0);assert.equal(system.snapshot().upgrades.length,0);
+ assert.equal(UPGRADES.some(item=>item.id==='flight-sunset'),false);
+ assert.throws(()=>system.buy('flight-sunset'));
+});
+test('existing Sunset Peaks owners retain their scene and receive one refund',()=>{
+ const old=freshSave();old.coins=35;old.upgrades=['flight-sunset','flight-city'];
+ old.character.flight.background='sunset';
+ const migrated=validateSave(old);
+ assert.equal(migrated.coins,235);assert.equal(migrated.character.flight.background,'sunset');
+ assert.deepEqual(migrated.upgrades,['flight-city']);
+ assert.deepEqual(validateSave(migrated),migrated);
+});

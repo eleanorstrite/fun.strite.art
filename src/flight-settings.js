@@ -8,7 +8,11 @@ export const FLIGHT_ANIMALS = { dragon:'Dragon', hummingbird:'Hummingbird', eagl
 export const PIPE_STYLES = { classic:'Classic pipes', stone:'Castle pillars', vines:'Vine towers', crystal:'Crystal towers' };
 export const FLIGHT_BACKGROUNDS = {
   classic:{name:'Original skies'},
-  sunset:{name:'Sunset peaks',upgrade:'flight-sunset'},
+  sunset:{name:'Sunset peaks'},
+  ocean:{name:'Ocean breeze'},
+  meadow:{name:'Sunny meadow'},
+  desert:{name:'Desert dunes'},
+  snow:{name:'Snowy mountains'},
   city:{name:'City skyline',upgrade:'flight-city'},
   stars:{name:'Starlight valley',upgrade:'flight-stars'},
 };

@@ -19,7 +19,7 @@ function syncFlightCustomizer(){
   const state=system.snapshot(),settings=state.character.flight;
   for(const option of $('#flight-background').children){
     const scene=FLIGHT_BACKGROUNDS[option.value],locked=scene.upgrade&&!state.upgrades.includes(scene.upgrade);
-    option.disabled=Boolean(locked);option.textContent=scene.name+(locked?' · Buy for 200 coins in the shop':'');
+    option.disabled=Boolean(locked);option.textContent=scene.name+(locked?' · Buy for 200 coins in the shop':scene.upgrade?' · Owned':' · Free');
   }
   for(const [field,id] of [['background','flight-background'],['animal','flight-animal'],['difficulty','flight-difficulty'],['color','flight-color'],['pipe','flight-pipe'],['pipeColor','flight-pipe-color']])$('#'+id).value=settings[field];
   const level=FLIGHT_LEVELS[settings.difficulty];$('#flight-rate').textContent=`${level.name} · ${level.reward} coin${level.reward===1?'':'s'} per pipe`;
