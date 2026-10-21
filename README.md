@@ -1,6 +1,6 @@
 # Sidequest
 
-A static game playground for GitHub Pages. Includes Knights and Dragons (a 2D knight-and-dragon maze) and Flappy Animals (a flap-to-fly obstacle game), a shared character studio, a wallet, and character/environment/equipment upgrades. No runtime dependencies, bundler, account, or backend required.
+A static game playground for GitHub Pages. Includes Knights and Dragons (a 2D knight-and-dragon maze), Flappy Animals (a flap-to-fly obstacle game), and Hoop Flight (an airplane hoop time trial), a shared character studio, a wallet, and character/environment/equipment upgrades. No runtime dependencies, bundler, account, or backend required.
 
 ## Homepage robot wardrobe
 
@@ -99,3 +99,13 @@ Flying Burger, Flying Pizza, and Flying Taco are free character choices in Flapp
 Underwater Reef is a free Flappy Animals scene with light rays, bubbles, fish, seaweed, and coral. Selecting it automatically picks pink Coral Reefs poles; the pipe style and color can still be customized afterward. Coral obstacles use the same collision bounds, difficulty gaps, and scoring as other pipe styles.
 
 Duck is a free Flappy Animals character with animated feathered wings, a broad orange bill, and webbed feet. It flies without a jetpack, uses flap sounds, supports the animal color picker, and is included in Random choices and saved selections.
+
+
+## Hoop Flight
+
+A chase-view airplane race with perspective hoops over a river valley. Clear all twelve gold hoops to finish; each restores energy and earns one coin in the shared wallet. Missing a hoop removes all energy and plays a falling-plane sequence. Steering uses arrow keys / WASD or dragging on the canvas. Hold Space or toggle Boost for faster flight and tighter reaction times. The fixed course and millisecond finish records make repeat attempts comparable. Pausing and hidden tabs freeze the simulation and timer.
+
+Only completed courses update the personal best, keeping the lowest time. Failed runs and early exits retain the existing record and settle earned coins once. Best times appear in the game and library and persist through reloads and save export/import. The airplane customizer offers Sport, Swept Wings, and Biplane designs, a color picker, and Random; appearance is editable before each race. Original canvas artwork is used because the available conversation images do not include an airplane reference.
+
+- `src/air-race.js`: deterministic hoop checks, energy and race timing, perspective rendering, airplane art, touch/keyboard controls, and lifecycle.
+- Shared sessions accept an optional positive `timeMs` on completion; statistics retain optional `bestTimeMs` alongside coin records. Older saves receive a default airplane.
