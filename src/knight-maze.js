@@ -274,10 +274,102 @@ export function drawMaze(ctx,s,character,width,height,preview=false) {
     ctx.fillText(s.lives?'Get ready to try again…':'Your last life!',width/2,oy+board/2+28);
   }
 }
+export const MAZE_WALL_HEIGHT=.35;
+export function projectMazePoint(s,x,y,z,width,height,angle=-Math.PI/2){
+  const fx=Math.cos(angle),fy=Math.sin(angle),dx=x-s.player.x,dy=y-s.player.y;
+  const forward=dx*fx+dy*fy+4,side=-dx*fy+dy*fx;
+  const depth=forward*.8+(5-z)*.6;
+  if(depth<.6)return null;
+  const focal=Math.min(width,height)*.74;
+  return {x:width/2+side*focal/depth,y:height*.48+((5-z)*.8-forward*.6)*focal/depth,scale:focal/depth,depth};
+}
+export function drawMaze3D(ctx,s,character,width,height,angle=-Math.PI/2){
+  const theme=KNIGHT_LEVELS[s.level],project=(x,y,z=0)=>projectMazePoint(s,x,y,z,width,height,angle);
+  ctx.imageSmoothingEnabled=false;
+  const sky=ctx.createLinearGradient(0,0,0,height);sky.addColorStop(0,theme.shadow);sky.addColorStop(1,theme.floor);
+  ctx.fillStyle=sky;ctx.fillRect(0,0,width,height);
+  const face=(points,color)=>{
+    if(points.some(p=>!p))return;
+    ctx.fillStyle=color;ctx.beginPath();points.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();ctx.fill();
+    ctx.strokeStyle='#10192355';ctx.lineWidth=.7;ctx.stroke();
+  };
+  const objects=[];
+  for(let y=0;y<s.maze.length;y++)for(let x=0;x<s.maze[y].length;x++){
+    const base=[project(x-.5,y-.5),project(x+.5,y-.5),project(x+.5,y+.5),project(x-.5,y+.5)];
+    face(base,(x+y)%2?theme.floor:theme.shadow);
+    const center=project(x,y);if(!center)continue;
+    if(s.maze[y][x]==='#'){
+      const top=[project(x-.5,y-.5,MAZE_WALL_HEIGHT),project(x+.5,y-.5,MAZE_WALL_HEIGHT),project(x+.5,y+.5,MAZE_WALL_HEIGHT),project(x-.5,y+.5,MAZE_WALL_HEIGHT)];
+      objects.push({depth:center.depth,draw:()=>{
+        for(let i=0;i<4;i++){const j=(i+1)%4;face([base[i],base[j],top[j],top[i]],i%2?theme.wall:theme.shadow);}
+        face(top,theme.light);
+      }});
+    }else if(s.gems.has(key(x,y))){
+      const p=project(x,y,.14);if(p)objects.push({depth:center.depth,draw:()=>{
+        const r=Math.max(2,p.scale*.10);
+        face([{x:p.x,y:p.y-r*1.6},{x:p.x+r,y:p.y},{x:p.x,y:p.y+r*1.6},{x:p.x-r,y:p.y}],['#ed6f94','#72dbcb','#b79af5','#f2c875','#76bdf4'][(x+y*2)%5]);
+      }});
+    }
+    if(s.swords.has(key(x,y))){
+      const p=project(x,y,.4);if(p)objects.push({depth:center.depth,draw:()=>sword(ctx,p.x,p.y,p.scale*.65)});
+    }
+    if((x===0||x===18)&&y===PORTAL_ROW){
+      const p=project(x,y,.5);if(p)objects.push({depth:center.depth,draw:()=>{
+        ctx.strokeStyle='#be9cff';ctx.lineWidth=4;ctx.beginPath();ctx.ellipse(p.x,p.y,p.scale*.28,p.scale*.6,0,0,7);ctx.stroke();
+      }});
+    }
+  }
+  const colors=(DRAGON_STYLES[character.dragon]||DRAGON_STYLES.classic).colors;
+  for(const dragon of s.dragons){
+    if(dragon.respawn>0||s.boosts.eliminator>0)continue;
+    const foot=project(dragon.x,dragon.y),p=project(dragon.x,dragon.y,.78);if(!foot||!p)continue;
+    objects.push({depth:foot.depth,draw:()=>{
+      actorShadow(ctx,foot.x,foot.y,p.scale*.8);
+      ctx.globalAlpha=s.sword>0?.65:1;
+      pixels(ctx,DRAGON,p.x,p.y,p.scale*1.55,{h:'#e2d8bd',d:colors[dragon.index],b:'#e9b47e',w:'#c99373',e:s.sword>0?'#bcecff':'#ffda70'},dragon.dir==='right');ctx.globalAlpha=1;
+    }});
+  }
+  const foot=project(s.player.x,s.player.y),knight=project(s.player.x,s.player.y,.52);
+  if(knight&&foot&&(s.grace<=0||Math.floor(s.elapsed*8)%2===0)){
+    objects.push({depth:foot.depth,draw:()=>{
+      actorShadow(ctx,foot.x,foot.y,knight.scale*.8);
+      // Back of helmet and cape, facing into the maze.
+      ctx.save();ctx.translate(knight.x,knight.y);ctx.scale(knight.scale/60,knight.scale/60);
+      const armor=ARMORS[character.armor]||ARMORS.silver;
+      ctx.fillStyle=armor.dark;ctx.fillRect(-16,1,32,24);ctx.fillRect(-15,24,10,10);ctx.fillRect(5,24,10,10);
+      if(character.cape!==false){ctx.fillStyle=character.color;ctx.beginPath();ctx.moveTo(-15,-1);ctx.lineTo(15,-1);ctx.lineTo(21,27);ctx.lineTo(-21,27);ctx.closePath();ctx.fill();}
+      ctx.fillStyle=armor.light;ctx.beginPath();ctx.roundRect(-16,-24,32,26,8);ctx.fill();ctx.fillStyle=armor.dark;ctx.fillRect(-16,-5,32,5);
+      if(character.helmet==='horns'){ctx.fillStyle='#f3dfb2';ctx.fillRect(-23,-29,7,18);ctx.fillRect(16,-29,7,18);}
+      else if(character.helmet==='crown'){ctx.fillStyle='#f5cc65';ctx.fillRect(-17,-28,34,9);for(let i=-17;i<=17;i+=14)ctx.fillRect(i,-36,6,12);}
+      else if(character.helmet==='winged'){ctx.fillStyle='#e0f3ff';face([{x:-16,y:-18},{x:-29,y:-31},{x:-25,y:-10}],ctx.fillStyle);face([{x:16,y:-18},{x:29,y:-31},{x:25,y:-10}],ctx.fillStyle);}
+      else if(character.helmet!=='plain'){ctx.fillStyle=character.color;ctx.fillRect(-4,-37,8,16);}
+      if(character.shield){ctx.fillStyle=armor.light;ctx.beginPath();ctx.ellipse(-23,9,9,14,0,0,7);ctx.fill();}
+      if(s.sword>0)sword(ctx,27,0,45);
+      ctx.restore();
+    }});
+  }
+  objects.sort((a,b)=>b.depth-a.depth);for(const object of objects)object.draw();
+  ctx.fillStyle='#10151fe8';ctx.fillRect(10,10,width-20,67);
+  ctx.fillStyle=theme.accent;ctx.textAlign='left';ctx.font='bold 17px sans-serif';ctx.fillText('LEVEL '+(s.level+1)+' · '+theme.name+' · 3D',24,35);
+  ctx.font='14px sans-serif';ctx.fillText(s.sword>0?'Sword: '+s.sword.toFixed(1)+'s':'Find a sword · '+s.gems.size+' gems left',24,59);
+  // North-up map keeps the original direction controls unambiguous while turning.
+  const cell=Math.min(5,width/125),size=cell*19,mx=width-size-18,my=90;
+  ctx.fillStyle='#10151fdd';ctx.fillRect(mx-6,my-6,size+12,size+30);
+  for(let y=0;y<19;y++)for(let x=0;x<19;x++){ctx.fillStyle=s.maze[y][x]==='#'?theme.light:theme.floor;ctx.fillRect(mx+x*cell,my+y*cell,cell,cell);}
+  if(s.boosts.eliminator<=0)for(const d of s.dragons)if(d.respawn<=0){ctx.fillStyle=colors[d.index];ctx.fillRect(mx+d.x*cell,my+d.y*cell,cell+1,cell+1);}
+  ctx.fillStyle='#fff3bd';ctx.fillRect(mx+s.player.x*cell,my+s.player.y*cell,cell+1,cell+1);
+  ctx.font='11px sans-serif';ctx.textAlign='center';ctx.fillStyle='#fff3bd';ctx.fillText('↑ NORTH',mx+size/2,my+size+17);
+  ctx.fillStyle='#10151fdd';ctx.fillRect(10,height-34,width-20,25);ctx.fillStyle='#f4e7ce';ctx.font='13px sans-serif';ctx.fillText('Arrows follow the map · Camera follows your knight',width/2,height-16);
+  if(s.status==='dying'){
+    ctx.fillStyle='#10151fc9';ctx.fillRect(0,height*.35,width,130);ctx.fillStyle='#f4d388';ctx.font='bold 30px sans-serif';ctx.fillText('GOBBLED UP!',width/2,height*.35+55);
+    ctx.font='18px sans-serif';ctx.fillText(s.lives?'Get ready to try again…':'Your last life!',width/2,height*.35+90);
+  }
+}
 export function drawKnightPreview(canvas,character,modifiers) { const ctx=canvas.getContext('2d');if(ctx)drawMaze(ctx,createMazeState(modifiers),character,canvas.width,canvas.height,true); }
-export function createKnightMaze({canvas,character,modifiers,consumeBoost,onHud,onFinish,level=0,onLevelChange=()=>{}}) {
+export function createKnightMaze({canvas,character,modifiers,consumeBoost,onHud,onFinish,level=0,onLevelChange=()=>{},view='2d'}) {
   const ctx=canvas.getContext('2d');if(!ctx)throw Error('Your browser does not support canvas.');
   let state=createMazeState(modifiers,level),active=false,paused=false,last=0,frame,destroyed=false,ending=null;
+  let cameraView=view==='3d'?'3d':'2d',cameraAngle=Math.PI;
   const reducedMotion=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false;
   const controller=new AbortController(),options={signal:controller.signal},audio=createMazeAudio();
   const input={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',w:'up',s:'down',a:'left',d:'right'};
@@ -309,12 +401,17 @@ export function createKnightMaze({canvas,character,modifiers,consumeBoost,onHud,
       }
     }
     if(ending)(state.status==='lost'?drawDefeat:drawVictory)(ctx,ending.time,canvas.width,canvas.height,drawEndingKnight,reducedMotion,character.dragon);
-    else drawMaze(ctx,state,character,canvas.width,canvas.height);
+    else if(cameraView==='3d'){
+      const dir=DIRECTIONS[state.player.dir],target=Math.atan2(dir[1],dir[0]);
+      const delta=Math.atan2(Math.sin(target-cameraAngle),Math.cos(target-cameraAngle));
+      if(!paused)cameraAngle+=reducedMotion?delta:delta*Math.min(1,dt*8);
+      drawMaze3D(ctx,state,character,canvas.width,canvas.height,cameraAngle);
+    }else drawMaze(ctx,state,character,canvas.width,canvas.height);
     frame=requestAnimationFrame(tick);
   }
   document.addEventListener?.('visibilitychange',()=>{last=0;if(document.hidden)audio.stop();},options);
   frame=requestAnimationFrame(tick);
-  return {selectLevel(value){
+  return {setView(value){if(!['2d','3d'].includes(value)||destroyed)return false;cameraView=value;const dir=DIRECTIONS[state.player.dir];cameraAngle=Math.atan2(dir[1],dir[0]);canvas.focus({preventScroll:true});return true;},selectLevel(value){
     if(destroyed||!Number.isInteger(value)||!KNIGHT_LEVELS[value])return false;
     audio.stop();finish();level=value;state=createMazeState(modifiers,level);
     ending=null;paused=false;last=0;pointer=null;onLevelChange(level);hud();return true;

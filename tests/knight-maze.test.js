@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MAZE, KNIGHT_LEVELS, PORTAL_ROW, activateMazeBoost, createMazeState, neighbors, tickMaze, SWORD_SECONDS, createKnightMaze, drawKnight, calculateMazeReward } from '../src/knight-maze.js';
+import { MAZE, KNIGHT_LEVELS, PORTAL_ROW, activateMazeBoost, createMazeState, neighbors, tickMaze, SWORD_SECONDS, createKnightMaze, drawKnight, calculateMazeReward, drawMaze3D, projectMazePoint, MAZE_WALL_HEIGHT } from '../src/knight-maze.js';
 function safeState(){const state=createMazeState();state.player.dir='up';state.dragons.forEach(d=>d.respawn=999);return state;}
 function elapse(state,seconds){for(let i=0;i<Math.round(seconds*100);i++)tickMaze(state,.01);}
 test('every gem and sword is reachable in a rectangular maze',()=>{
@@ -51,9 +51,9 @@ test('engine pauses timers, freezes hidden tabs, and settles only once on destro
   const original={requestAnimationFrame:globalThis.requestAnimationFrame,cancelAnimationFrame:globalThis.cancelAnimationFrame,document:globalThis.document};
   let frame,settled=0,hudCount=0,boostUses=0,lastHud;
   globalThis.requestAnimationFrame=fn=>(frame=fn,1);globalThis.cancelAnimationFrame=()=>{};globalThis.document={hidden:false};
-  const ctx=new Proxy({},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
+  const ctx=new Proxy({createLinearGradient:()=>({addColorStop(){}})},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
   const canvas={width:760,height:760,getContext:()=>ctx,addEventListener(){},focus(){}};
-  try {const engine=createKnightMaze({canvas,character:{color:'#ed6e40'},modifiers:{},consumeBoost(){boostUses++;return true;},onHud(value){hudCount++;lastHud=value;},onFinish(){settled++}});assert.equal(engine.activateBoost('boots'),false);engine.start();assert.equal(engine.activateBoost('boots'),true);assert.equal(engine.activateBoost('boots'),false);frame(100);engine.pause(true);assert.equal(engine.activateBoost('magnet'),false);const timer=lastHud.boosts.boots;const n=hudCount;frame(200);assert.equal(hudCount,n);engine.pause(false);globalThis.document.hidden=true;frame(300);assert.equal(hudCount,n+1);assert.equal(lastHud.boosts.boots,timer);assert.equal(engine.activateBoost('magnet'),false);assert.equal(boostUses,1);globalThis.document.hidden=false;frame(400);assert.equal(hudCount>n,true);engine.destroy();engine.destroy();assert.equal(settled,1);}finally{Object.assign(globalThis,original);}
+  try {const engine=createKnightMaze({canvas,character:{color:'#ed6e40'},modifiers:{},consumeBoost(){boostUses++;return true;},onHud(value){hudCount++;lastHud=value;},onFinish(){settled++}});assert.equal(engine.activateBoost('boots'),false);engine.start();assert.equal(engine.activateBoost('boots'),true);assert.equal(engine.activateBoost('boots'),false);frame(100);const viewHud=JSON.stringify(lastHud);assert.equal(engine.setView('3d'),true);assert.equal(engine.setView('bad'),false);assert.equal(JSON.stringify(lastHud),viewHud);assert.equal(settled,0);engine.pause(true);assert.equal(engine.activateBoost('magnet'),false);const timer=lastHud.boosts.boots;const n=hudCount;frame(200);assert.equal(engine.setView('2d'),true);assert.equal(hudCount,n);engine.pause(false);globalThis.document.hidden=true;frame(300);assert.equal(hudCount,n+1);assert.equal(lastHud.boosts.boots,timer);assert.equal(engine.activateBoost('magnet'),false);assert.equal(boostUses,1);globalThis.document.hidden=false;frame(400);assert.equal(hudCount>n,true);engine.destroy();engine.destroy();assert.equal(settled,1);}finally{Object.assign(globalThis,original);}
 });
 test('winning delays rewards for the ending, freezes on pause, and allows skip without double settlement',()=>{
   const original={requestAnimationFrame:globalThis.requestAnimationFrame,cancelAnimationFrame:globalThis.cancelAnimationFrame,document:globalThis.document};
@@ -220,4 +220,21 @@ test('direct level selection settles the previous run once and resets a paused g
   engine.selectLevel(0);assert.equal(finishes,2);assert.deepEqual(changes,[3,1,0]);
   engine.destroy();engine.destroy();assert.equal(finishes,2);assert.equal(engine.selectLevel(2),false);
  }finally{engine?.destroy();Object.assign(globalThis,original);}
+});
+
+test('3D chase camera keeps walls below the knight and dragon and leaves simulation untouched',()=>{
+  const ctx=new Proxy({createLinearGradient:()=>({addColorStop(){}})},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
+  for(let level=0;level<4;level++){
+    const state=createMazeState({},level),before=JSON.stringify({...state,gems:[...state.gems],swords:[...state.swords]});
+    for(const angle of [0,Math.PI/2,Math.PI,-Math.PI/2]){
+      for(const helmet of ['plain','plume','horns','crown','winged'])drawMaze3D(ctx,state,{color:'#ed6e40',armor:'gold',helmet,shield:true},760,760,angle);
+      const ground=projectMazePoint(state,state.player.x,state.player.y,0,760,760,angle);
+      const wall=projectMazePoint(state,state.player.x,state.player.y,MAZE_WALL_HEIGHT,760,760,angle);
+      const knight=projectMazePoint(state,state.player.x,state.player.y,1,760,760,angle);
+      const dragon=projectMazePoint(state,state.player.x,state.player.y,1.55,760,760,angle);
+      assert.equal(ground.y>wall.y,true);assert.equal(wall.y>knight.y,true);assert.equal(knight.y>dragon.y,true);
+    }
+    assert.equal(JSON.stringify({...state,gems:[...state.gems],swords:[...state.swords]}),before);
+    state.status='dying';state.boosts.eliminator=15;drawMaze3D(ctx,state,{color:'#ed6e40'},380,380);
+  }
 });
