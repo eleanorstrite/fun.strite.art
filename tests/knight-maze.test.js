@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MAZE, KNIGHT_LEVELS, PORTAL_ROW, activateMazeBoost, createMazeState, neighbors, tickMaze, SWORD_SECONDS, createKnightMaze, drawKnight, calculateMazeReward, drawMaze3D, projectMazePoint, MAZE_WALL_HEIGHT } from '../src/knight-maze.js';
+import { MAZE, KNIGHT_LEVELS, PORTAL_ROW, activateMazeBoost, createMazeState, neighbors, tickMaze, SWORD_SECONDS, createKnightMaze, drawKnight, calculateMazeReward, drawMaze3D, projectMazePoint, MAZE_WALL_HEIGHT, mazeInputDirection } from '../src/knight-maze.js';
 function safeState(){const state=createMazeState();state.player.dir='up';state.dragons.forEach(d=>d.respawn=999);return state;}
 function elapse(state,seconds){for(let i=0;i<Math.round(seconds*100);i++)tickMaze(state,.01);}
 test('every gem and sword is reachable in a rectangular maze',()=>{
@@ -237,4 +237,15 @@ test('3D chase camera keeps walls below the knight and dragon and leaves simulat
     assert.equal(JSON.stringify({...state,gems:[...state.gems],swords:[...state.swords]}),before);
     state.status='dying';state.boosts.eliminator=15;drawMaze3D(ctx,state,{color:'#ed6e40'},380,380);
   }
+});
+
+test('3D arrows follow the knight in all four headings while 2D keeps map directions',()=>{
+  const headings=['up','right','down','left'];
+  for(let i=0;i<4;i++){
+    for(const [key,offset] of Object.entries({up:0,right:1,down:2,left:3})){
+      assert.equal(mazeInputDirection(key,headings[i],'3d'),headings[(i+offset)%4]);
+      assert.equal(mazeInputDirection(key,headings[i],'2d'),key);
+    }
+  }
+  assert.equal(mazeInputDirection('bad','up','3d'),null);
 });
