@@ -22,6 +22,20 @@ for(const view of ['2d','3d'])$('#maze-view-'+view).onclick=()=>{
   if(!currentGame?.directional||!engine?.setView?.(view))return;
   mazeView=view;syncMazeView();try{storage.setItem('sidequest.maze-view',view);}catch{}
 };
+// Keep camera shortcuts local to the open game and leave form typing alone.
+dialog.addEventListener('keydown',event=>{
+  if(!dialog.open||event.key!=='3'||event.repeat||event.ctrlKey||event.metaKey||event.altKey||event.shiftKey)return;
+  if(event.target?.closest?.('input, select, textarea, [contenteditable]'))return;
+  if(currentGame?.directional){
+    event.preventDefault();$('#maze-view-3d').onclick();
+  }else if(currentGame?.flight&&engine?.setView?.('firstperson')){
+    event.preventDefault();
+    const character=system.snapshot().character;
+    system.setCharacter({...character,flight:{...character.flight,view:'firstperson'}});
+    $('#flight-view').value='firstperson';
+    $('#game-canvas').focus({preventScroll:true});
+  }
+});
 let mazeMuted=false;
 function syncPlaneCustomizer(){
   const save=system.snapshot(),plane=save.character.plane;
