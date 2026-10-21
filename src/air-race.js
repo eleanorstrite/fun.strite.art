@@ -135,6 +135,64 @@ export function drawAirRace(ctx,s,look,width,height,bestMs=null,reducedMotion=fa
   if(s.status==='won'){ctx.fillStyle='#183e51e8';ctx.fillRect(210,190,480,100);ctx.fillStyle='#ffeba7';ctx.font='bold 32px sans-serif';ctx.textAlign='center';ctx.fillText('FINISH!',450,232);ctx.font='22px sans-serif';ctx.fillText(formatRaceTime(Math.round(s.time*1000)),450,270);}
   ctx.restore();
 }
+function drawAirPassenger(ctx,x,y,{color,time=0,parachuting=false,bust=false}){
+  ctx.save();ctx.translate(x,y);ctx.lineCap='round';ctx.lineJoin='round';
+  const outline='#293947',skin='#efbc93';
+  const oval=(x,y,rx,ry,fill,stroke=true)=>{
+    ctx.fillStyle=fill;ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2);ctx.fill();
+    if(stroke){ctx.strokeStyle=outline;ctx.lineWidth=1.4;ctx.stroke();}
+  };
+  const panel=(points,fill)=>{shape(ctx,points,fill);ctx.strokeStyle=outline;ctx.lineWidth=1.4;ctx.stroke();};
+  const limb=(points,fill,width)=>{
+    for(const [paint,size] of [[outline,width+2],[fill,width]]){
+      ctx.strokeStyle=paint;ctx.lineWidth=size;ctx.beginPath();
+      points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.stroke();
+    }
+  };
+  if(parachuting){
+    ctx.fillStyle='#695447';ctx.beginPath();ctx.roundRect(-17,16,34,32,7);ctx.fill();ctx.strokeStyle=outline;ctx.lineWidth=2;ctx.stroke();
+  }
+  if(!bust){
+    limb([[-7,42],[-9,57],[-15,67]],'#425b7b',9);
+    limb([[7,42],[11,55],[17,65]],'#425b7b',9);
+    oval(-17,69,8,4,'#293947');oval(20,67,8,4,'#293947');
+    limb([[-21,71],[-11,71]],'#d6dfdf',1.5);limb([[14,69],[26,69]],'#d6dfdf',1.5);
+  }
+  panel([[-7,14],[-15,20],[-12,44],[12,44],[15,20],[7,14]],color);
+  panel([[-7,14],[0,26],[7,14]],'#fff5df');
+  limb([[0,27],[0,42]],'#ffffff99',1.5);
+  if(parachuting){
+    limb([[-12,22],[-23,14],[-26,1]],color,8);
+    limb([[12,22],[23,14],[26,1]],color,8);
+    oval(-26,-1,4.5,5,skin);oval(26,-1,4.5,5,skin);
+    limb([[-9,17],[-5,41]],'#354454',3);limb([[9,17],[5,41]],'#354454',3);
+    limb([[-12,37],[12,37]],'#354454',3);
+    ctx.fillStyle='#e5bd65';ctx.fillRect(-3,34,6,6);ctx.fillStyle='#354454';ctx.fillRect(-1,36,2,2);
+  }else{
+    limb([[-12,21],[-21,29],[-25,24]],color,7);oval(-26,23,4,4,skin);
+    const wave=Math.sin(time*7)*4;
+    limb([[12,21],[24,10],[26+wave,-3]],color,7);oval(26+wave,-8,5,6,skin);
+    for(let i=0;i<3;i++)limb([[23+wave+i*3,-10],[22+wave+i*3,-16]],skin,2);
+  }
+  oval(0,13,5,6,skin);
+  oval(-15,0,4,6,skin);oval(15,0,4,6,skin);
+  oval(0,-2,15,18,skin);
+  oval(-5,-5,7,11,'#ffcfaa',false);
+  // Swept hair, eyebrows, eye highlights, cheeks and an open smiling mouth.
+  panel([[-15,0],[-17,-13],[-11,-21],[2,-23],[14,-18],[17,-8],[13,-2],[10,-13],[2,-12],[-7,-15],[-11,-6]],'#684332');
+  limb([[-11,-15],[-4,-19],[5,-19]],'#986746',2);
+  for(const side of [-1,1]){
+    oval(side*6,-3,4,4.8,'#fffaf0',false);
+    oval(side*6+1,-2,2.2,3,'#344c57',false);
+    oval(side*6+1.5,-3,0.8,1,'#ffffff',false);
+    limb([[side*6-3,-10],[side*6+3,-10]],'#684332',1.5);
+    oval(side*10,5,3,1.6,'#df8f7d',false);
+  }
+  limb([[0,0],[-1,4],[2,4]],'#ca8d6c',1.2);
+  oval(1,9,5,3.5,'#743f3a',false);
+  ctx.fillStyle='#fff7e7';ctx.fillRect(-3,6.5,8,2);
+  ctx.restore();
+}
 // Short canvas movies keep the selected paint and work offline on GitHub Pages.
 export const AIR_ENDING_SECONDS=6;
 export function drawAirEnding(ctx,won,time,look,width,height,reducedMotion=false){
@@ -168,16 +226,13 @@ export function drawAirEnding(ctx,won,time,look,width,height,reducedMotion=false
   ctx.fillStyle='#315572';
   for(let i=0;i<6;i++)ctx.fillRect(-55+i*23,-13,12,14);
   panel([[79,-22],[95,-15],[103,-4],[79,-4]],'#63c2e1');
-  const head=(x,y)=>{
-    ctx.fillStyle='#f4be8d';ctx.beginPath();ctx.arc(x,y,14,0,7);ctx.fill();ctx.stroke();
-    ctx.fillStyle='#4d342f';ctx.beginPath();ctx.arc(x,y-4,13,Math.PI,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#263b48';ctx.fillRect(x+4,y-3,3,3);
-    ctx.beginPath();ctx.arc(x+3,y+3,5,0,Math.PI);ctx.stroke();
-  };
   if(won&&t>2.5){
     const rise=airClamp((t-2.5)*3,0,1);
-    ctx.fillStyle=color;ctx.fillRect(35,-20-rise*15,16,22);
-    head(43,-18-rise*25);
+    ctx.save();
+    // Reveal the clothed passenger from the window as they rise and wave.
+    ctx.beginPath();ctx.rect(5,-110,90,100);ctx.clip();
+    drawAirPassenger(ctx,43,8-rise*59,{color,time:t,bust:true});
+    ctx.restore();
   }
   ctx.restore();
   if(!won&&t>1){
@@ -187,18 +242,14 @@ export function drawAirEnding(ctx,won,time,look,width,height,reducedMotion=false
       const open=airClamp((t-2.2)*3,0,1),r=80*open;
       ctx.strokeStyle='#40536a';ctx.lineWidth=2;
       for(const side of [-1,1]){
-        ctx.beginPath();ctx.moveTo(personX+side*r,personY-110);ctx.lineTo(personX+side*10,personY+8);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(personX+side*r,personY-110);ctx.lineTo(personX+side*35,personY-1);ctx.stroke();
       }
       ctx.fillStyle=color;ctx.beginPath();ctx.arc(personX,personY-110,r,Math.PI,Math.PI*2);ctx.closePath();ctx.fill();ctx.stroke();
       ctx.fillStyle='#fff4ca';ctx.beginPath();ctx.ellipse(personX,personY-110,r*.28,r,0,Math.PI,Math.PI*2);ctx.fill();
     }
-    ctx.strokeStyle='#263b48';ctx.lineWidth=5;
-    ctx.beginPath();ctx.moveTo(personX-16,personY-2);ctx.lineTo(personX,personY+18);ctx.lineTo(personX+16,personY-2);
-    ctx.moveTo(personX,personY+18);ctx.lineTo(personX,personY+38);
-    ctx.moveTo(personX-12,personY+52);ctx.lineTo(personX,personY+38);ctx.lineTo(personX+12,personY+52);ctx.stroke();
-    ctx.fillStyle='#f4be8d';ctx.beginPath();ctx.arc(personX,personY,14,0,7);ctx.fill();
-    ctx.fillStyle='#263b48';ctx.fillRect(personX-5,personY-3,3,3);ctx.fillRect(personX+4,personY-3,3,3);
-    ctx.beginPath();ctx.arc(personX,personY+3,5,0,Math.PI);ctx.stroke();
+    ctx.save();ctx.translate(personX,personY);ctx.scale(1.35,1.35);
+    drawAirPassenger(ctx,0,0,{color,time:t,parachuting:true});
+    ctx.restore();
   }
   if(t>=3.2){
     ctx.fillStyle='#fffdf2';ctx.strokeStyle='#263b48';ctx.lineWidth=3;
