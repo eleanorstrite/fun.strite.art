@@ -97,3 +97,5 @@ Both game customizers have a Random button that saves a random character appeara
 Flying Burger, Flying Pizza, and Flying Taco are free character choices in Flappy Animals. Each has its own food artwork, animated jetpack flames, jet sounds, and customizable jetpack/harness colors. They are included in Random appearance choices and saved selections.
 
 Underwater Reef is a free Flappy Animals scene with light rays, bubbles, fish, seaweed, and coral. Selecting it automatically picks pink Coral Reefs poles; the pipe style and color can still be customized afterward. Coral obstacles use the same collision bounds, difficulty gaps, and scoring as other pipe styles.
+
+Duck is a free Flappy Animals character with animated feathered wings, a broad orange bill, and webbed feet. It flies without a jetpack, uses flap sounds, supports the animal color picker, and is included in Random choices and saved selections.

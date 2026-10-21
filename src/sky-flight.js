@@ -37,7 +37,21 @@ export function drawFlyer(ctx,x,y,size,settings,time=0,tilt=0){
   ctx.save();ctx.translate(x,y);ctx.rotate(tilt);ctx.scale(size/80,size/80);
   const flap=Math.sin(time*(settings.animal==='hummingbird'?34:10)),color=settings.color;
   // Original animated silhouettes inspired by the supplied animal references.
-  if(['burger','pizza','taco'].includes(settings.animal)){
+  if(settings.animal==='duck'){
+    polygon(ctx,[[-19,1],[-45,-8],[-38,8],[-15,15]],color);
+    ctx.fillStyle=color;ctx.beginPath();ctx.ellipse(-1,6,30,18,-.08,0,7);ctx.ellipse(24,-11,17,16,0,0,7);ctx.fill();
+    ctx.fillStyle='#ffffff45';ctx.beginPath();ctx.ellipse(4,14,22,7,0,0,7);ctx.fill();
+    // The wing pivots at the shoulder; no engine, tank, or flame.
+    ctx.save();ctx.translate(-4,0);ctx.rotate(-.55+flap*.8);
+    ctx.fillStyle=color;ctx.beginPath();ctx.moveTo(0,9);ctx.quadraticCurveTo(-42,3,-40,-34);ctx.quadraticCurveTo(-17,-31,9,-4);ctx.closePath();ctx.fill();
+    ctx.strokeStyle='#ffffff66';ctx.lineWidth=2;
+    for(let i=0;i<3;i++){ctx.beginPath();ctx.moveTo(-2-i*5,0);ctx.lineTo(-21-i*6,-19-i*4);ctx.stroke();}
+    ctx.restore();
+    ctx.fillStyle='#eba33f';ctx.beginPath();ctx.ellipse(44,-7,14,6,.08,0,7);ctx.fill();
+    ctx.strokeStyle='#b87529';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(35,-5);ctx.lineTo(55,-5);ctx.stroke();
+    polygon(ctx,[[-8,21],[-11,29],[-23,30],[-18,24]],'#eba33f');
+    polygon(ctx,[[10,20],[8,28],[-3,30],[1,23]],'#eba33f');
+  }else if(['burger','pizza','taco'].includes(settings.animal)){
     polygon(ctx,[[-30,-2],[-72,12+flap*6],[-48,-8],[-70,-25-flap*6],[-30,-20]],'#f69945');
     polygon(ctx,[[-30,-6],[-56,0],[-43,-12],[-30,-16]],'#ffe898');
     ctx.fillStyle=color;ctx.fillRect(-39,-28,22,37);
@@ -269,7 +283,7 @@ export function createSkyFlight({canvas,character,onHud,onFinish}){
     if(!active||paused||document.hidden||state.status!=='playing')return;
     audio.unlock();flapFlight(state);
     if(state.time-flapSoundAt>=.08){
-      audio.play({dragon:'flap',hummingbird:'chirp',eagle:'whoosh',capybara:'jet',cat:'jet',dog:'jet',hotdog:'jet',burger:'jet',pizza:'jet',taco:'jet'}[state.settings.animal]);
+      audio.play({dragon:'flap',hummingbird:'chirp',eagle:'whoosh',duck:'flap',capybara:'jet',cat:'jet',dog:'jet',hotdog:'jet',burger:'jet',pizza:'jet',taco:'jet'}[state.settings.animal]);
       flapSoundAt=state.time;
     }
   }
