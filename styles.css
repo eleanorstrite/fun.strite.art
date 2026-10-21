@@ -52,6 +52,6 @@ html[data-background="aurora"]{--home-scene:url('./assets/backgrounds/aurora.svg
 .avatar.with-backpack .robot-backpack{display:block;z-index:1;left:7px;top:83px;width:83px;height:43px;background:var(--outfit-color);border:3px solid #384d4a;border-radius:12px;box-shadow:inset 8px 0 #fff3,inset -8px 0 #0002}
 .robot-accessories label{display:flex;align-items:center;gap:10px;min-height:44px;font-size:13px}.robot-accessories input{width:20px;height:20px;accent-color:var(--orange)}#robot-save-status{grid-column:1/-1;font-size:11px;line-height:1.5;color:#59634e;margin:0}.studio-controls select{min-height:44px}.studio-preview{align-self:center;width:100%}
 
-.hero-avatar.explorer-dancing{transform-origin:50% 100%;animation:explorer-dance .8s ease-in-out 3}
+.hero-avatar{transform-origin:50% 100%;animation:explorer-dance .8s ease-in-out infinite}
 @keyframes explorer-dance{0%,100%{transform:rotate(-7deg) scale(1.2)}20%{transform:translate(-7px,-9px) rotate(-17deg) scale(1.2)}40%{transform:translate(0,-16px) rotate(4deg) scale(1.2)}60%{transform:translate(7px,-5px) rotate(13deg) scale(1.2)}80%{transform:translate(0,-12px) rotate(-4deg) scale(1.2)}}
-@media(prefers-reduced-motion:reduce){.hero-avatar.explorer-dancing{animation:explorer-celebration 2.4s ease-in-out 1}@keyframes explorer-celebration{0%,100%{filter:none}50%{filter:drop-shadow(0 0 10px #f2cf75)}}}
+@media(prefers-reduced-motion:reduce){.hero-avatar{animation:explorer-celebration 2.4s ease-in-out infinite}@keyframes explorer-celebration{0%,100%{filter:none}50%{filter:drop-shadow(0 0 10px #f2cf75)}}}

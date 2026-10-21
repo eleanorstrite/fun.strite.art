@@ -4,7 +4,7 @@ A static game playground for GitHub Pages. Includes Knights and Dragons (a 2D kn
 
 ## Homepage robot wardrobe
 
-The Character Studio offers a classic robot, hoodie, overalls, space suit, or adventure jacket; a separate clothing color; baseball cap, beanie, or top hat; and mix-and-match glasses, headphones, and backpack. All robot wardrobe choices are free. Changes update both homepage previews and save automatically when a valid explorer name is present. Robot clothing is saved separately from knight equipment inside the character save and transfers with export/import. Older saves default to the classic robot. Pressing Save your explorer queues a short dance for the forest explorer; it starts when you scroll back to it and pauses if it leaves view. Reduced-motion settings use a gentle glow instead.
+The Character Studio offers a classic robot, hoodie, overalls, space suit, or adventure jacket; a separate clothing color; baseball cap, beanie, or top hat; and mix-and-match glasses, headphones, and backpack. All robot wardrobe choices are free. Changes update both homepage previews and save automatically when a valid explorer name is present. Robot clothing is saved separately from knight equipment inside the character save and transfers with export/import. Older saves default to the classic robot. The forest explorer dances continuously as soon as the homepage loads. Changing or saving its appearance keeps the dance running. Reduced-motion settings use a gentle glow instead.
 
 ## Home screen backgrounds
 
