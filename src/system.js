@@ -6,6 +6,9 @@ ARMORS.emerald={name:'Emerald',dark:'#287967',light:'#9ef0c8',upgrade:'emerald-a
 export const DRAGON_STYLES={classic:{name:'Classic dragons',colors:['#a34b50','#738959','#78609e','#4e8e98']},ice:{name:'Ice dragons',colors:['#66b9d3','#78cbd0','#8babe4','#a0c8ec'],upgrade:'ice-dragons'},ember:{name:'Ember dragons',colors:['#cf633c','#c98c35','#b94b53','#dd894c'],upgrade:'ember-dragons'}};
 export const HELMETS = { plume: 'Feather plume', horns: 'Dragon horns', crown: 'Royal crown', plain: 'Classic helmet' };
 HELMETS.winged='Winged helmet';
+export const ROBOT_OUTFITS={none:'Classic robot',hoodie:'Cozy hoodie',overalls:'Explorer overalls',spacesuit:'Space suit',jacket:'Adventure jacket'};
+export const ROBOT_HATS={none:'No hat',cap:'Baseball cap',beanie:'Beanie',tophat:'Top hat'};
+export const ROBOT_DEFAULTS={outfit:'none',hat:'none',color:'#6e9eae',glasses:false,headphones:false,backpack:false};
 export const KNIGHT_DEFAULTS = { armor: 'silver', helmet: 'plume', cape: true, shield: false, dragon: 'classic' };
 export const UPGRADES = [
   { id:'boots',name:'Super speed',group:'gameplay',category:'CHARACTER',icon:'↗',cost:800,description:'Move 25% faster in the maze. Active next adventure.' },
@@ -17,10 +20,13 @@ export const UPGRADES = [
   { id:'ember-dragons',name:'Ember dragons',group:'appearance',category:'DRAGON STYLE',icon:'♨',cost:350,description:'Dress the dragons in fiery colors. Choose in the customizer. Appearance only.' },
   { id:'ice-dragons',name:'Ice dragons',group:'appearance',category:'DRAGON STYLE',icon:'❄',cost:500,description:'Give the dragons icy blue scales. Choose in the customizer. Appearance only.' },
 ];
-export function freshSave() { return { version: 1, coins: 0, character: { name: 'Pip', color: COLORS[0], style: 'antenna', ...KNIGHT_DEFAULTS }, upgrades: [], stats: {} }; }
+export function freshSave() { return { version: 1, coins: 0, character: { name: 'Pip', color: COLORS[0], style: 'antenna', ...KNIGHT_DEFAULTS, robot:{...ROBOT_DEFAULTS} }, upgrades: [], stats: {} }; }
 export function validateSave(data) {
   const validInt = n => Number.isSafeInteger(n) && n >= 0 && n <= 1000000000;
   if (!data || data.version !== 1 || !validInt(data.coins) || !data.character || typeof data.character.name !== 'string' || !data.character.name.trim() || data.character.name.length > 24 || !COLORS.includes(data.character.color) || !['antenna', 'ears', 'plain'].includes(data.character.style) || !Array.isArray(data.upgrades) || data.upgrades.some(id => id !== 'garden' && !UPGRADES.some(u => u.id === id)) || !data.stats || typeof data.stats !== 'object' || Array.isArray(data.stats)) throw new Error('This is not a valid Sidequest save file.');
+  if(data.character.robot!==undefined&&(!data.character.robot||typeof data.character.robot!=='object'||Array.isArray(data.character.robot)))throw new Error('Invalid robot appearance.');
+  const robot={...ROBOT_DEFAULTS,...data.character.robot};
+  if(!Object.hasOwn(ROBOT_OUTFITS,robot.outfit)||!Object.hasOwn(ROBOT_HATS,robot.hat)||!COLORS.includes(robot.color)||['glasses','headphones','backpack'].some(key=>typeof robot[key]!=='boolean'))throw new Error('Invalid robot appearance.');
   const look = { ...KNIGHT_DEFAULTS };
   for (const field of Object.keys(look)) if (data.character[field] !== undefined) look[field] = data.character[field];
   if (!Object.hasOwn(ARMORS, look.armor) || !Object.hasOwn(HELMETS, look.helmet) || typeof look.cape !== 'boolean' || typeof look.shield !== 'boolean' || !Object.hasOwn(DRAGON_STYLES,look.dragon)) throw new Error('Invalid knight appearance in save file.');
@@ -30,7 +36,7 @@ export function validateSave(data) {
     if (!/^[a-z][a-z0-9-]{0,40}$/.test(id) || !stat || !validInt(stat.plays) || !validInt(stat.best)) throw new Error('Invalid game progress in save file.');
     Object.defineProperty(stats, id, { value: { plays: stat.plays, best: stat.best }, enumerable: true, writable: true, configurable: true });
   }
-  return { version: 1, coins: Math.min(1000000000,data.coins+(data.upgrades.includes('garden')?60:0)), character: { name: data.character.name.trim(), color: data.character.color, style: data.character.style, ...look }, upgrades: [...new Set(data.upgrades.filter(id=>id!=='garden'))], stats };
+  return { version: 1, coins: Math.min(1000000000,data.coins+(data.upgrades.includes('garden')?60:0)), character: { name: data.character.name.trim(), color: data.character.color, style: data.character.style, ...look, robot:{outfit:robot.outfit,hat:robot.hat,color:robot.color,glasses:robot.glasses,headphones:robot.headphones,backpack:robot.backpack} }, upgrades: [...new Set(data.upgrades.filter(id=>id!=='garden'))], stats };
 }
 export function createSystem(storage, onStorageError = () => {}) {
   let state = freshSave();

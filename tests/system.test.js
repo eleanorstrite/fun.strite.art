@@ -36,3 +36,13 @@ test('gameplay items cost more than every cosmetic item',()=>{
   const maxAppearance=Math.max(...UPGRADES.filter(item=>item.group==='appearance').map(item=>item.cost));
   for(const item of UPGRADES.filter(item=>item.group==='gameplay'))assert.equal(item.cost>maxAppearance,true);
 });
+test('robot outfits and mixed accessories survive reload and export without changing knight settings',()=>{
+  const storage=memory(),system=createSystem(storage),before=system.snapshot().character;
+  const robot={outfit:'spacesuit',hat:'beanie',color:'#9b85bb',glasses:true,headphones:true,backpack:true};
+  system.setCharacter({...before,robot});const restored=createSystem(storage);assert.deepEqual(restored.snapshot().character.robot,robot);assert.equal(restored.snapshot().character.armor,before.armor);
+  const copy=createSystem(memory());copy.importSave(system.exportSave());assert.deepEqual(copy.snapshot(),restored.snapshot());
+});
+test('old saves get a classic robot and invalid wardrobe data cannot overwrite a save',()=>{
+  const old=freshSave();delete old.character.robot;assert.equal(validateSave(old).character.robot.outfit,'none');
+  const system=createSystem(memory()),before=system.snapshot();for(const robot of [null,[],{outfit:'unknown'},{hat:'unknown'},{color:'red'},{glasses:'yes'}])assert.throws(()=>system.setCharacter({...before.character,robot}));assert.deepEqual(system.snapshot(),before);
+});

@@ -2,6 +2,10 @@
 
 A static game playground for GitHub Pages. Includes Knights and Dragons (a 2D knight-and-dragon maze), a shared character studio, a wallet, and character/environment/equipment upgrades. No runtime dependencies, bundler, account, or backend required.
 
+## Homepage robot wardrobe
+
+The Character Studio offers a classic robot, hoodie, overalls, space suit, or adventure jacket; a separate clothing color; baseball cap, beanie, or top hat; and mix-and-match glasses, headphones, and backpack. All robot wardrobe choices are free. Changes update both homepage previews and save automatically when a valid explorer name is present. Robot clothing is saved separately from knight equipment inside the character save and transfers with export/import. Older saves default to the classic robot.
+
 ## Home screen backgrounds
 
 Use **Pick your scenery** at the top of the home screen to choose Countryside, City, Sunset, Starry night, or the original Classic background for free. Northern Lights (200 coins) and Enchanted Forest (350 coins) unlock through the shop. Original SVG scenes are bundled locally. The selection is saved per browser under `sidequest.background.v1`, independently of game saves; purchased background ownership is included in game saves, but the selected scene is not; it does not change the maze or exported progress.
