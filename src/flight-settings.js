@@ -4,7 +4,7 @@ export const FLIGHT_LEVELS = {
   hard: { name:'Hard', speed:205, gap:175, reward:5 },
   expert: { name:'Expert', speed:275, gap:135, reward:10 },
 };
-export const FLIGHT_ANIMALS = { dragon:'Dragon', hummingbird:'Hummingbird', eagle:'Eagle' };
+export const FLIGHT_ANIMALS = { dragon:'Dragon', hummingbird:'Hummingbird', eagle:'Eagle', capybara:'Capybara with jetpack' };
 export const PIPE_STYLES = { classic:'Classic pipes', stone:'Castle pillars', vines:'Vine towers', crystal:'Crystal towers' };
 export const FLIGHT_DEFAULTS = { animal:'dragon', color:'#d36a40', pipe:'classic', pipeColor:'#599b78', difficulty:'easy' };
 export function validateFlightSettings(value=FLIGHT_DEFAULTS){

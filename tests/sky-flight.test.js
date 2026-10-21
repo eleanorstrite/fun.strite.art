@@ -19,7 +19,7 @@ test('flapping lifts the flyer and pipes, floor, and ceiling end a run',()=>{
 });
 test('flyer and pipe customization validate and persist with game saves',()=>{
   const data=new Map(),storage={getItem:k=>data.get(k),setItem:(k,v)=>data.set(k,v)},system=createSystem(storage);
-  const flight={animal:'hummingbird',color:'#34bf96',pipe:'crystal',pipeColor:'#7744cc',difficulty:'expert'};
+  const flight={animal:'capybara',color:'#34bf96',pipe:'crystal',pipeColor:'#7744cc',difficulty:'expert'};
   system.setCharacter({...system.snapshot().character,flight});assert.deepEqual(createSystem(storage).snapshot().character.flight,flight);
   for(const invalid of [{animal:'unknown'},{color:'red'},{pipe:'unknown'},{difficulty:'impossible'},null])assert.throws(()=>validateFlightSettings(invalid));
 });
@@ -31,5 +31,27 @@ test('flight engine pauses, resumes, closes once, and supports each animal',()=>
   const original={requestAnimationFrame:globalThis.requestAnimationFrame,cancelAnimationFrame:globalThis.cancelAnimationFrame,document:globalThis.document};let frame;
   globalThis.requestAnimationFrame=fn=>(frame=fn,1);globalThis.cancelAnimationFrame=()=>{};globalThis.document={hidden:false};
   const ctx=new Proxy({createLinearGradient:()=>({addColorStop(){}})},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)}),canvas={width:540,height:720,getContext:()=>ctx,addEventListener(){},focus(){}};
-  try{for(const animal of ['dragon','hummingbird','eagle']){let updates=0,finishes=0;const engine=createSkyFlight({canvas,character:{flight:{...FLIGHT_DEFAULTS,animal}},onHud(){updates++;},onFinish(){finishes++;}});engine.start();frame(100);const count=updates;engine.pause(true);frame(200);assert.equal(updates,count);engine.pause(false);frame(300);assert.equal(updates>count,true);engine.destroy();engine.destroy();assert.equal(finishes,1);}}finally{Object.assign(globalThis,original);}
+  try{for(const animal of ['dragon','hummingbird','eagle','capybara']){let updates=0,finishes=0;const engine=createSkyFlight({canvas,character:{flight:{...FLIGHT_DEFAULTS,animal}},onHud(){updates++;},onFinish(){finishes++;}});engine.start();frame(100);const count=updates;engine.pause(true);frame(200);assert.equal(updates,count);engine.pause(false);frame(300);assert.equal(updates>count,true);engine.destroy();engine.destroy();assert.equal(finishes,1);}}finally{Object.assign(globalThis,original);}
+});
+
+test('crash animation delays results, freezes while paused or hidden, and settles once',()=>{
+ const original={requestAnimationFrame:globalThis.requestAnimationFrame,cancelAnimationFrame:globalThis.cancelAnimationFrame,document:globalThis.document};
+ let frame,finished=0,now=100,hud='';
+ globalThis.requestAnimationFrame=fn=>(frame=fn,1);globalThis.cancelAnimationFrame=()=>{};globalThis.document={hidden:false};
+ const ctx=new Proxy({createLinearGradient:()=>({addColorStop(){}})},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
+ const canvas={width:540,height:720,getContext:()=>ctx,addEventListener(){},focus(){}};
+ let engine;
+ const frames=n=>{for(let i=0;i<n;i++){frame(now);now+=50;}};
+ try{
+  engine=createSkyFlight({canvas,character:{flight:{...FLIGHT_DEFAULTS,animal:'capybara'}},onHud:value=>hud=value.text,onFinish(){finished++;}});
+  engine.start();for(let i=0;i<200&&!hud.includes('Bonk');i++)frames(1);
+  assert.equal(hud.includes('Bonk'),true);assert.equal(finished,0);
+  engine.input();engine.pause(true);frames(60);assert.equal(finished,0);
+  engine.pause(false);globalThis.document.hidden=true;frames(60);assert.equal(finished,0);
+  globalThis.document.hidden=false;frames(20);assert.equal(finished,0);frames(25);assert.equal(finished,1);
+  engine.destroy();assert.equal(finished,1);
+  engine=createSkyFlight({canvas,character:{flight:FLIGHT_DEFAULTS},onHud:value=>hud=value.text,onFinish(){finished++;}});
+  engine.start();for(let i=0;i<200&&!hud.includes('Bonk');i++)frames(1);
+  engine.destroy();engine.destroy();assert.equal(finished,2);
+ }finally{engine?.destroy();Object.assign(globalThis,original);}
 });

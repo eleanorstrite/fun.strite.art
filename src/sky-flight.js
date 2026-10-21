@@ -3,7 +3,7 @@ import { createMazeAudio } from './maze-audio.js';
 export const FLIGHT_WIDTH=540, FLIGHT_HEIGHT=720, FLIGHT_FLOOR=680;
 export function createFlightState(settings=FLIGHT_DEFAULTS,random=Math.random){
   const config=validateFlightSettings(settings);
-  const state={settings:config,level:FLIGHT_LEVELS[config.difficulty],x:150,y:330,velocity:0,radius:16,pipes:[],passed:0,earned:0,time:0,distance:0,status:'ready',random};
+  const state={settings:config,level:FLIGHT_LEVELS[config.difficulty],x:150,y:330,velocity:0,radius:16,pipes:[],passed:0,earned:0,time:0,distance:0,status:'ready',crashTime:0,random};
   addPipe(state,680);addPipe(state,980);addPipe(state,1280);return state;
 }
 function addPipe(s,x){
@@ -37,7 +37,19 @@ export function drawFlyer(ctx,x,y,size,settings,time=0,tilt=0){
   ctx.save();ctx.translate(x,y);ctx.rotate(tilt);ctx.scale(size/80,size/80);
   const flap=Math.sin(time*(settings.animal==='hummingbird'?34:10)),color=settings.color;
   // Original animated silhouettes inspired by the supplied animal references.
-  if(settings.animal==='dragon'){
+  if(settings.animal==='capybara'){
+    // Rounded snout, little ears and paws, with twin metal rocket tanks.
+    polygon(ctx,[[-28,5],[-64,12+flap*5],[-43,-2],[-70,-9-flap*5],[-27,-12]],'#f69945');
+    polygon(ctx,[[-28,1],[-52,4],[-36,-7],[-27,-8]],'#ffe898');
+    ctx.fillStyle='#536b83';ctx.fillRect(-32,-27,21,38);
+    ctx.fillStyle='#b9d5df';ctx.fillRect(-29,-24,7,29);
+    ctx.fillStyle=color;ctx.beginPath();ctx.ellipse(-1,4,30,22,0,0,7);ctx.ellipse(27,-5,22,19,0,0,7);ctx.fill();
+    ctx.beginPath();ctx.ellipse(16,-23,7,8,-.3,0,7);ctx.ellipse(-9,24,8,6,0,0,7);ctx.ellipse(20,22,8,6,0,0,7);ctx.fill();
+    ctx.fillStyle='#ffffff35';ctx.beginPath();ctx.ellipse(37,1,12,10,0,0,7);ctx.fill();
+    ctx.fillStyle='#41332c';ctx.beginPath();ctx.arc(44,-3,3,0,7);ctx.fill();
+    ctx.strokeStyle='#654e40';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(34,8);ctx.lineTo(43,8);ctx.stroke();
+    ctx.strokeStyle='#536b83';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(-12,-15);ctx.lineTo(-9,18);ctx.stroke();
+  }else if(settings.animal==='dragon'){
     polygon(ctx,[[-5,0],[-28,-12],[-69,-35-flap*15],[-48,-34-flap*18],[-22,-60-flap*18],[4,-12]],color);
     polygon(ctx,[[-15,-8],[-53,-32-flap*14],[-36,-27-flap*13],[-21,-48-flap*15],[-1,-12]],'#f7ba737f');
     polygon(ctx,[[-22,5],[-56,18],[-75,8],[-57,26],[-13,13]],color);
@@ -66,7 +78,7 @@ function drawPipe(ctx,p,s){
     ctx.fillStyle=c;ctx.fillRect(p.x-7,edge,p.width+14,20);ctx.strokeStyle='#26374566';ctx.lineWidth=2;ctx.strokeRect(p.x-7,edge,p.width+14,20);
   }
 }
-export function drawFlight(ctx,s,width,height){
+export function drawFlight(ctx,s,width,height,reducedMotion=false){
   ctx.save();ctx.scale(width/FLIGHT_WIDTH,height/FLIGHT_HEIGHT);
   const dragon=s.settings.animal==='dragon',eagle=s.settings.animal==='eagle';
   const sky=ctx.createLinearGradient(0,0,0,FLIGHT_HEIGHT);sky.addColorStop(0,dragon?'#d98883':eagle?'#96b6d3':'#97d3d1');sky.addColorStop(1,dragon?'#ffe4ac':'#e2efd5');ctx.fillStyle=sky;ctx.fillRect(0,0,540,720);
@@ -76,7 +88,19 @@ export function drawFlight(ctx,s,width,height){
   polygon(ctx,[[0,610],[180,480],[370,600],[540,460],[540,720],[0,720]],dragon?'#8d8799':'#77a597');
   for(const p of s.pipes)drawPipe(ctx,p,s);
   ctx.fillStyle='#e6d8af';ctx.fillRect(0,FLIGHT_FLOOR,540,40);ctx.fillStyle='#688575';ctx.fillRect(0,FLIGHT_FLOOR,540,6);
-  drawFlyer(ctx,s.x,s.y,45,s.settings,s.time,Math.max(-.35,Math.min(.8,s.velocity/650)));
+  const crash=s.status==='lost',t=s.crashTime;
+  const flyerY=crash&&!reducedMotion?Math.min(FLIGHT_FLOOR-24,Math.max(30,s.y)+240*t*t-100*t):s.y;
+  drawFlyer(ctx,s.x,flyerY,45,s.settings,s.time,crash?(reducedMotion?0:Math.min(1.5,t*3)):Math.max(-.35,Math.min(.8,s.velocity/650)));
+  if(crash){
+    ctx.strokeStyle='#fff3c8';ctx.lineWidth=4;ctx.globalAlpha=Math.max(0,1-t*2);
+    ctx.beginPath();ctx.arc(s.x,s.y,22+(reducedMotion?0:t*120),0,Math.PI*2);ctx.stroke();ctx.globalAlpha=1;
+    for(let i=0;i<7;i++){
+      const angle=i*Math.PI*2/7+(reducedMotion?0:t*2),r=35+(reducedMotion?0:Math.min(t,.5)*40);
+      ctx.fillStyle=i%2?'#fff2ba':'#e9ab43';ctx.font='bold 20px sans-serif';
+      ctx.fillText('✦',s.x+Math.cos(angle)*r,flyerY+Math.sin(angle)*r);
+    }
+    ctx.fillStyle='#233747';ctx.font='bold 28px sans-serif';ctx.fillText(t<.65?'BONK!':'What a flight!',270,280);
+  }
   ctx.textAlign='center';ctx.font='bold 38px monospace';ctx.fillStyle='#233747';ctx.fillText(String(s.passed),270,62);ctx.font='15px monospace';ctx.fillText(`${s.level.name} · ${s.level.reward} coin${s.level.reward===1?'':'s'} per pipe`,270,90);
   ctx.restore();
 }
@@ -84,17 +108,36 @@ export function drawFlightPreview(canvas,character){const ctx=canvas.getContext(
 export function createSkyFlight({canvas,character,onHud,onFinish}){
   const ctx=canvas.getContext('2d');if(!ctx)throw Error('Your browser does not support canvas.');
   let settings=validateFlightSettings(character.flight),state=createFlightState(settings),active=false,paused=false,destroyed=false,last=0,frame;
+  const reducedMotion=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false;
+  let flapSoundAt=-Infinity;
   const audio=createMazeAudio(),controller=new AbortController(),options={signal:controller.signal};
-  function flap(){audio.unlock();if(active&&!paused)flapFlight(state);}
+  function flap(){
+    if(!active||paused||document.hidden||state.status!=='playing')return;
+    audio.unlock();flapFlight(state);
+    if(state.time-flapSoundAt>=.08){
+      audio.play({dragon:'flap',hummingbird:'chirp',eagle:'whoosh',capybara:'jet'}[state.settings.animal]);
+      flapSoundAt=state.time;
+    }
+  }
   canvas.addEventListener('pointerdown',e=>{e.preventDefault();canvas.focus();flap();},options);
   canvas.addEventListener('keydown',e=>{if([' ','ArrowUp','w','W'].includes(e.key)){e.preventDefault();if(!e.repeat)flap();}},options);
   function hud(){onHud({text:`${state.level.name} · ${state.passed} pipes passed · ✦ ${state.earned} coins`});}
   function finish(){if(!active)return;active=false;onFinish(state.earned,{title:state.status==='lost'?'A brave flight!':'Flight saved.',detail:`${state.passed} pipes × ${state.level.reward} coins · ${state.level.name}`});}
   function tick(now){if(destroyed)return;const dt=last?Math.min(.05,(now-last)/1000):0;last=now;
-    if(active&&!paused&&!document.hidden){tickFlight(state,dt,()=>audio.play('gem'));hud();if(state.status==='lost'){audio.play('eaten');finish();}}
-    drawFlight(ctx,state,canvas.width,canvas.height);frame=requestAnimationFrame(tick);
+    if(active&&!paused&&!document.hidden){
+      if(state.status==='lost'){
+        const before=state.crashTime;state.crashTime+=dt;
+        if(before<.55&&state.crashTime>=.55)audio.play('bounce');
+        if(before<1.15&&state.crashTime>=1.15)audio.play('flightEnd');
+        if(state.crashTime>=2)finish();
+      }else{
+        tickFlight(state,dt,()=>audio.play('flightCoin'));hud();
+        if(state.status==='lost'){audio.play('crash');onHud({text:'Bonk! Coming in for a landing…'});}
+      }
+    }
+    drawFlight(ctx,state,canvas.width,canvas.height,reducedMotion);frame=requestAnimationFrame(tick);
   }
   document.addEventListener?.('visibilitychange',()=>{last=0;if(document.hidden)audio.stop();},options);
   frame=requestAnimationFrame(tick);
-  return {start(){audio.stop();audio.unlock();state=createFlightState(settings);state.status='playing';active=true;paused=false;last=0;flapFlight(state);hud();canvas.focus();},pause(value){paused=value;last=0;if(value)audio.stop();},input:flap,setMuted:value=>audio.setMuted(value),setCharacter(value){settings=validateFlightSettings(value.flight);if(!active)state=createFlightState(settings);},destroy(){if(destroyed)return;destroyed=true;cancelAnimationFrame(frame);controller.abort();audio.destroy();finish();}};
+  return {start(){audio.stop();audio.unlock();state=createFlightState(settings);state.status='playing';active=true;paused=false;last=0;flapSoundAt=-Infinity;flap();hud();canvas.focus();},pause(value){paused=value;last=0;if(value)audio.stop();},input:flap,setMuted:value=>audio.setMuted(value),setCharacter(value){settings=validateFlightSettings(value.flight);if(!active)state=createFlightState(settings);},destroy(){if(destroyed)return;destroyed=true;cancelAnimationFrame(frame);controller.abort();audio.destroy();finish();}};
 }

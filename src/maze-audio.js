@@ -15,6 +15,14 @@ export function createMazeAudio(Context = globalThis.AudioContext || globalThis.
     voices.clear();
   }
   const cues = {
+    flap: [[380, 760, .055], [680, 460, .045]],
+    chirp: [[1100, 1800, .035], [1500, 950, .04]],
+    whoosh: [[180, 420, .07], [360, 190, .055]],
+    jet: [[90, 260, .07], [210, 480, .06]],
+    flightCoin: [[880, 880, .05], [1320, 1760, .12]],
+    crash: [[150, 45, .14], [620, 180, .18], [260, 90, .22]],
+    bounce: [[180, 480, .1], [420, 140, .16]],
+    flightEnd: [[392, 392, .12], [330, 330, .12], [262, 196, .28]],
     gem: [[880, 1100, .06]],
     sword: [[440, 660, .12], [660, 880, .12], [880, 1320, .2]],
     dragon: [[180, 70, .16], [330, 660, .12], [660, 990, .22]],
@@ -37,11 +45,11 @@ export function createMazeAudio(Context = globalThis.AudioContext || globalThis.
     },
     play(name) {
       if (muted || disposed || !context || context.state !== 'running' || !cues[name]) return;
-      if (name === 'eaten') stop();
+      if (name === 'eaten' || name === 'crash') stop();
       let at = context.currentTime;
       for (const [from, to, duration] of cues[name]) {
         const oscillator = context.createOscillator(), gain = context.createGain();
-        oscillator.type = name === 'eaten' ? 'sawtooth' : 'triangle';
+        oscillator.type = ['eaten','crash','jet'].includes(name) ? 'sawtooth' : 'triangle';
         oscillator.frequency.setValueAtTime(from, at);
         oscillator.frequency.exponentialRampToValueAtTime(to, at + duration);
         gain.gain.setValueAtTime(0, at);

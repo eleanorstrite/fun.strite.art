@@ -27,3 +27,20 @@ test('dragon says You lose with a lower voice and respects mute',()=>{
   globalThis.SpeechSynthesisUtterance=class{constructor(text){this.text=text;}};globalThis.speechSynthesis={speak:line=>lines.push(line),cancel(){}};
   try{const audio=createMazeAudio(null);audio.sayLose();assert.equal(lines[0].text,'You lose.');assert.equal(lines[0].pitch<1,true);audio.setMuted(true);audio.sayLose();assert.equal(lines.length,1);audio.destroy();}finally{Object.assign(globalThis,original);}
 });
+
+test('flight cues are distinct, crash interrupts flaps, and mute suppresses all flight sounds',()=>{
+ const notes=[];const param=()=>({setValueAtTime(value){this.value=value;},linearRampToValueAtTime(){},exponentialRampToValueAtTime(){}});
+ class Context{
+  state='running';currentTime=0;destination={};
+  createOscillator(){const note={frequency:param(),connect(){},disconnect(){},start(){},stop(){this.stops=(this.stops||0)+1;}};notes.push(note);return note;}
+  createGain(){return {gain:param(),connect(){},disconnect(){}};}
+  close(){return Promise.resolve();}
+ }
+ const audio=createMazeAudio(Context);audio.unlock();
+ const starts=[];for(const cue of ['flap','chirp','whoosh','jet']){const index=notes.length;audio.play(cue);starts.push(notes[index].frequency.value);}
+ assert.equal(new Set(starts).size,4);audio.play('crash');assert.equal(notes[0].stops,2);
+ for(const cue of ['bounce','flightEnd','flightCoin'])audio.play(cue);
+ const count=notes.length;audio.setMuted(true);
+ for(const cue of ['flap','chirp','whoosh','jet','crash','bounce','flightEnd','flightCoin'])audio.play(cue);
+ assert.equal(notes.length,count);audio.destroy();
+});
