@@ -7,6 +7,9 @@ export const AIR_COURSE=[
   [.15,-.5],[.7,-.1],[.2,.45],[-.6,.2],[-.2,-.35],[0,0],
 ].map(([x,y],index)=>({x,y,z:500+index*400}));
 export const HOOP_RADIUS=.38;
+// About 15 screen pixels of edge forgiveness at the hoop crossing.
+// Wings and tail may clip the rim without turning a close pass into a crash.
+export const HOOP_EDGE_GRACE=15/230;
 const airClamp=(value,min,max)=>Math.max(min,Math.min(max,value));
 export const formatRaceTime=ms=>ms==null?'—':(ms/1000).toFixed(2)+'s';
 
@@ -25,7 +28,8 @@ export function createAirCourse(difficulty='sloth',random=Math.random){
 export function insideAirHoop(s,gate){
   const config=AIR_DIFFICULTIES[s.difficulty]||AIR_DIFFICULTIES.sloth,angle=gate.angle||0;
   const dx=s.x-gate.x,dy=s.y-gate.y;
-  return Math.hypot((dx*Math.cos(angle)+dy*Math.sin(angle))/(gate.squash||1),-dx*Math.sin(angle)+dy*Math.cos(angle))<=config.radius;
+  const across=dx*Math.cos(angle)+dy*Math.sin(angle),along=-dx*Math.sin(angle)+dy*Math.cos(angle);
+  return Math.hypot(across/(config.radius*(gate.squash||1)+HOOP_EDGE_GRACE),along/(config.radius+HOOP_EDGE_GRACE))<=1;
 }
 export function createAirState(difficulty='sloth'){
   if(!Object.hasOwn(AIR_DIFFICULTIES,difficulty))difficulty='sloth';

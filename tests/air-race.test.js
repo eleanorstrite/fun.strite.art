@@ -165,9 +165,31 @@ test('difficulty settings migrate, persist and keep time records and wallet rewa
 test('tilted hoop collision follows the visible elliptical opening and misses earn nothing',()=>{
   const s=createAirState('expert'),gate={x:0,y:0,angle:Math.PI/2,squash:.8};
   s.x=.28;s.y=0;assert.equal(insideAirHoop(s,gate),true);
-  s.x=0;s.y=.28;assert.equal(insideAirHoop(s,gate),false);
+  s.x=0;s.y=.34;assert.equal(insideAirHoop(s,gate),false);
   s.status='playing';s.x=1;s.distance=499;tickAirRace(s,.02);
   assert.equal(s.status,'falling');assert.equal(s.earned,0);
   assert.equal(JSON.stringify(createAirCourse('sloth',()=>0)),JSON.stringify(createAirCourse('sloth',()=>1)));
   assert.equal(JSON.stringify(createAirCourse('expert',()=>0))!==JSON.stringify(createAirCourse('expert',()=>1)),true);
+});
+
+test('forgiving hoop edges award close passes once but still reject clear misses in every mode',()=>{
+  for(const difficulty of Object.keys(AIR_DIFFICULTIES)){
+    const config=AIR_DIFFICULTIES[difficulty];
+    for(const angle of [0,.7,Math.PI/2]){
+      const gate={x:0,y:0,z:500,angle,squash:.8};
+      const close=createAirState(difficulty);close.status='playing';close.course[0]=gate;
+      // Just beyond the drawn edge: the rim clips the plane, but the pass counts.
+      const offset=config.radius*.8+.045;
+      close.x=Math.cos(angle)*offset;close.y=Math.sin(angle)*offset;close.distance=499;close.energy=20;
+      assert.equal(insideAirHoop(close,gate),true);
+      tickAirRace(close,.02);
+      assert.equal(close.passed,1);assert.equal(close.earned,config.coins);assert.equal(close.energy>99,true);
+      tickAirRace(close,.02);assert.equal(close.earned,config.coins);
+      const miss=createAirState(difficulty);miss.status='playing';miss.course[0]=gate;
+      const wide=config.radius*.8+.13;
+      miss.x=Math.cos(angle)*wide;miss.y=Math.sin(angle)*wide;miss.distance=499;
+      assert.equal(insideAirHoop(miss,gate),false);
+      tickAirRace(miss,.02);assert.equal(miss.status,'falling');assert.equal(miss.earned,0);
+    }
+  }
 });
