@@ -16,8 +16,8 @@ export const UPGRADES = [
   { id:'eliminator',name:'Dragon eliminator',group:'gameplay',category:'EQUIPMENT',icon:'🐉',cost:1000,description:'One use: make all dragons disappear for 15 seconds. They return to their same positions. Activate above the maze.' },
   { id:'magnet',name:'Gem magnet',group:'gameplay',category:'EQUIPMENT',icon:'🧲',cost:500,description:'One use: collect gems from adjacent corridors for 15 seconds. Tap the magnet above the maze.' },
   ...Object.values(FLIGHT_BACKGROUNDS).filter(scene=>scene.upgrade).map(scene=>({
-    id:scene.upgrade,name:scene.name,group:'appearance',category:'SKYBOUND / FLAPPY BIRD BACKGROUND',icon:'🌄',cost:200,
-    description:'For Skybound (Flappy Bird) only — not the home screen. Unlock permanently, then choose it in the flight background chooser.'
+    id:scene.upgrade,name:scene.name,group:'appearance',category:'FLAPPY ANIMALS / FLAPPY BIRD BACKGROUND',icon:'🌄',cost:200,
+    description:'For Flappy Animals (Flappy Bird) only — not the home screen. Unlock permanently, then choose it in the flight background chooser.'
   })),
   { id:'aurora-background',name:'Northern lights',group:'appearance',category:'BACKGROUND',icon:'✧',cost:200,description:'Unlock an aurora home background. Select it in Pick your scenery.' },
   { id:'forest-background',name:'Enchanted forest',group:'appearance',category:'BACKGROUND',icon:'☾',cost:350,description:'Unlock a glowing forest home background. Select it in Pick your scenery.' },
@@ -39,7 +39,7 @@ export function validateSave(data) {
   for(const required of [ARMORS[look.armor].upgrade,look.helmet==='winged'?'winged-helmet':null,DRAGON_STYLES[look.dragon].upgrade])if(required&&!data.upgrades.includes(required))throw new Error('Buy this appearance in the shop first.');
   const flight=validateFlightSettings(data.character.flight);
   const flightUpgrade=FLIGHT_BACKGROUNDS[flight.background].upgrade;
-  if(flightUpgrade&&!data.upgrades.includes(flightUpgrade))throw new Error('Buy this Skybound background in the shop first.');
+  if(flightUpgrade&&!data.upgrades.includes(flightUpgrade))throw new Error('Buy this Flappy Animals background in the shop first.');
   const boosts = data.boosts === undefined
     ? {boots:Number(data.upgrades.includes('boots')),magnet:Number(data.upgrades.includes('magnet'))}
     : data.boosts;

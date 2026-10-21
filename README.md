@@ -1,6 +1,6 @@
 # Sidequest
 
-A static game playground for GitHub Pages. Includes Knights and Dragons (a 2D knight-and-dragon maze) and Skybound (a flap-to-fly obstacle game), a shared character studio, a wallet, and character/environment/equipment upgrades. No runtime dependencies, bundler, account, or backend required.
+A static game playground for GitHub Pages. Includes Knights and Dragons (a 2D knight-and-dragon maze) and Flappy Animals (a flap-to-fly obstacle game), a shared character studio, a wallet, and character/environment/equipment upgrades. No runtime dependencies, bundler, account, or backend required.
 
 ## Homepage robot wardrobe
 
@@ -60,7 +60,7 @@ With Node.js 22 or later installed, run `npm test` (or `node --test tests/*.test
 
 The knight and dragon are original code-drawn pixel sprites inspired by the supplied armored-knight and winged-dragon references. The reference GIFs are not bundled. The maze is an original layout rather than the supplied Pac-Man board.
 
-## Skybound
+## Flappy Animals
 
 Choose Dragon, Hummingbird, Eagle, or a Capybara, Cat, or Dog with a jetpack, any animal color, and Classic pipes, Castle pillars, Vine towers, or Crystal towers with a custom color. Settings are saved with your character and included in exported saves. The animals are original canvas artwork inspired by the supplied reference images; the photos are not bundled.
 
@@ -75,10 +75,10 @@ Tap the canvas or **Flap ↑**, or press Space / Arrow Up to flap. Hit a pipe, t
 
 `src/flight-settings.js` defines validated settings, and `src/sky-flight.js` contains the physics, collision/scoring rules, renderer, and lifecycle. The portrait canvas scales to the screen while preserving the same physics on phones and desktops.
 
-Skybound flyers have distinct synthesized flap sounds: dragon swoops, hummingbird chirps, eagle whooshes, and jet bursts for the capybara, cat, and dog. Pipe clears chime. Crashes play a two-second bonk, tumble, and star animation with bounce and ending sounds before results. Pause and hidden tabs freeze this sequence; closing early still settles coins once. Sound controls mute every cue, and reduced-motion preferences remove the tumble and moving stars. The capybara, cat, and dog support the same saved color choices and difficulty settings as other flyers.
+Flappy Animals flyers have distinct synthesized flap sounds: dragon swoops, hummingbird chirps, eagle whooshes, and jet bursts for the capybara, cat, and dog. Pipe clears chime. Crashes play a two-second bonk, tumble, and star animation with bounce and ending sounds before results. Pause and hidden tabs freeze this sequence; closing early still settles coins once. Sound controls mute every cue, and reduced-motion preferences remove the tumble and moving stars. The capybara, cat, and dog support the same saved color choices and difficulty settings as other flyers.
 
 Knights and Dragons has matching glowing portals at the left and right ends of the middle corridor. Walk outward through either portal to emerge on the other side and continue inward. Dragons can use the same route. Teleporting preserves sword and boost timers, and does not sweep through enemies or collect gems across the map.
 
 Dragon Eliminator costs 1,000 coins in Gameplay and uses one of the three shared boost-bag slots. Its dragon button above the maze consumes one charge and removes all dragons for 15 seconds. Hidden dragons cannot move, attack, or be slain for rewards; their positions, directions, destinations, and existing respawn timers stay frozen. They return in place and resume when the timer ends. Pausing or hiding the game freezes the countdown. Older saves receive zero eliminator charges without changing existing purchases.
 
-Skybound has a background chooser in its flight settings. Original Skies is free; Sunset Peaks, City Skyline, and Starlight Valley are permanent Appearance-shop unlocks at 200 coins each. Cards explicitly identify them as Skybound / Flappy Bird backgrounds, not home-screen scenery. Choose an unlocked background before starting a flight; selections and ownership persist through reloads and save exports. Backgrounds change scenery only, with no effect on difficulty or rewards.
+Flappy Animals has a background chooser in its flight settings. Original Skies is free; Sunset Peaks, City Skyline, and Starlight Valley are permanent Appearance-shop unlocks at 200 coins each. Cards explicitly identify them as Flappy Animals / Flappy Bird backgrounds, not home-screen scenery. Choose an unlocked background before starting a flight; selections and ownership persist through reloads and save exports. Backgrounds change scenery only, with no effect on difficulty or rewards.
