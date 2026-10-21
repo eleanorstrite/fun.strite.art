@@ -7,9 +7,9 @@ test('boosts debit per purchase, share a three-slot bag and must be consumed bef
  const system=createSystem(memory());assert.throws(()=>system.buy('boots'));
  system.beginSession('test').finish(10000);
  system.buy('boots');system.buy('boots');system.buy('magnet');
- assert.equal(system.snapshot().coins,7400);assert.deepEqual(system.snapshot().boosts,{boots:2,magnet:1,eliminator:0});
+ assert.equal(system.snapshot().coins,8500);assert.deepEqual(system.snapshot().boosts,{boots:2,magnet:1,eliminator:0});
  assert.deepEqual(system.modifiers(),{speed:1,pickupRadius:1});
- assert.throws(()=>system.buy('magnet'));assert.equal(system.snapshot().coins,7400);
+ assert.throws(()=>system.buy('magnet'));assert.equal(system.snapshot().coins,8500);
  assert.equal(system.consumeBoost('boots'),true);system.buy('magnet');
  assert.deepEqual(system.snapshot().boosts,{boots:1,magnet:2,eliminator:0});
  assert.equal(system.consumeBoost('boots'),true);assert.equal(system.consumeBoost('boots'),false);
@@ -51,9 +51,10 @@ test('premium looks require purchases and remain selectable after exporting and 
   const copy=createSystem(memory());copy.importSave(system.exportSave());assert.deepEqual(copy.snapshot(),system.snapshot());assert.throws(()=>copy.buy('ice-dragons'));assert.equal(copy.snapshot().coins,600);
 });
 
-test('gameplay items cost more than every cosmetic item',()=>{
-  const maxAppearance=Math.max(...UPGRADES.filter(item=>item.group==='appearance').map(item=>item.cost));
-  for(const item of UPGRADES.filter(item=>item.group==='gameplay'))assert.equal(item.cost>maxAppearance,true);
+test('speed and magnet cost five hundred coins and eliminator costs one thousand',()=>{
+  assert.equal(UPGRADES.find(item=>item.id==='boots').cost,500);
+  assert.equal(UPGRADES.find(item=>item.id==='magnet').cost,500);
+  assert.equal(UPGRADES.find(item=>item.id==='eliminator').cost,1000);
 });
 test('robot outfits and mixed accessories survive reload and export without changing knight settings',()=>{
   const storage=memory(),system=createSystem(storage),before=system.snapshot().character;
