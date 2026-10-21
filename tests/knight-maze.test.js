@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MAZE, createMazeState, neighbors, tickMaze, SWORD_SECONDS, createKnightMaze, drawKnight, calculateMazeReward } from '../src/knight-maze.js';
+import { MAZE, activateMazeBoost, createMazeState, neighbors, tickMaze, SWORD_SECONDS, createKnightMaze, drawKnight, calculateMazeReward } from '../src/knight-maze.js';
 function safeState(){const state=createMazeState();state.player.dir='up';state.dragons.forEach(d=>d.respawn=999);return state;}
 function elapse(state,seconds){for(let i=0;i<Math.round(seconds*100);i++)tickMaze(state,.01);}
 test('every gem and sword is reachable in a rectangular enclosed maze',()=>{
@@ -49,11 +49,11 @@ test('dragon defeats and pickups emit distinct sound events without repeat rewar
 test('collecting the last gem wins the maze',()=>{const s=safeState();s.gems=new Set(['9,15']);tickMaze(s,.01);assert.equal(s.status,'won');assert.equal(s.earned,30);});
 test('engine pauses timers, freezes hidden tabs, and settles only once on destroy',()=>{
   const original={requestAnimationFrame:globalThis.requestAnimationFrame,cancelAnimationFrame:globalThis.cancelAnimationFrame,document:globalThis.document};
-  let frame,settled=0,hudCount=0;
+  let frame,settled=0,hudCount=0,boostUses=0,lastHud;
   globalThis.requestAnimationFrame=fn=>(frame=fn,1);globalThis.cancelAnimationFrame=()=>{};globalThis.document={hidden:false};
   const ctx=new Proxy({},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
   const canvas={width:760,height:760,getContext:()=>ctx,addEventListener(){},focus(){}};
-  try {const engine=createKnightMaze({canvas,character:{color:'#ed6e40'},modifiers:{},onHud(){hudCount++},onFinish(){settled++}});engine.start();frame(100);engine.pause(true);const n=hudCount;frame(200);assert.equal(hudCount,n);engine.pause(false);globalThis.document.hidden=true;frame(300);assert.equal(hudCount,n);globalThis.document.hidden=false;frame(400);assert.equal(hudCount>n,true);engine.destroy();engine.destroy();assert.equal(settled,1);}finally{Object.assign(globalThis,original);}
+  try {const engine=createKnightMaze({canvas,character:{color:'#ed6e40'},modifiers:{},consumeBoost(){boostUses++;return true;},onHud(value){hudCount++;lastHud=value;},onFinish(){settled++}});assert.equal(engine.activateBoost('boots'),false);engine.start();assert.equal(engine.activateBoost('boots'),true);assert.equal(engine.activateBoost('boots'),false);frame(100);engine.pause(true);assert.equal(engine.activateBoost('magnet'),false);const timer=lastHud.boosts.boots;const n=hudCount;frame(200);assert.equal(hudCount,n);engine.pause(false);globalThis.document.hidden=true;frame(300);assert.equal(hudCount,n+1);assert.equal(lastHud.boosts.boots,timer);assert.equal(engine.activateBoost('magnet'),false);assert.equal(boostUses,1);globalThis.document.hidden=false;frame(400);assert.equal(hudCount>n,true);engine.destroy();engine.destroy();assert.equal(settled,1);}finally{Object.assign(globalThis,original);}
 });
 test('winning delays rewards for the ending, freezes on pause, and allows skip without double settlement',()=>{
   const original={requestAnimationFrame:globalThis.requestAnimationFrame,cancelAnimationFrame:globalThis.cancelAnimationFrame,document:globalThis.document};
@@ -102,4 +102,25 @@ test('maze rewards scale with progress and dragon defeats and never exceed forty
   assert.equal(calculateMazeReward(180,0,5),40);
   assert.equal(calculateMazeReward(180,0,100),40);
   assert.equal(calculateMazeReward(0,0,0),0);
+});
+
+test('boost activation consumes once, expires after fifteen seconds and cannot stack',()=>{
+ const s=safeState();let consumed=0;const consume=()=>{consumed++;return true;};
+ assert.equal(activateMazeBoost(s,'boots',()=>false),false);assert.equal(s.boosts.boots,0);
+ assert.equal(activateMazeBoost(s,'boots',consume),true);
+ assert.equal(activateMazeBoost(s,'boots',consume),false);assert.equal(consumed,1);
+ assert.equal(activateMazeBoost(s,'magnet',consume),true);assert.equal(consumed,2);
+ elapse(s,14.9);assert.equal(s.boosts.boots>0,true);elapse(s,.11);assert.equal(s.boosts.boots,0);assert.equal(s.boosts.magnet,0);
+ assert.equal(activateMazeBoost(s,'boots',consume),true);
+ s.status='dying';s.deathPause=1;tickMaze(s,.25);assert.equal(s.boosts.boots,15);
+ assert.equal(activateMazeBoost(s,'magnet',consume),false);assert.equal(consumed,3);
+ s.status='won';assert.equal(activateMazeBoost(s,'magnet',consume),false);
+});
+test('speed and magnet only affect movement and pickup while their timers are active',()=>{
+ const a=safeState(),b=safeState();activateMazeBoost(b,'boots',()=>true);
+ tickMaze(a,.1,'left');tickMaze(b,.1,'left');assert.equal(b.player.x<a.player.x,true);
+ const s=safeState();s.player={x:1,y:1,to:null,dir:'up'};s.swords.clear();
+ tickMaze(s,.01);assert.equal(s.gems.has('2,1'),true);
+ activateMazeBoost(s,'magnet',()=>true);tickMaze(s,.01);assert.equal(s.gems.has('2,1'),false);
+ elapse(s,15);s.gems.add('2,1');tickMaze(s,.01);assert.equal(s.gems.has('2,1'),true);
 });

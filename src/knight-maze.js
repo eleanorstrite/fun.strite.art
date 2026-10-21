@@ -38,7 +38,7 @@ function actor(p) { return { ...p, to: null, dir: 'left' }; }
 export function createMazeState(modifiers = {}) {
   const gems = new Set(), swords = new Set();
   MAZE.forEach((row,y)=>[...row].forEach((tile,x)=>{if(tile==='.')gems.add(key(x,y));if(tile==='S')swords.add(key(x,y));}));
-  return { player: actor(START), dragons: HOMES.map((p,i)=>({...actor(p),home:p,index:i,respawn:0})), gems, swords, totalGems:gems.size, earned:0, kills:0, lives:3, deathPause:0, sword:0, grace:3, elapsed:0, wanted:null, status:'playing', modifiers:{speed:1,pickupRadius:1,garden:false,...modifiers} };
+  return { player: actor(START), dragons: HOMES.map((p,i)=>({...actor(p),home:p,index:i,respawn:0})), gems, swords, totalGems:gems.size, earned:0, kills:0, lives:3, deathPause:0, boosts:{boots:0,magnet:0}, sword:0, grace:3, elapsed:0, wanted:null, status:'playing', modifiers:{speed:1,pickupRadius:1,garden:false,...modifiers} };
 }
 function advance(a, distance, choose, arrived = () => {}) {
   while(distance>0.000001) {
@@ -61,11 +61,16 @@ function updateReward(s){s.earned=calculateMazeReward(s.totalGems,s.gems.size,s.
 function pickups(s, emit) {
   const x=Math.round(s.player.x),y=Math.round(s.player.y);
   // The magnet reaches only adjacent corridor cells, never through walls.
-  const cells=[{x,y},...(s.modifiers.pickupRadius>1?neighbors(x,y):[])];
+  const cells=[{x,y},...((s.boosts.magnet>0||s.modifiers.pickupRadius>1)?neighbors(x,y):[])];
   let collected=false;
   for(const p of cells)if(s.gems.delete(key(p.x,p.y))){collected=true;}
   if(collected){updateReward(s);emit('gem');}
   if(s.swords.delete(key(x,y))){s.sword=SWORD_SECONDS;emit('sword');}
+}
+export function activateMazeBoost(state,id,consume=()=>false) {
+  if(state.status!=='playing'||!['boots','magnet'].includes(id)||state.boosts[id]>0)return false;
+  if(!consume(id))return false;
+  state.boosts[id]=15;return true;
 }
 export function tickMaze(s, dt, direction, emit = () => {}) {
   if(s.status==='dying') {
@@ -83,7 +88,8 @@ export function tickMaze(s, dt, direction, emit = () => {}) {
   let left=Math.max(0,Math.min(dt,.25));
   while(left>0.000001 && s.status==='playing') {
     const step=Math.min(left,.02);left-=step;s.elapsed+=step;s.sword=Math.max(0,s.sword-step);s.grace=Math.max(0,s.grace-step);
-    advance(s.player,4.2*s.modifiers.speed*step,a=>{const choices=neighbors(a.x,a.y);return choices.find(n=>n.dir===s.wanted)||choices.find(n=>n.dir===a.dir);},()=>pickups(s,emit));
+    for(const id of ['boots','magnet'])s.boosts[id]=Math.max(0,s.boosts[id]-step);
+    advance(s.player,4.2*s.modifiers.speed*(s.boosts.boots>0?1.25:1)*step,a=>{const choices=neighbors(a.x,a.y);return choices.find(n=>n.dir===s.wanted)||choices.find(n=>n.dir===a.dir);},()=>pickups(s,emit));
     pickups(s,emit);
     const distances=distancesFrom(s.player);
     for(const dragon of s.dragons) {
@@ -150,7 +156,7 @@ export function drawMaze(ctx,s,character,width,height,preview=false) {
   }
 }
 export function drawKnightPreview(canvas,character,modifiers) { const ctx=canvas.getContext('2d');if(ctx)drawMaze(ctx,createMazeState(modifiers),character,canvas.width,canvas.height,true); }
-export function createKnightMaze({canvas,character,modifiers,onHud,onFinish}) {
+export function createKnightMaze({canvas,character,modifiers,consumeBoost,onHud,onFinish}) {
   const ctx=canvas.getContext('2d');if(!ctx)throw Error('Your browser does not support canvas.');
   let state=createMazeState(modifiers),active=false,paused=false,last=0,frame,destroyed=false,ending=null;
   const reducedMotion=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false;
@@ -163,7 +169,7 @@ export function createKnightMaze({canvas,character,modifiers,onHud,onFinish}) {
   canvas.addEventListener('pointermove',e=>{if(!pointer)return;const dx=e.clientX-pointer.x,dy=e.clientY-pointer.y;if(Math.hypot(dx,dy)>12){turn(Math.abs(dx)>Math.abs(dy)?dx>0?'right':'left':dy>0?'down':'up');pointer={x:e.clientX,y:e.clientY};}},options);
   canvas.addEventListener('pointerup',()=>pointer=null,options);canvas.addEventListener('pointercancel',()=>pointer=null,options);
   function finish(){if(!active)return;active=false;onFinish(state.earned,{title:state.status==='won'?'The vault is yours!':state.status==='lost'?'The dragons hold the vault.':'Quest saved.',detail:`${state.totalGems-state.gems.size} gems · ${state.kills} dragons defeated`});}
-  function hud(){onHud({lives:state.lives,text:`${state.lives} lives · ${state.gems.size} gems left · ✦ ${state.earned} coins${state.sword>0?` · Sword ${Math.ceil(state.sword)}s`:''}`});}
+  function hud(){onHud({boosts:{...state.boosts},canBoost:active&&!paused&&!ending&&state.status==='playing',lives:state.lives,text:`${state.lives} lives · ${state.gems.size} gems left · ✦ ${state.earned} coins${state.sword>0?` · Sword ${Math.ceil(state.sword)}s`:''}`});}
   function drawEndingKnight(ctx,x,y,size,wave) {
     drawKnight(ctx,x,y,size,character);
     ctx.save();ctx.translate(x+size*.28,y-size*.06);ctx.rotate(wave);
@@ -175,7 +181,7 @@ export function createKnightMaze({canvas,character,modifiers,onHud,onFinish}) {
     if(active&&!paused&&!document.hidden){
       if(ending){
         ending.advance(dt);
-        onHud({lives:state.lives,text:state.status==='lost'?(ending.time>=5.4?'You lose. Try another quest!':'The dragon has one last surprise…'):(ending.time>=3.6?'You win! Your treasure awaits.':'Victory! The treasure chest is opening…')});
+        onHud({canBoost:false,boosts:{...state.boosts},lives:state.lives,text:state.status==='lost'?(ending.time>=5.4?'You lose. Try another quest!':'The dragon has one last surprise…'):(ending.time>=3.6?'You win! Your treasure awaits.':'Victory! The treasure chest is opening…')});
         if(ending.complete)finish();
       } else {
         tickMaze(state,dt,undefined,event=>audio.play(event));hud();
@@ -189,5 +195,5 @@ export function createKnightMaze({canvas,character,modifiers,onHud,onFinish}) {
   }
   document.addEventListener?.('visibilitychange',()=>{last=0;if(document.hidden)audio.stop();},options);
   frame=requestAnimationFrame(tick);
-  return {start(){audio.stop();audio.unlock();ending=null;state=createMazeState(modifiers);active=true;paused=false;last=0;hud();canvas.focus();},pause(value){paused=value;last=0;pointer=null;if(value)audio.stop();else audio.unlock();},setCharacter(value){character={...value};},setMuted:value=>audio.setMuted(value),input:turn,destroy(){if(destroyed)return;destroyed=true;cancelAnimationFrame(frame);controller.abort();audio.destroy();finish();}};
+  return {activateBoost(id){if(!active||paused||ending||document.hidden)return false;const used=activateMazeBoost(state,id,consumeBoost);hud();canvas.focus();return used;},start(){audio.stop();audio.unlock();ending=null;state=createMazeState(modifiers);active=true;paused=false;last=0;hud();canvas.focus();},pause(value){paused=value;last=0;pointer=null;if(value)audio.stop();else audio.unlock();hud();},setCharacter(value){character={...value};},setMuted:value=>audio.setMuted(value),input:turn,destroy(){if(destroyed)return;destroyed=true;cancelAnimationFrame(frame);controller.abort();audio.destroy();finish();}};
 }

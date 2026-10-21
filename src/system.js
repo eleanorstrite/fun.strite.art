@@ -12,8 +12,8 @@ export const ROBOT_HATS={none:'No hat',cap:'Baseball cap',beanie:'Beanie',tophat
 export const ROBOT_DEFAULTS={outfit:'none',hat:'none',color:'#6e9eae',glasses:false,headphones:false,backpack:false};
 export const KNIGHT_DEFAULTS = { armor: 'silver', helmet: 'plume', cape: true, shield: false, dragon: 'classic' };
 export const UPGRADES = [
-  { id:'boots',name:'Super speed',group:'gameplay',category:'CHARACTER',icon:'↗',cost:800,description:'Move 25% faster in the maze. Active next adventure.' },
-  { id:'magnet',name:'Gem magnet',group:'gameplay',category:'EQUIPMENT',icon:'⌁',cost:1000,description:'Collect gems from adjacent corridors. Active next adventure.' },
+  { id:'boots',name:'Super speed',group:'gameplay',category:'CHARACTER',icon:'👟',cost:800,description:'One use: move 25% faster for 15 seconds. Tap the shoe above the maze to activate.' },
+  { id:'magnet',name:'Gem magnet',group:'gameplay',category:'EQUIPMENT',icon:'🧲',cost:1000,description:'One use: collect gems from adjacent corridors for 15 seconds. Tap the magnet above the maze.' },
   { id:'aurora-background',name:'Northern lights',group:'appearance',category:'BACKGROUND',icon:'✧',cost:200,description:'Unlock an aurora home background. Select it in Pick your scenery.' },
   { id:'forest-background',name:'Enchanted forest',group:'appearance',category:'BACKGROUND',icon:'☾',cost:350,description:'Unlock a glowing forest home background. Select it in Pick your scenery.' },
   { id:'emerald-armor',name:'Emerald armor',group:'appearance',category:'KNIGHT STYLE',icon:'♜',cost:250,description:'Unlock emerald armor in the customizer below the arrows. Appearance only.' },
@@ -21,7 +21,7 @@ export const UPGRADES = [
   { id:'ember-dragons',name:'Ember dragons',group:'appearance',category:'DRAGON STYLE',icon:'♨',cost:350,description:'Dress the dragons in fiery colors. Choose in the customizer. Appearance only.' },
   { id:'ice-dragons',name:'Ice dragons',group:'appearance',category:'DRAGON STYLE',icon:'❄',cost:500,description:'Give the dragons icy blue scales. Choose in the customizer. Appearance only.' },
 ];
-export function freshSave() { return { version: 1, coins: 0, character: { name: 'Pip', color: COLORS[0], style: 'antenna', ...KNIGHT_DEFAULTS, robot:{...ROBOT_DEFAULTS}, flight:{...FLIGHT_DEFAULTS} }, upgrades: [], stats: {} }; }
+export function freshSave() { return { version: 1, coins: 0, character: { name: 'Pip', color: COLORS[0], style: 'antenna', ...KNIGHT_DEFAULTS, robot:{...ROBOT_DEFAULTS}, flight:{...FLIGHT_DEFAULTS} }, upgrades: [], boosts: {boots:0,magnet:0}, stats: {} }; }
 export function validateSave(data) {
   const validInt = n => Number.isSafeInteger(n) && n >= 0 && n <= 1000000000;
   if (!data || data.version !== 1 || !validInt(data.coins) || !data.character || typeof data.character.name !== 'string' || !data.character.name.trim() || data.character.name.length > 24 || !COLORS.includes(data.character.color) || !['antenna', 'ears', 'plain'].includes(data.character.style) || !Array.isArray(data.upgrades) || data.upgrades.some(id => id !== 'garden' && !UPGRADES.some(u => u.id === id)) || !data.stats || typeof data.stats !== 'object' || Array.isArray(data.stats)) throw new Error('This is not a valid Sidequest save file.');
@@ -32,12 +32,16 @@ export function validateSave(data) {
   for (const field of Object.keys(look)) if (data.character[field] !== undefined) look[field] = data.character[field];
   if (!Object.hasOwn(ARMORS, look.armor) || !Object.hasOwn(HELMETS, look.helmet) || typeof look.cape !== 'boolean' || typeof look.shield !== 'boolean' || !Object.hasOwn(DRAGON_STYLES,look.dragon)) throw new Error('Invalid knight appearance in save file.');
   for(const required of [ARMORS[look.armor].upgrade,look.helmet==='winged'?'winged-helmet':null,DRAGON_STYLES[look.dragon].upgrade])if(required&&!data.upgrades.includes(required))throw new Error('Buy this appearance in the shop first.');
+  const boosts = data.boosts === undefined
+    ? {boots:Number(data.upgrades.includes('boots')),magnet:Number(data.upgrades.includes('magnet'))}
+    : data.boosts;
+  if(!boosts || Array.isArray(boosts) || !validInt(boosts.boots) || !validInt(boosts.magnet) || boosts.boots+boosts.magnet>3)throw new Error('Your boost bag can hold up to three boosts.');
   const stats = {};
   for (const [id, stat] of Object.entries(data.stats)) {
     if (!/^[a-z][a-z0-9-]{0,40}$/.test(id) || !stat || !validInt(stat.plays) || !validInt(stat.best)) throw new Error('Invalid game progress in save file.');
     Object.defineProperty(stats, id, { value: { plays: stat.plays, best: stat.best }, enumerable: true, writable: true, configurable: true });
   }
-  return { version: 1, coins: Math.min(1000000000,data.coins+(data.upgrades.includes('garden')?60:0)), character: { name: data.character.name.trim(), color: data.character.color, style: data.character.style, ...look, flight:validateFlightSettings(data.character.flight), robot:{outfit:robot.outfit,hat:robot.hat,color:robot.color,glasses:robot.glasses,headphones:robot.headphones,backpack:robot.backpack} }, upgrades: [...new Set(data.upgrades.filter(id=>id!=='garden'))], stats };
+  return { version: 1, coins: Math.min(1000000000,data.coins+(data.upgrades.includes('garden')?60:0)), character: { name: data.character.name.trim(), color: data.character.color, style: data.character.style, ...look, flight:validateFlightSettings(data.character.flight), robot:{outfit:robot.outfit,hat:robot.hat,color:robot.color,glasses:robot.glasses,headphones:robot.headphones,backpack:robot.backpack} }, upgrades: [...new Set(data.upgrades.filter(id=>!['garden','boots','magnet'].includes(id)))], boosts:{boots:boosts.boots,magnet:boosts.magnet}, stats };
 }
 export function createSystem(storage, onStorageError = () => {}) {
   let state = freshSave();
@@ -59,10 +63,17 @@ export function createSystem(storage, onStorageError = () => {}) {
     buy(id) {
       const item = UPGRADES.find(u => u.id === id);
       if (!item || state.upgrades.includes(id)) throw new Error('This upgrade is already yours.');
+      if(item.group==='gameplay' && state.boosts.boots+state.boosts.magnet>=3)throw new Error('Boost bag full! Use a boost before buying more.');
       if (state.coins < item.cost) throw new Error('Play an adventure to earn more coins.');
-      state.coins -= item.cost; state.upgrades.push(id); persist();
+      state.coins -= item.cost;
+      if(item.group==='gameplay')state.boosts[id]++;else state.upgrades.push(id);
+      persist();
     },
-    modifiers() { return { speed: state.upgrades.includes('boots') ? 1.25 : 1, pickupRadius: state.upgrades.includes('magnet') ? 2 : 1 }; },
+    consumeBoost(id) {
+      if(!['boots','magnet'].includes(id) || state.boosts[id]<1)return false;
+      state.boosts[id]--;persist();return true;
+    },
+    modifiers() { return { speed: 1, pickupRadius: 1 }; },
     // A session settles once, including early exits, so the same run cannot pay twice.
     beginSession(gameId) {
       if (!/^[a-z][a-z0-9-]{0,40}$/.test(gameId)) throw new Error('Invalid game ID.');
