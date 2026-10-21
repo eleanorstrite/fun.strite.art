@@ -25,7 +25,7 @@ export const MAZE = [
   '###################',
 ];
 export const KNIGHT_LEVELS = [
-  {name:'Stone Keep',maze:MAZE,wall:'#354255',light:'#53637a',shadow:'#222d3d',floor:'#161e2b',accent:'#e5c68a',design:'brick'},
+  {name:'Stone Keep',maze:MAZE,wall:'#45494b',light:'#737b7e',shadow:'#252c32',floor:'#1d252b',accent:'#e5c68a',design:'brick'},
   {name:"Crystal Caverns",maze:["###################", "#S#...........#..S#", "#.#.###.###.###.#.#", "#.#...#.........#.#", "#.###############.#", "#.#.......#.......#", "#.#.#####.#.#.#.#.#", "#.......#...#.#.#.#", "#.#.#.###.#.#.#.#.#", "P......DDDDD......P", "#####.#.###.#####.#", "#.....#.#.....#...#", "#.###.#.#.#.#.#.###", "#...#...#.#.......#", "###.#####.#.#.###.#", "#.#.#....K#.#...#.#", "#.#.###.###.#.###.#", "#S......#...#....S#", "###################"],wall:"#355e7b",light:"#8dd9ec",shadow:"#223c58",floor:"#152c3d",accent:"#a4eeff",design:"crystal"},
   {name:"Enchanted Ruins",maze:["###################", "#S..#............S#", "###.#########.###.#", "#.#...#.......#...#", "#.###.#.#######.###", "#...#...#.........#", "#.#.#######.#.###.#", "#.#.........#...#.#", "#####.#.#######.#.#", "P......DDDDD......P", "#.#######.#.###.#.#", "#.#.......#...#...#", "#.#.###.#####.#.###", "#...#.........#...#", "#.#######.###.#.#.#", "#...#....K#.#...#.#", "###.#.#.#.#.#####.#", "#S....#...#......S#", "###################"],wall:"#355d49",light:"#8bb77a",shadow:"#203d34",floor:"#14281f",accent:"#cbeba3",design:"vine"},
   {name:"Ember Fortress",maze:["###################", "#S..#...#...#...#S#", "###.#.#.#.#.#.#.#.#", "#...#.#...#.#.#.#.#", "#.###.#####.#.#.#.#", "#.....#.....#.#.#.#", "#.#.###.#####.#.#.#", "#...#.#.......#...#", "#####.#.#####.###.#", "P......DDDDD......P", "#.#.#.#####.###.#.#", "#.#.#.#...#.#...#.#", "#.#.#.#.###.#.#####", "#.#.#...#...#.....#", "#.#.#.#.#.###.###.#", "#.#.#.#..K#.......#", "#.#.###.#########.#", "#S#..............S#", "###################"],wall:"#793d43",light:"#e38d61",shadow:"#4b2634",floor:"#2b1825",accent:"#ffd092",design:"rune"},
@@ -129,6 +129,9 @@ const KNIGHT = [
 const DRAGON = [
   '...h.......h......','..hh......hh......','..dd.....dd...w...','.dddd...dd..www...', '.deddd.dd.wwwww...', '.ddddd.ddwwwww....','..ddd.dddwww......','...dddddddww......','....ddddddd.......','....dbbddddd...d..','...dbbbbdddd..dd..','...dbbbbddddddd...', '....dbbddddd......','....dd..ddd.......','...dhh..dhh.......','..................',
 ];
+function actorShadow(ctx,x,y,cell){
+  ctx.fillStyle='#00000055';ctx.beginPath();ctx.ellipse(x,y+cell*.33,cell*.32,cell*.12,0,0,Math.PI*2);ctx.fill();
+}
 function pixels(ctx,sprite,x,y,size,palette,flip=false) {
   ctx.save();ctx.translate(Math.round(x),Math.round(y));if(flip)ctx.scale(-1,1);
   const unit=size/16;ctx.translate(-sprite[0].length*unit/2,-size/2);
@@ -148,33 +151,121 @@ export function drawKnight(ctx,x,y,size,character,flip=false) {
 function sword(ctx,x,y,size) {
   ctx.save();ctx.translate(x,y);ctx.rotate(.55);ctx.fillStyle='#657b96';ctx.fillRect(-size*.11,-size*.47,size*.22,size*.65);ctx.fillStyle='#e0eff2';ctx.fillRect(-size*.09,-size*.47,size*.09,size*.62);ctx.fillStyle='#ecc275';ctx.fillRect(-size*.28,size*.09,size*.56,size*.12);ctx.fillStyle='#9e674e';ctx.fillRect(-size*.07,size*.21,size*.14,size*.24);ctx.restore();
 }
+// Terrain is static within a level; cache its detailed materials separately from actors.
+const terrainCache=new WeakMap();
+function terrainGradient(ctx,x,y,size,top,bottom){
+  const gradient=ctx.createLinearGradient?.(x,y,x+size*.3,y+size);
+  if(!gradient?.addColorStop)return top;
+  gradient.addColorStop(0,top);gradient.addColorStop(1,bottom);return gradient;
+}
+function terrainGlow(ctx,x,y,r,color){
+  const gradient=ctx.createRadialGradient?.(x,y,0,x,y,r);
+  if(!gradient?.addColorStop)return;
+  gradient.addColorStop(0,color);gradient.addColorStop(1,'#00000000');
+  ctx.fillStyle=gradient;ctx.fillRect(x-r,y-r,r*2,r*2);
+}
+function paintMazeTerrain(ctx,maze,theme,board){
+  const c=board/19;
+  ctx.fillStyle=theme.floor;ctx.fillRect(0,0,board,board);
+  // Quiet flagstones keep the walkable route legible beneath the gems.
+  maze.forEach((row,y)=>[...row].forEach((tile,x)=>{
+    if(tile==='#')return;
+    const px=x*c,py=y*c,n=(x*37+y*61)%17;
+    ctx.fillStyle=n%2?'#ffffff04':'#00000012';ctx.fillRect(px+1,py+1,c-2,c-2);
+    ctx.strokeStyle='#ffffff09';ctx.lineWidth=.7;ctx.strokeRect(px+2,py+2,c-4,c-4);
+    if(n%4===0){ctx.strokeStyle='#00000035';ctx.beginPath();ctx.moveTo(px+c*.15,py+c*.2);ctx.lineTo(px+c*.35,py+c*.4);ctx.lineTo(px+c*.28,py+c*.6);ctx.stroke();}
+    if(maze[y-1]?.[x]==='#'){ctx.fillStyle='#0000003c';ctx.fillRect(px,py,c,c*.18);}
+    if(maze[y]?.[x-1]==='#'){ctx.fillStyle='#00000022';ctx.fillRect(px,py,c*.12,c);}
+  }));
+  maze.forEach((row,y)=>[...row].forEach((tile,x)=>{
+    if(tile!=='#')return;
+    const px=x*c,py=y*c,n=(x*47+y*83)%29;
+    ctx.fillStyle='#00000065';ctx.fillRect(px+2,py+3,c-1,c-1);
+    ctx.fillStyle=terrainGradient(ctx,px,py,c,theme.light,theme.wall);ctx.fillRect(px+1,py+1,c-3,c-4);
+    // Raised stone edges, mortar joints, and uneven mineral grain.
+    ctx.fillStyle='#ffffff28';ctx.fillRect(px+2,py+1,c-5,1.2);
+    ctx.fillStyle=theme.shadow;ctx.fillRect(px+1,py+c-5,c-3,4);
+    ctx.fillStyle='#ffffff0c';ctx.fillRect(px+2,py+3,1,c-8);
+    ctx.strokeStyle='#00000038';ctx.lineWidth=1;ctx.beginPath();
+    ctx.moveTo(px+2,py+c*.51);ctx.lineTo(px+c-3,py+c*.51);
+    ctx.moveTo(px+c*(y%2?.32:.67),py+2);ctx.lineTo(px+c*(y%2?.32:.67),py+c*.5);ctx.stroke();
+    for(let grain=0;grain<5;grain++){
+      ctx.fillStyle=grain%2?'#ffffff0c':'#00000014';
+      ctx.fillRect(px+3+(n*3+grain*7)%(c-7),py+4+(n+grain*11)%(c-10),1.5,1);
+    }
+    if(n%4===0){
+      ctx.strokeStyle='#00000055';ctx.beginPath();ctx.moveTo(px+c*.7,py+2);ctx.lineTo(px+c*.53,py+c*.28);ctx.lineTo(px+c*.65,py+c*.38);ctx.stroke();
+    }
+    if(theme.design==='crystal'&&n%4===0){
+      for(let shard=0;shard<3;shard++){
+        const cx=px+c*(.28+shard*.2),base=py+c*.82,tip=py+c*(.16+((n+shard)%3)*.13),w=c*.13;
+        ctx.fillStyle=shard===1?'#b0f1ed':'#6bacce';ctx.beginPath();ctx.moveTo(cx-w,base-c*.12);ctx.lineTo(cx-w*.6,tip+c*.1);ctx.lineTo(cx,tip);ctx.lineTo(cx+w,tip+c*.16);ctx.lineTo(cx+w,base);ctx.closePath();ctx.fill();
+        ctx.fillStyle='#ffffff66';ctx.beginPath();ctx.moveTo(cx,tip);ctx.lineTo(cx+w,tip+c*.16);ctx.lineTo(cx,base-c*.04);ctx.closePath();ctx.fill();
+      }
+    }
+    if(theme.design==='vine'){
+      if(n%3===0){ctx.fillStyle='#657d4670';ctx.beginPath();ctx.ellipse(px+c*.35,py+c*.25,c*.3,c*.13,-.3,0,7);ctx.fill();}
+      if(n%5===0){
+        ctx.strokeStyle='#445e35';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(px+c*.2,py);ctx.bezierCurveTo(px+c*.8,py+c*.25,px+c*.1,py+c*.6,px+c*.7,py+c);ctx.stroke();
+        for(let leaf=0;leaf<4;leaf++){ctx.fillStyle=leaf%2?'#8eac62':'#617e49';ctx.beginPath();ctx.ellipse(px+c*(leaf%2?.6:.36),py+c*(.18+leaf*.18),c*.13,c*.055,leaf%2?-.6:.6,0,7);ctx.fill();}
+      }
+    }
+    if(theme.design==='rune'&&n%4===0){
+      ctx.strokeStyle='#8e3e29';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(px+c*.65,py+3);ctx.lineTo(px+c*.4,py+c*.4);ctx.lineTo(px+c*.6,py+c*.58);ctx.lineTo(px+c*.35,py+c-5);ctx.stroke();
+      ctx.strokeStyle='#ef9a55';ctx.lineWidth=1.2;ctx.stroke();
+    }
+    // Lamps are sparse landmarks, rather than a symbol repeated on every wall.
+    if(theme.design==='brick'&&n===3&&y>0&&y<18){
+      ctx.fillStyle='#25292b';ctx.fillRect(px+c*.42,py+c*.4,c*.16,c*.4);
+      ctx.fillStyle='#b18a54';ctx.fillRect(px+c*.34,py+c*.48,c*.32,c*.08);
+      ctx.fillStyle='#e59d52';ctx.beginPath();ctx.ellipse(px+c*.5,py+c*.3,c*.1,c*.19,0,0,7);ctx.fill();
+      ctx.fillStyle='#ffe4a0';ctx.beginPath();ctx.ellipse(px+c*.5,py+c*.34,c*.045,c*.11,0,0,7);ctx.fill();
+    }
+  }));
+  ctx.save();ctx.beginPath();ctx.rect(0,0,board,board);ctx.clip();
+  maze.forEach((row,y)=>[...row].forEach((tile,x)=>{
+    if(tile!=='#')return;const n=(x*47+y*83)%29;
+    const lit=theme.design==='brick'?n===3:theme.design==='crystal'?n%9===0:theme.design==='rune'?n%8===0:false;
+    if(lit)terrainGlow(ctx,(x+.5)*c,(y+.5)*c,c*1.3,theme.design==='crystal'?'#78d6ef25':'#f8a04e20');
+  }));
+  ctx.restore();
+  ctx.strokeStyle=theme.light;ctx.lineWidth=2;ctx.strokeRect(1,1,board-2,board-2);
+}
+function drawMazeTerrain(ctx,s,theme,board,ox,oy){
+  let cached=terrainCache.get(ctx);
+  if(!cached||cached.maze!==s.maze||cached.board!==board){
+    const canvas=globalThis.document?.createElement?.('canvas');
+    const surface=canvas?.getContext?.('2d');
+    if(surface){
+      canvas.width=canvas.height=Math.ceil(board);
+      paintMazeTerrain(surface,s.maze,theme,board);
+      cached={maze:s.maze,board,canvas};terrainCache.set(ctx,cached);
+    }else cached=null;
+  }
+  if(cached)ctx.drawImage(cached.canvas,ox,oy);
+  else {ctx.save();ctx.translate(ox,oy);paintMazeTerrain(ctx,s.maze,theme,board);ctx.restore();}
+}
 export function drawMaze(ctx,s,character,width,height,preview=false) {
   const theme=KNIGHT_LEVELS[s.level];
   ctx.imageSmoothingEnabled=false;ctx.fillStyle='#10151f';ctx.fillRect(0,0,width,height);
   const board=Math.min(preview?width*.55:width-24,height-76),cell=board/19,ox=preview?width-board-24:(width-board)/2,oy=preview?38:64;
   if(preview){ctx.fillStyle='#e5c68a';ctx.font='600 17px monospace';ctx.textAlign='left';ctx.fillText('THE FIRST QUEST',35,95);ctx.fillStyle='#f5ecd7';ctx.font='bold 42px monospace';ctx.fillText('KNIGHTS AND',35,157);ctx.fillText('DRAGONS',35,207);ctx.font='16px monospace';ctx.fillStyle='#99a9b8';ctx.fillText('Gems. Dragons. Glory.',35,250);drawKnight(ctx,100,365,100,character);sword(ctx,175,360,80);}
   else {ctx.textAlign='left';ctx.font='bold 16px monospace';ctx.fillStyle='#e5c68a';ctx.fillText(`LEVEL ${s.level+1} · ${theme.name.toUpperCase()}`,18,29);ctx.textAlign='right';ctx.fillStyle=s.sword>0?'#f4d388':'#b6c4cf';ctx.fillText(s.sword>0?`SWORD  ${s.sword.toFixed(1)}s`:'FIND A SWORD',width-18,29);ctx.fillStyle='#293243';ctx.fillRect(18,42,width-36,5);ctx.fillStyle='#f3c674';ctx.fillRect(18,42,(width-36)*s.sword/SWORD_SECONDS,5);}
-  s.maze.forEach((row,y)=>[...row].forEach((t,x)=>{const px=ox+x*cell,py=oy+y*cell;
-    if(t==='#'){ctx.fillStyle=theme.wall;ctx.fillRect(px+1,py+1,cell-2,cell-2);ctx.fillStyle=theme.light;ctx.fillRect(px+2,py+2,cell-4,3);ctx.fillStyle=theme.shadow;ctx.fillRect(px+2,py+cell-5,cell-4,3);ctx.fillStyle=theme.shadow;ctx.fillRect(px+cell*.5,py+5,1,cell-10);
-      if(theme.design==='crystal'){ctx.fillStyle=theme.accent;ctx.beginPath();ctx.moveTo(px+cell*.5,py+cell*.2);ctx.lineTo(px+cell*.7,py+cell*.5);ctx.lineTo(px+cell*.5,py+cell*.8);ctx.lineTo(px+cell*.3,py+cell*.5);ctx.closePath();ctx.fill();}
-      if(theme.design==='vine'){ctx.strokeStyle=theme.accent;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(px+4,py+cell-4);ctx.quadraticCurveTo(px+cell,py+cell*.5,px+4,py+4);ctx.stroke();}
-      if(theme.design==='rune'){ctx.strokeStyle=theme.accent;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(px+cell*.3,py+cell*.25);ctx.lineTo(px+cell*.7,py+cell*.5);ctx.lineTo(px+cell*.3,py+cell*.75);ctx.stroke();}
-    }
-    else {ctx.fillStyle=theme.floor;ctx.fillRect(px,py,cell,cell);}
-  }));
+  drawMazeTerrain(ctx,s,theme,board,ox,oy);
   for(const x of [0,s.maze[0].length-1]){
     const px=ox+(x+.5)*cell,py=oy+(PORTAL_ROW+.5)*cell;
+    terrainGlow(ctx,px,py,cell*.75,'#a182ea36');
     ctx.fillStyle='#794dd544';ctx.beginPath();ctx.ellipse(px,py,cell*.45,cell*.48,0,0,Math.PI*2);ctx.fill();
     ctx.strokeStyle='#be9cff';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(px,py,cell*.3,cell*.42,0,0,Math.PI*2);ctx.stroke();
     ctx.strokeStyle='#73e7ef';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(px,py,cell*.16,cell*.3,0,0,Math.PI*2);ctx.stroke();
     ctx.fillStyle='#f4eaff';ctx.font=`bold ${Math.round(cell*.4)}px monospace`;ctx.textAlign='center';ctx.fillText(x===0?'‹':'›',px,py+cell*.13);
   }
   const gemColors=['#ed6f94','#72dbcb','#b79af5','#f2c875','#76bdf4'];
-  for(const gem of s.gems){const [x,y]=gem.split(',').map(Number),px=ox+(x+.5)*cell,py=oy+(y+.5)*cell,r=cell*.14;ctx.fillStyle=gemColors[(x+y*2)%5];ctx.beginPath();ctx.moveTo(px,py-r*1.5);ctx.lineTo(px+r,py);ctx.lineTo(px,py+r*1.5);ctx.lineTo(px-r,py);ctx.closePath();ctx.fill();ctx.fillStyle='#ffffffb0';ctx.fillRect(px-1,py-r,2,3);}
+  for(const gem of s.gems){const [x,y]=gem.split(',').map(Number),px=ox+(x+.5)*cell,py=oy+(y+.5)*cell,r=cell*.14;ctx.fillStyle=gemColors[(x+y*2)%5];ctx.beginPath();ctx.moveTo(px,py-r*1.5);ctx.lineTo(px+r,py);ctx.lineTo(px,py+r*1.5);ctx.lineTo(px-r,py);ctx.closePath();ctx.fill();ctx.fillStyle='#ffffff66';ctx.beginPath();ctx.moveTo(px,py-r*1.5);ctx.lineTo(px+r,py);ctx.lineTo(px,py+r*.5);ctx.closePath();ctx.fill();ctx.fillStyle='#ffffffb0';ctx.fillRect(px-1,py-r,2,3);}
   for(const item of s.swords){const[x,y]=item.split(',').map(Number);const px=ox+(x+.5)*cell,py=oy+(y+.5)*cell;ctx.fillStyle='#f3cd7320';ctx.beginPath();ctx.arc(px,py,cell*.44,0,7);ctx.fill();sword(ctx,px,py,cell*.82);}
   const colors=(DRAGON_STYLES[character.dragon]||DRAGON_STYLES.classic).colors;
-  for(const d of s.dragons){if(d.respawn>0||s.boosts.eliminator>0)continue;ctx.globalAlpha=s.sword>0?.55:1;pixels(ctx,DRAGON,ox+(d.x+.5)*cell,oy+(d.y+.5)*cell+Math.sin(s.elapsed*10+d.index)*1.2,cell*.93,{h:'#e2d8bd',d:colors[d.index],b:'#e9b47e',w:'#c99373',e:s.sword>0?'#bcecff':'#ffda70'},d.dir==='right');ctx.globalAlpha=1;}
-  if(s.grace<=0||Math.floor(s.elapsed*8)%2===0||preview){const px=ox+(s.player.x+.5)*cell,py=oy+(s.player.y+.5)*cell;drawKnight(ctx,px,py,cell*.92,character,s.player.dir==='left');if(s.sword>0)sword(ctx,px+cell*.32,py,cell*.8);}
+  for(const d of s.dragons){if(d.respawn>0||s.boosts.eliminator>0)continue;actorShadow(ctx,ox+(d.x+.5)*cell,oy+(d.y+.5)*cell,cell);ctx.globalAlpha=s.sword>0?.55:1;pixels(ctx,DRAGON,ox+(d.x+.5)*cell,oy+(d.y+.5)*cell+Math.sin(s.elapsed*10+d.index)*1.2,cell*.93,{h:'#e2d8bd',d:colors[d.index],b:'#e9b47e',w:'#c99373',e:s.sword>0?'#bcecff':'#ffda70'},d.dir==='right');ctx.globalAlpha=1;}
+  if(s.grace<=0||Math.floor(s.elapsed*8)%2===0||preview){const px=ox+(s.player.x+.5)*cell,py=oy+(s.player.y+.5)*cell;actorShadow(ctx,px,py,cell);drawKnight(ctx,px,py,cell*.92,character,s.player.dir==='left');if(s.sword>0)sword(ctx,px+cell*.32,py,cell*.8);}
   if(!preview && s.status==='dying') {
     ctx.fillStyle='#10151fbd';ctx.fillRect(ox,oy,board,board);
     ctx.textAlign='center';ctx.fillStyle='#f4d388';ctx.font='bold 30px monospace';
