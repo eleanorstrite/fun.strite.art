@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { AIR_COURSE, createAirState, tickAirRace, createAirRace, drawAirRace } from '../src/air-race.js';
+import { AIR_COURSE, createAirState, tickAirRace, createAirRace, drawAirRace, drawAirEnding } from '../src/air-race.js';
 import { createSystem, freshSave, validateSave } from '../src/system.js';
 
 function flyCourse(boost=false,dt=.02){
@@ -69,7 +69,7 @@ test('air race pauses time and falling, handles drag and boost, and closes only 
     globalThis.document.hidden=false;frame(500);frame(600);assert.equal(hud!==initial,true);
     handlers.pointerdown({pointerId:1,clientX:760,clientY:315,preventDefault(){}});
     engine.setBoost(true);
-    for(let now=700;now<5000&&finishes===0;now+=100)frame(now);
+    for(let now=700;now<11000&&finishes===0;now+=100)frame(now);
     assert.equal(finishes,1);engine.destroy();engine.destroy();assert.equal(finishes,1);
   }finally{engine?.destroy();Object.assign(globalThis,original);}
 });
@@ -101,5 +101,34 @@ test('boost restores canvas focus and preserves both keyboard and drag steering'
     assert.equal(boosting,true);assert.equal(position.x>previous.x,true);assert.equal(position.y<previous.y,true);
     engine.setBoost(false);windowHandlers.keyup({key:' '});frame(400);assert.equal(boosting,false);
     engine.pause(true);frame(500);assert.equal(boosting,false);
+  }finally{engine?.destroy();Object.assign(globalThis,original);}
+});
+
+test('ending clips render both outcomes and reduced motion without changing appearance',()=>{
+  const captions=[];
+  const ctx=new Proxy({createLinearGradient:()=>({addColorStop(){}}),fillText:text=>captions.push(text)},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
+  const look={style:'jet',color:'#55aabb'},before=JSON.stringify(look);
+  for(const won of [true,false])for(const reduced of [true,false])for(const t of [0,1.5,2.3,3.5,6])drawAirEnding(ctx,won,t,look,900,650,reduced);
+  assert.equal(captions.includes('You win!'),true);assert.equal(captions.includes('You lose.'),true);
+  assert.equal(JSON.stringify(look),before);
+});
+test('loss clip delays settlement and freezes while paused or hidden',()=>{
+  const original={requestAnimationFrame:globalThis.requestAnimationFrame,cancelAnimationFrame:globalThis.cancelAnimationFrame,document:globalThis.document,window:globalThis.window};
+  let frame,finishes=0;const handlers={},captions=[];
+  globalThis.requestAnimationFrame=fn=>(frame=fn,1);globalThis.cancelAnimationFrame=()=>{};
+  globalThis.document={hidden:false};globalThis.window={addEventListener(){}};
+  const ctx=new Proxy({createLinearGradient:()=>({addColorStop(){}}),fillText:text=>captions.push(text)},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
+  const canvas={width:900,height:650,getContext:()=>ctx,getBoundingClientRect:()=>({left:0,top:0,width:900,height:650}),addEventListener:(name,fn)=>handlers[name]=fn,focus(){},setPointerCapture(){}};
+  let engine,now=100;
+  const advance=count=>{for(let i=0;i<count;i++){frame(now);now+=100;}};
+  try{
+    engine=createAirRace({canvas,character:{plane:{style:'jet',color:'#55aabb'}},onHud(){},onFinish:()=>finishes++});
+    engine.start();handlers.keydown({key:'ArrowRight',preventDefault(){}});
+    advance(30);assert.equal(finishes,0);
+    engine.pause(true);advance(100);assert.equal(finishes,0);
+    engine.pause(false);globalThis.document.hidden=true;advance(100);assert.equal(finishes,0);
+    globalThis.document.hidden=false;advance(65);assert.equal(finishes,1);
+    assert.equal(captions.includes('You lose.'),true);
+    engine.destroy();assert.equal(finishes,1);
   }finally{engine?.destroy();Object.assign(globalThis,original);}
 });

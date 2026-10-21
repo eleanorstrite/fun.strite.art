@@ -135,6 +135,80 @@ export function drawAirRace(ctx,s,look,width,height,bestMs=null,reducedMotion=fa
   if(s.status==='won'){ctx.fillStyle='#183e51e8';ctx.fillRect(210,190,480,100);ctx.fillStyle='#ffeba7';ctx.font='bold 32px sans-serif';ctx.textAlign='center';ctx.fillText('FINISH!',450,232);ctx.font='22px sans-serif';ctx.fillText(formatRaceTime(Math.round(s.time*1000)),450,270);}
   ctx.restore();
 }
+// Short canvas movies keep the selected paint and work offline on GitHub Pages.
+export const AIR_ENDING_SECONDS=6;
+export function drawAirEnding(ctx,won,time,look,width,height,reducedMotion=false){
+  ctx.save();ctx.scale(width/900,height/650);
+  const t=reducedMotion?4.5:time,color=look.color||'#ed6e40';
+  const sky=ctx.createLinearGradient(0,0,0,650);sky.addColorStop(0,'#76bfdf');sky.addColorStop(1,'#edf6e3');
+  ctx.fillStyle=sky;ctx.fillRect(0,0,900,650);
+  for(let i=0;i<6;i++){
+    ctx.fillStyle='#ffffffaa';ctx.beginPath();ctx.ellipse(80+i*160,100+(i%3)*115,85,21,0,0,7);ctx.fill();
+  }
+  ctx.fillStyle='#48766c';ctx.fillRect(0,610,900,40);
+  if(won){
+    // A checkered finish arch remains behind the airplane after it crosses.
+    ctx.fillStyle='#496072';ctx.fillRect(420,150,9,400);ctx.fillRect(735,150,9,400);
+    for(let row=0;row<3;row++)for(let col=0;col<16;col++){
+      ctx.fillStyle=(row+col)%2?'#263b48':'#fff9e9';ctx.fillRect(420+col*20,150+row*16,20,16);
+    }
+    ctx.fillStyle='#263b48';ctx.textAlign='center';ctx.font='bold 27px sans-serif';ctx.fillText('FINISH',580,130);
+  }
+  // Side-on cinematic view, flying toward the right.
+  const progress=airClamp(t/2.4,0,1);
+  const px=won?120+progress*460:240+Math.min(t,3)*105;
+  const py=won?330-Math.sin(progress*Math.PI)*40:270+Math.max(0,t-.8)**2*65;
+  ctx.save();ctx.translate(px,py);ctx.rotate(won?-.06:Math.min(t*.25,1.15));
+  ctx.strokeStyle='#263b48';ctx.lineWidth=3;ctx.lineJoin='round';
+  const panel=(points,fill)=>{shape(ctx,points,fill);ctx.stroke();};
+  panel([[-88,-12],[-108,-70],[-84,-70],[-48,-12]],color);
+  ctx.fillStyle='#f6fafb';ctx.beginPath();ctx.ellipse(0,0,112,29,0,0,7);ctx.fill();ctx.stroke();
+  panel([[-20,7],[-80,58],[-44,62],[42,11]],color);
+  ctx.fillStyle=color;ctx.fillRect(-65,13,140,6);
+  ctx.fillStyle='#315572';
+  for(let i=0;i<6;i++)ctx.fillRect(-55+i*23,-13,12,14);
+  panel([[79,-22],[95,-15],[103,-4],[79,-4]],'#63c2e1');
+  const head=(x,y)=>{
+    ctx.fillStyle='#f4be8d';ctx.beginPath();ctx.arc(x,y,14,0,7);ctx.fill();ctx.stroke();
+    ctx.fillStyle='#4d342f';ctx.beginPath();ctx.arc(x,y-4,13,Math.PI,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#263b48';ctx.fillRect(x+4,y-3,3,3);
+    ctx.beginPath();ctx.arc(x+3,y+3,5,0,Math.PI);ctx.stroke();
+  };
+  if(won&&t>2.5){
+    const rise=airClamp((t-2.5)*3,0,1);
+    ctx.fillStyle=color;ctx.fillRect(35,-20-rise*15,16,22);
+    head(43,-18-rise*25);
+  }
+  ctx.restore();
+  if(!won&&t>1){
+    const escape=airClamp((t-1)/1.2,0,1),deployed=t>=2.2;
+    const personX=390+escape*110,personY=290-escape*50+Math.max(0,t-2.2)*24;
+    if(deployed){
+      const open=airClamp((t-2.2)*3,0,1),r=80*open;
+      ctx.strokeStyle='#40536a';ctx.lineWidth=2;
+      for(const side of [-1,1]){
+        ctx.beginPath();ctx.moveTo(personX+side*r,personY-110);ctx.lineTo(personX+side*10,personY+8);ctx.stroke();
+      }
+      ctx.fillStyle=color;ctx.beginPath();ctx.arc(personX,personY-110,r,Math.PI,Math.PI*2);ctx.closePath();ctx.fill();ctx.stroke();
+      ctx.fillStyle='#fff4ca';ctx.beginPath();ctx.ellipse(personX,personY-110,r*.28,r,0,Math.PI,Math.PI*2);ctx.fill();
+    }
+    ctx.strokeStyle='#263b48';ctx.lineWidth=5;
+    ctx.beginPath();ctx.moveTo(personX-16,personY-2);ctx.lineTo(personX,personY+18);ctx.lineTo(personX+16,personY-2);
+    ctx.moveTo(personX,personY+18);ctx.lineTo(personX,personY+38);
+    ctx.moveTo(personX-12,personY+52);ctx.lineTo(personX,personY+38);ctx.lineTo(personX+12,personY+52);ctx.stroke();
+    ctx.fillStyle='#f4be8d';ctx.beginPath();ctx.arc(personX,personY,14,0,7);ctx.fill();
+    ctx.fillStyle='#263b48';ctx.fillRect(personX-5,personY-3,3,3);ctx.fillRect(personX+4,personY-3,3,3);
+    ctx.beginPath();ctx.arc(personX,personY+3,5,0,Math.PI);ctx.stroke();
+  }
+  if(t>=3.2){
+    ctx.fillStyle='#fffdf2';ctx.strokeStyle='#263b48';ctx.lineWidth=3;
+    ctx.beginPath();ctx.roundRect(300,45,300,74,22);ctx.fill();ctx.stroke();
+    shape(ctx,[[480,117],[500,142],[505,117]],'#fffdf2');
+    ctx.textAlign='center';ctx.fillStyle='#263b48';ctx.font='bold 38px sans-serif';ctx.fillText(won?'You win!':'You lose.',450,95);
+    ctx.font='18px sans-serif';ctx.fillText(won?'A first-class finish!':'Passenger safely parachuting!',450,588);
+  }
+  ctx.restore();
+}
 export function drawAirPreview(canvas,character){
   const ctx=canvas.getContext('2d');if(!ctx)return;
   const s=createAirState();s.distance=300;drawAirRace(ctx,s,character.plane,canvas.width,canvas.height);
@@ -144,7 +218,7 @@ export function createAirRace({canvas,character,bestTimeMs=null,onHud,onFinish})
   const audio=createMazeAudio(),controller=new AbortController(),options={signal:controller.signal},keys=new Set();
   const reduced=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false;
   let state=createAirState(),active=false,paused=false,destroyed=false,frame,last=0,target=null,touchBoost=false,pointer=null;
-  let look={...character.plane},best=bestTimeMs;
+  let look={...character.plane},best=bestTimeMs,ending=null;
   function clearInput(){keys.clear();target=null;pointer=null;touchBoost=false;state.boost=false;}
   function hud(){onHud({raceBoost:state.boost&&state.status==='playing',text:`Hoops ${state.passed}/${AIR_COURSE.length} · ${formatRaceTime(Math.round(state.time*1000))} · Best ${formatRaceTime(best)} · Energy ${Math.ceil(state.energy)}%`});}
   function finish(){
@@ -174,14 +248,27 @@ export function createAirRace({canvas,character,bestTimeMs=null,onHud,onFinish})
     if(destroyed)return;const dt=last?Math.min(.1,(now-last)/1000):0;last=now;
     if(active&&!paused&&!document.hidden){
       const controls={x:Number(keys.has('ArrowRight')||keys.has('d'))-Number(keys.has('ArrowLeft')||keys.has('a')),y:Number(keys.has('ArrowDown')||keys.has('s'))-Number(keys.has('ArrowUp')||keys.has('w')),target,boost:keys.has(' ')||touchBoost};
-      tickAirRace(state,dt,controls,event=>audio.play(event));hud();
-      if(state.status==='won'||state.status==='lost')finish();
+      if(!ending){
+        tickAirRace(state,dt,controls,event=>audio.play(event));
+        if(state.status==='won'||state.status==='falling'){
+          ending={won:state.status==='won',time:0,spoken:false};clearInput();
+          if(!ending.won)state.status='lost';
+        }
+      }else{
+        ending.time=Math.min(AIR_ENDING_SECONDS,ending.time+dt);
+        if(ending.time>=3.2&&!ending.spoken){
+          ending.spoken=true;audio.say(ending.won?'You win!':'You lose.',ending.won?1.15:1);
+        }
+        if(ending.time>=AIR_ENDING_SECONDS)finish();
+      }
+      hud();
     }
-    drawAirRace(ctx,state,look,canvas.width,canvas.height,best,reduced);frame=requestAnimationFrame(tick);
+    if(ending)drawAirEnding(ctx,ending.won,ending.time,look,canvas.width,canvas.height,reduced);
+    else drawAirRace(ctx,state,look,canvas.width,canvas.height,best,reduced);frame=requestAnimationFrame(tick);
   }
   frame=requestAnimationFrame(tick);
   return {
-    start(){audio.stop();audio.unlock();clearInput();state=createAirState();state.status='playing';active=true;paused=false;last=0;hud();canvas.focus();},
+    start(){audio.stop();audio.unlock();clearInput();ending=null;state=createAirState();state.status='playing';active=true;paused=false;last=0;hud();canvas.focus();},
     pause(value){paused=value;last=0;clearInput();if(value)audio.stop();},
     setBoost(value){if(active&&!paused&&state.status==='playing'){touchBoost=Boolean(value);canvas.focus({preventScroll:true});}},
     setCharacter(value){look={...value.plane};},
