@@ -175,6 +175,14 @@ export function drawAirScenery(ctx,background='valley',distance=0){
   ctx.fillStyle=sky;ctx.fillRect(0,0,900,650);
   if(night)for(let i=0;i<50;i++){ctx.fillStyle='#fff5cf';ctx.fillRect((i*137)%900,85+(i*53)%270,2,2);}
   ctx.fillStyle=night?'#e4e9ee':'#fff2c8';ctx.beginPath();ctx.arc(740,130,night?29:48,0,7);ctx.fill();
+  if(background==='meadow'){
+    ctx.fillStyle='#ffe59c33';ctx.beginPath();ctx.arc(740,130,65,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#ffe6a0';ctx.lineWidth=4;
+    for(let i=0;i<12;i++){
+      const a=i*Math.PI/6;ctx.beginPath();ctx.moveTo(740+Math.cos(a)*60,130+Math.sin(a)*60);ctx.lineTo(740+Math.cos(a)*74,130+Math.sin(a)*74);ctx.stroke();
+    }
+    ctx.fillStyle='#fff4b8';ctx.beginPath();ctx.arc(740,130,44,0,Math.PI*2);ctx.fill();
+  }
   if(background==='aurora'){
     for(let band=0;band<3;band++){
       ctx.strokeStyle=['#7be4bd55','#83bee855','#c08fe855'][band];ctx.lineWidth=28;
@@ -185,9 +193,14 @@ export function drawAirScenery(ctx,background='valley',distance=0){
     const x=((i*173-distance*.025)%1100+1100)%1100-100,y=130+(i%3)*63;
     ctx.fillStyle=night?'#cddce51a':'#ffffff88';ctx.beginPath();ctx.ellipse(x,y,65,14,0,0,7);ctx.ellipse(x+20,y-8,32,18,0,0,7);ctx.fill();
   }
+  if(background==='meadow'){
+    const field=ctx.createLinearGradient(0,420,0,650);field.addColorStop(0,'#a6cf83');field.addColorStop(1,'#5d9e54');ctx.fillStyle=field;ctx.fillRect(0,420,900,230);
+    ctx.fillStyle='#bbd99a';ctx.fillRect(0,420,900,8);
+  }else{
   shape(ctx,[[0,490],[100,340],[250,490],[410,350],[600,495],[770,370],[900,460],[900,650],[0,650]],colors[3]);
   shape(ctx,[[0,550],[170,450],[350,560],[570,450],[770,530],[900,480],[900,650],[0,650]],colors[4]);
   shape(ctx,[[390,470],[480,470],[720,650],[220,650]],colors[5]);
+  }
   if(background==='snow')for(const [x,y] of [[100,340],[410,350],[770,370]])shape(ctx,[[x,y],[x-32,y+48],[x-8,y+35],[x+8,y+45],[x+33,y+49]],'#f4fafb');
   if(background==='ocean'){
     ctx.fillStyle=colors[5];ctx.fillRect(0,490,900,160);
@@ -197,10 +210,15 @@ export function drawAirScenery(ctx,background='valley',distance=0){
     }
   }
   if(background==='desert')for(const x of [90,690,810])shape(ctx,[[x-40,570],[x-25,460],[x+25,460],[x+45,570]],'#b87953');
-  if(background==='meadow')for(let i=0;i<22;i++){
-    const x=(i*113)%900,y=500+(i%4)*30;
-    ctx.fillStyle='#6a6844';ctx.fillRect(x-2,y,4,30);
-    shape(ctx,[[x,y-25],[x-15,y+12],[x+15,y+12]],'#3d775b');
+  if(background==='meadow')for(let i=0;i<90;i++){
+    const x=(i*137+31)%900,y=438+(i*67)%205,r=2+(y-438)/65;
+    ctx.strokeStyle='#407f48';ctx.lineWidth=Math.max(1,r*.45);ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y+r*3);ctx.stroke();
+    ctx.fillStyle='#75b660';ctx.beginPath();ctx.ellipse(x+r,y+r*2,r*1.3,r*.5,-.5,0,7);ctx.fill();
+    ctx.fillStyle=['#fff4d4','#f6a8c6','#bba7ec','#ffe196','#ef8eaa'][i%5];
+    for(let petal=0;petal<5;petal++){
+      const a=petal*Math.PI*2/5;ctx.beginPath();ctx.ellipse(x+Math.cos(a)*r,y+Math.sin(a)*r,r*.85,r*.65,a,0,7);ctx.fill();
+    }
+    ctx.fillStyle='#edb747';ctx.beginPath();ctx.arc(x,y,r*.55,0,7);ctx.fill();
   }
   if(background==='city')for(let i=0;i<18;i++){
     const x=i*53,h=65+(i*37)%120;ctx.fillStyle=i%2?'#3f4864':'#53617a';ctx.fillRect(x,580-h,46,h+70);

@@ -17,7 +17,7 @@ export const PLANE_SCARVES={none:'No scarf',short:'Short scarf',long:'Flying sca
 export const PLANE_UNLOCKS={stealth:'air-stealth',rocket:'air-rocket'};
 export const AIR_BACKGROUNDS={
   valley:{name:'River valley'},sunset:{name:'Golden sunset'},ocean:{name:'Island coast'},
-  desert:{name:'Desert canyon'},snow:{name:'Alpine snow'},meadow:{name:'Rolling meadows'},
+  desert:{name:'Desert canyon'},snow:{name:'Alpine snow'},meadow:{name:'Sunny meadows'},
   aurora:{name:'Aurora night',upgrade:'air-aurora'},city:{name:'Twilight city',upgrade:'air-city'},
 };
 export const AIR_DIFFICULTIES={
