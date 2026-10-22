@@ -389,7 +389,8 @@ export function drawMaze3D(ctx,s,character,width,height,angle=-Math.PI/2){
   ctx.fillStyle='#fff3bd';ctx.fillRect(mx+s.player.x*cell,my+s.player.y*cell,cell+1,cell+1);
   ctx.font='11px sans-serif';ctx.textAlign='center';ctx.fillStyle='#fff3bd';ctx.fillText('↑ NORTH',mx+size/2,my+size+17);
   ctx.fillText('FACING '+{up:'NORTH',right:'EAST',down:'SOUTH',left:'WEST'}[s.player.dir],width/2,98);
-  ctx.fillStyle='#10151fdd';ctx.fillRect(10,height-34,width-20,25);ctx.fillStyle='#f4e7ce';ctx.font='13px sans-serif';ctx.fillText('↑ Away · ↓ Toward you · ← Left · → Right',width/2,height-16);
+  ctx.fillStyle='#10151fee';ctx.fillRect(10,height-43,width-20,34);
+  ctx.fillStyle='#f4d388';ctx.font='bold 24px sans-serif';ctx.fillText('LIVES  '+('☺ '.repeat(s.lives)).trim(),width/2,height-17);
   if(s.status==='dying'){
     ctx.fillStyle='#10151fc9';ctx.fillRect(0,height*.35,width,130);ctx.fillStyle='#f4d388';ctx.font='bold 30px sans-serif';ctx.fillText('GOBBLED UP!',width/2,height*.35+55);
     ctx.font='18px sans-serif';ctx.fillText(s.lives?'Get ready to try again…':'Your last life!',width/2,height*.35+90);
