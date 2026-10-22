@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createVanState, tickVan, vanAction, vanRoadCenter, VAN_OBSTACLES, VAN_FINISH, drawVanScene, createVanAdventure } from '../src/van-adventure.js';
+import { createVanState, tickVan, vanAction, vanRoadCenter, VAN_OBSTACLES, VAN_FINISH, drawVanScene, createVanAdventure, tickSnackAttack } from '../src/van-adventure.js';
 const readyVan=()=>({...createVanState(),status:'playing'});
 test('family boards before driving and actions only work during the course',()=>{
  const s=createVanState();assert.equal(vanAction(s,'fly'),false);s.status='intro';
@@ -83,4 +83,17 @@ test('Snack Attack lasts fifteen seconds of gameplay, not fifty',()=>{
  for(let i=0;i<290;i++)tickVan(s,.05,{down:true});
  assert.equal(s.snack>.49&&s.snack<.51,true);
  for(let i=0;i<11;i++)tickVan(s,.05,{down:true});assert.equal(s.snack,0);
+});
+
+test('Snack Attack throws both foods, hits approaching obstacles, and stops at expiry',()=>{
+ const s=readyVan(),cues=[];s.snack=15;s.z=250;
+ tickSnackAttack(s,0,cue=>cues.push(cue));
+ assert.equal(s.snackShots[0].target,450);assert.equal(s.snackShots[0].kind,'sandwich');assert.equal(s.snackCleared.length,0);
+ for(let i=0;i<8;i++)tickSnackAttack(s,.05,cue=>cues.push(cue));
+ assert.equal(s.snackShots.some(shot=>shot.kind==='candy'),true);
+ for(let i=0;i<5;i++)tickSnackAttack(s,.05,cue=>cues.push(cue));
+ assert.equal(s.snackCleared.includes(450),true);assert.equal(cues.includes('gem'),true);
+ const ctx=new Proxy({},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)}),before=JSON.stringify(s);
+ drawVanScene(ctx,s,900,650);assert.equal(JSON.stringify(s),before);
+ s.snack=.01;tickVan(s,.05,{down:true});assert.equal(s.snack,0);assert.equal(s.snackShots.length,0);assert.equal(s.snackCleared.length,0);
 });

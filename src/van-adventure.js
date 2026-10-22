@@ -12,12 +12,29 @@ export const VAN_OBSTACLES=[
 ];
 const clampVan=(n,a,b)=>Math.max(a,Math.min(b,n));
 export const vanRoadCenter=z=>340+Math.sin(z/650)*62+Math.sin(z/290)*24;
-export function createVanState(){return {status:'ready',intro:0,z:0,x:vanRoadCenter(0),speed:0,time:0,lives:3,lane:0,snack:0,jump:0,fly:0,dodge:0,jumpCooldown:0,flyCooldown:0,dodgeCooldown:0,dodgeDir:1,steer:1,invincible:0,checkpoint:0,earned:0,message:'All aboard!'};}
+export function createVanState(){return {status:'ready',intro:0,z:0,x:vanRoadCenter(0),speed:0,time:0,lives:3,lane:0,snack:0,snackShots:[],snackCleared:[],snackThrow:0,snackCount:0,jump:0,fly:0,dodge:0,jumpCooldown:0,flyCooldown:0,dodgeCooldown:0,dodgeDir:1,steer:1,invincible:0,checkpoint:0,earned:0,message:'All aboard!'};}
 export function vanAction(s,action){
   if(s.status!=='playing')return false;
   if(action==='jump'&&!s.jumpCooldown&&!s.fly){s.jump=.95;s.jumpCooldown=1.4;return true;}
   if(['left','right'].includes(action)&&!s.dodgeCooldown){const lane=clampVan(s.lane+(action==='left'?-1:1),-1,1);if(lane===s.lane)return false;s.lane=lane;s.dodge=.25;s.dodgeCooldown=.3;return true;}
   return false;
+}
+export function tickSnackAttack(s,dt,emit=()=>{}){
+  if(s.snack<=0){s.snackShots=[];s.snackCleared=[];s.snackThrow=0;return;}
+  s.snackShots??=[];s.snackCleared??=[];
+  for(const shot of s.snackShots){
+    const before=shot.age;shot.age+=dt;
+    if(before<.55&&shot.age>=.55&&shot.target!==null){s.snackCleared.push(shot.target);emit('gem');}
+  }
+  s.snackShots=s.snackShots.filter(shot=>shot.age<.9);
+  s.snackThrow=Math.max(0,(s.snackThrow||0)-dt);
+  if(s.snackThrow>0)return;
+  const target=VAN_OBSTACLES.find(o=>o.z+(o.length||35)>=s.z-40&&o.z<s.z+650&&!s.snackCleared.includes(o.z)&&!s.snackShots.some(shot=>shot.target===o.z));
+  const count=s.snackCount||0;
+  const z=target?Math.max(s.z+45,target.z):s.z+350;
+  s.snackShots.push({age:0,fromX:s.x+52,fromZ:s.z+10,x:target?vanRoadCenter(target.z)+target.x:vanRoadCenter(z)+(count%2?65:-65),z,target:target?.z??null,kind:count%2?'candy':'sandwich'});
+  s.snackCount=count+1;s.snackThrow=.38;
+  if(target)emit('whoosh');
 }
 export function tickVan(s,seconds,keys={},emit=()=>{}){
   const dt=clampVan(seconds,0,.05);
@@ -35,6 +52,7 @@ export function tickVan(s,seconds,keys={},emit=()=>{}){
   const wasFlying=s.fly>0;
   s.fly=keys.fly&&gap&&s.snack<=0?1:0;
   if(s.fly){s.jump=0;if(!wasFlying)emit('jet');}
+  tickSnackAttack(s,dt,emit);
   const flying=s.fly>0,jumping=s.jump>0&&Math.sin((1-s.jump/.95)*Math.PI)>.25;
   if(Math.abs(s.x-vanRoadCenter(s.z))>145&&!flying){s.speed=Math.min(s.speed,75);s.message='Grass slows you down — steer back onto the road.';}
   const obstacle=VAN_OBSTACLES.find(o=>{
@@ -96,6 +114,44 @@ function drawVanPassenger(c,x,y,index,walk){
   }
   c.restore();
 }
+function drawSnack(c,x,y,kind,turn){
+  c.save();c.translate(x,y);c.rotate(turn);
+  if(kind==='sandwich'){
+    c.lineJoin='round';c.strokeStyle='#b77c42';c.lineWidth=3;
+    c.fillStyle='#fff0bd';c.beginPath();c.moveTo(-15,12);c.lineTo(-15,-14);c.lineTo(17,12);c.closePath();c.fill();c.stroke();
+    c.strokeStyle='#71a64f';c.lineWidth=4;c.beginPath();c.moveTo(-12,5);c.lineTo(7,5);c.stroke();
+    c.strokeStyle='#df8772';c.lineWidth=3;c.beginPath();c.moveTo(-12,9);c.lineTo(12,9);c.stroke();
+  }else{
+    c.fillStyle='#f4aa69';c.beginPath();c.moveTo(-8,0);c.lineTo(-19,-9);c.lineTo(-19,9);c.closePath();c.fill();c.beginPath();c.moveTo(8,0);c.lineTo(19,-9);c.lineTo(19,9);c.closePath();c.fill();
+    vanRound(c,-10,-8,20,16,6,'#e8659b');c.strokeStyle='#fff4d4';c.lineWidth=3;c.beginPath();c.moveTo(-4,-6);c.lineTo(3,6);c.stroke();
+  }
+  c.restore();
+}
+function drawSnackAttack(c,s,heightUp){
+  if(s.snack<=0)return;
+  // The daughter leans out of the right-hand passenger window, with the same
+  // brown hair, gold clip, and teal outfit as her boarding-scene character.
+  c.save();c.translate(s.x,500-heightUp);
+  vanRound(c,20,-24,15,33,4,'#0b1720');vanRound(c,28,-9,24,24,7,'#4b9d99');
+  const wave=Math.sin((SNACK_ATTACK_SECONDS-s.snack)*Math.PI/.19);
+  c.strokeStyle='#efbc91';c.lineWidth=7;c.lineCap='round';c.beginPath();c.moveTo(40,4);c.lineTo(56,-6-wave*12);c.stroke();
+  vanOval(c,43,-23,18,23,'#573f35');vanOval(c,46,-20,13,16,'#efbc91');vanOval(c,42,-34,15,8,'#573f35');
+  vanRound(c,52,-35,10,5,2,'#edb771');vanOval(c,43,-22,2,2,'#26313a');vanOval(c,52,-22,2,2,'#26313a');
+  c.strokeStyle='#a36e59';c.lineWidth=2;c.beginPath();c.arc(48,-16,5,0,Math.PI);c.stroke();
+  c.restore();
+  for(const shot of s.snackShots||[]){
+    const progress=Math.min(1,shot.age/.55),x=shot.fromX+(shot.x-shot.fromX)*progress;
+    const startY=500-(shot.fromZ-s.z)-heightUp,endY=500-(shot.z-s.z);
+    if(progress<1){
+      const y=startY+(endY-startY)*progress-Math.sin(progress*Math.PI)*65;
+      drawSnack(c,x,y,shot.kind,progress*Math.PI*2);
+    }else if(shot.target!==null){
+      const fade=1-(shot.age-.55)/.35;c.save();c.globalAlpha=Math.max(0,fade);
+      for(let i=0;i<8;i++){const a=i*Math.PI/4,r=18+(1-fade)*40;vanOval(c,shot.x+Math.cos(a)*r,endY+Math.sin(a)*r,4,4,['#f6d377','#e8659b','#90c56a'][i%3]);}
+      c.textAlign='center';c.fillStyle='#fff4c7';c.font='bold 18px sans-serif';c.fillText('SNACK!',shot.x,endY-30);c.restore();
+    }
+  }
+}
 export function drawVanScene(c,s,width,height){
   c.save();c.scale(width/900,height/650);
   if(s.status==='intro'||s.status==='ready'){
@@ -124,7 +180,7 @@ export function drawVanScene(c,s,width,height){
     if(Math.floor(z/40)%2===0){c.fillStyle='#d6d6b5';c.fillRect(cx-3,y-30,6,24);}
     if(Math.floor(z/40)%3===0)for(const side of [-1,1]){const tx=cx+side*210;vanOval(c,tx+5,y+7,25,12,'#34594933');vanOval(c,tx,y,23,26,'#477c5d');vanOval(c,tx-6,y-8,14,17,'#63966a');}
   }
-  for(const o of s.snack>0?[]:VAN_OBSTACLES){
+  for(const o of VAN_OBSTACLES.filter(o=>s.snack<=0||!s.snackCleared?.includes(o.z))){
     const y=screenY(o.z),x=vanRoadCenter(o.z)+o.x;if(y< -250||y>740)continue;
     if(o.type==='gap'){
       c.fillStyle='#234b61';c.fillRect(vanRoadCenter(o.z)-162,y-o.length,324,o.length);c.strokeStyle='#88ced1';c.lineWidth=3;
@@ -141,11 +197,12 @@ export function drawVanScene(c,s,width,height){
   vanOval(c,s.x,511,34,14,'#18334355');
   if(s.fly>0){c.fillStyle='#dce9ed';c.beginPath();c.moveTo(s.x-20,495-heightUp);c.lineTo(s.x-85,520-heightUp);c.lineTo(s.x+85,520-heightUp);c.lineTo(s.x+20,495-heightUp);c.fill();}
   if(s.invincible<=0||Math.floor(s.invincible*8)%2)drawFamilyVan(c,s.x,500-heightUp,1+heightUp/200);
+  drawSnackAttack(c,s,heightUp);
   // Side minimap, visible throughout the course.
   vanRound(c,710,16,174,618,18,'#203e4c');c.fillStyle='#f5ecd4';c.textAlign='center';c.font='bold 18px sans-serif';c.fillText('COURSE MAP',797,47);
   const mapY=z=>570-z/VAN_FINISH*470,mapX=z=>797+(vanRoadCenter(z)-340)*.35;
   c.strokeStyle='#738d8d';c.lineWidth=26;c.lineCap='round';c.beginPath();for(let z=0;z<=VAN_FINISH;z+=80){if(z===0)c.moveTo(mapX(z),mapY(z));else c.lineTo(mapX(z),mapY(z));}c.stroke();
-  for(const o of s.snack>0?[]:VAN_OBSTACLES){c.fillStyle=o.type==='gap'?'#79c9e5':o.type==='jump'?'#f4c565':'#ed906a';c.fillRect(mapX(o.z)-9,mapY(o.z)-3,18,6);}
+  for(const o of VAN_OBSTACLES.filter(o=>s.snack<=0||!s.snackCleared?.includes(o.z))){c.fillStyle=o.type==='gap'?'#79c9e5':o.type==='jump'?'#f4c565':'#ed906a';c.fillRect(mapX(o.z)-9,mapY(o.z)-3,18,6);}
   vanOval(c,mapX(s.z)+(s.x-vanRoadCenter(s.z))*.12,mapY(s.z),7,7,'#fff3b7');c.fillStyle='#fff3b7';c.font='13px sans-serif';c.fillText('FINISH',797,81);c.fillText(Math.floor(s.z/VAN_FINISH*100)+'% complete',797,605);
   vanRound(c,15,12,675,68,12,'#203e4cee');c.textAlign='left';c.fillStyle='#fff0cc';c.font='bold 20px sans-serif';c.fillText('THE RAVEN',30,40);c.font='16px sans-serif';c.fillText('♥'.repeat(s.lives)+'   '+s.time.toFixed(1)+'s   ·   '+s.earned+' coins   ·   '+Math.round(s.speed/3)+' km/h',30,65);
   const upcoming=s.snack>0?null:VAN_OBSTACLES.find(o=>o.z>s.z-20&&o.z-s.z<450);
@@ -193,5 +250,5 @@ export function createVanAdventure({canvas,onHud,onFinish,consumeBoost=()=>false
   function finish(){if(!active)return;active=false;clear();if(s.status==='won')bestTimeMs=Math.min(bestTimeMs||Infinity,Math.round(s.time*1000));onFinish(s.earned,{title:s.status==='won'?'The Raven finished!':s.status==='lost'?'The van needs a rest.':'Road trip saved.',detail:s.time.toFixed(1)+' seconds · '+Math.floor(s.z/VAN_FINISH*100)+'% of the course',...(s.status==='won'?{timeMs:Math.round(s.time*1000)}:{})});}
   function tick(now){if(destroyed)return;const dt=last?Math.min((now-last)/1000,.05):0;last=now;if(active&&!paused&&!document.hidden){tickVan(s,dt,keys,cue=>audio.play(cue));if(s.status==='won'||s.status==='lost')finish();}hud();drawVanScene(c,s,canvas.width,canvas.height);frame=requestAnimationFrame(tick);}
   hud();frame=requestAnimationFrame(tick);
-  return {activateSnack(){if(!active||paused||document.hidden||s.status!=='playing'||s.snack>0||!consumeBoost('snack'))return false;s.snack=SNACK_ATTACK_SECONDS;s.message='Snack Attack! Clear road for 15 seconds!';audio.play('sword');hud();canvas.focus({preventScroll:true});return true;},start(){clear();audio.stop();audio.unlock();s=createVanState();s.status='intro';active=true;paused=false;last=0;canvas.focus();hud();},pause(value){paused=value;last=0;clear();if(value)audio.stop();else audio.unlock();hud();},setMuted:value=>audio.setMuted(value),destroy(){if(destroyed)return;destroyed=true;clear();finish();controller.abort();cancelAnimationFrame(frame);audio.destroy();controls.replaceChildren();}};
+  return {activateSnack(){if(!active||paused||document.hidden||s.status!=='playing'||s.snack>0||!consumeBoost('snack'))return false;s.snack=SNACK_ATTACK_SECONDS;s.snackShots=[];s.snackCleared=[];s.snackThrow=0;s.snackCount=0;s.message='Snack Attack! Sandwiches and candy clear the road!';audio.play('sword');hud();canvas.focus({preventScroll:true});return true;},start(){clear();audio.stop();audio.unlock();s=createVanState();s.status='intro';active=true;paused=false;last=0;canvas.focus();hud();},pause(value){paused=value;last=0;clear();if(value)audio.stop();else audio.unlock();hud();},setMuted:value=>audio.setMuted(value),destroy(){if(destroyed)return;destroyed=true;clear();finish();controller.abort();cancelAnimationFrame(frame);audio.destroy();controls.replaceChildren();}};
 }
