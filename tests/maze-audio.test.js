@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createMazeAudio } from '../src/maze-audio.js';
+import { createMazeAudio, makeIceMouthSound } from '../src/maze-audio.js';
 test('audio starts on interaction, schedules distinct cues, honors mute, and releases resources',()=>{
   let created=0,closed=0;const notes=[];
   const param=()=>({setValueAtTime(){},linearRampToValueAtTime(){},exponentialRampToValueAtTime(){}});
@@ -64,4 +64,27 @@ test('pumpkin and ice cream effects have distinct cues and obey mute and cleanup
   assert.equal(new Set(signatures).size,cues.length);
   const count=notes.length;audio.setMuted(true);for(const cue of cues)audio.play(cue);
   assert.equal(notes.length,count);audio.destroy();audio.play('pumpkinScoop');assert.equal(notes.length,count);
+});
+
+test('mouth samples have distinct audible textures and bounded volume at browser sample rates',()=>{
+  for(const rate of [44100,48000])for(const cue of ['iceChew','iceSlurp']){
+    const samples=makeIceMouthSound(cue,rate);
+    let energy=0,peak=0;for(const value of samples){assert.equal(Number.isFinite(value),true);energy+=value*value;peak=Math.max(peak,Math.abs(value));}
+    assert.equal(Math.sqrt(energy/samples.length)>.04,true);assert.equal(peak<1,true);
+    assert.equal(samples[0],0);assert.equal(Math.abs(samples.at(-1))<.02,true);
+  }
+});
+test('textured mouth audio uses cached buffers and stops on mute or destruction',()=>{
+  let buffers=0;const sources=[];
+  class Context{
+    state='running';currentTime=0;sampleRate=44100;destination={};
+    createBuffer(channels,length){buffers++;return {getChannelData:()=>new Float32Array(length)};}
+    createBufferSource(){const source={connect(){},disconnect(){},start(){this.started=true;},stop(){this.stopped=true;}};sources.push(source);return source;}
+    createGain(){return {gain:{setValueAtTime(){}},connect(){},disconnect(){}};}
+    close(){return Promise.resolve();}
+  }
+  const audio=createMazeAudio(Context);audio.unlock();audio.play('iceChew');audio.play('iceChew');audio.play('iceSlurp');
+  assert.equal(buffers,2);assert.equal(sources.length,3);assert.equal(sources.every(s=>s.started),true);
+  audio.setMuted(true);assert.equal(sources.every(s=>s.stopped),true);audio.play('iceSlurp');assert.equal(sources.length,3);
+  audio.setMuted(false);audio.play('iceSlurp');assert.equal(buffers,2);audio.destroy();assert.equal(sources[3].stopped,true);
 });

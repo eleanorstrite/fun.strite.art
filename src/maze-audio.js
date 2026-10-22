@@ -1,7 +1,37 @@
+// Original procedural mouth sounds: crunchy, game-like bites and wet tongue strokes.
+// These are generated samples, not recordings or assets from another game.
+export function makeIceMouthSound(name,sampleRate){
+  const chew=name==='iceChew',duration=chew?.48:.32;
+  const samples=new Float32Array(Math.ceil(sampleRate*duration));
+  let seed=chew?7123:9811,low=0,phase=0;
+  for(let i=0;i<samples.length;i++){
+    const t=i/sampleRate;
+    seed=(Math.imul(seed,1664525)+1013904223)>>>0;
+    const noise=seed/2147483648-1;
+    if(chew){
+      // Four irregular crackles with a little low mouth-body beneath the crunch.
+      const pulse=Math.floor(t/.115),local=t-pulse*.115;
+      const envelope=Math.min(1,local/.003)*Math.exp(-local*(pulse%2?45:32))*Math.max(0,Math.min(1,(.46-t)/.04));
+      low+=.22*(noise-low);
+      const crackle=Math.round((noise-low)*10)/10;
+      samples[i]=envelope*(.38*crackle+.16*low+.06*Math.sin(2*Math.PI*155*t));
+    }else{
+      // A short suction sweep, soft wet friction, then a rounded tongue smack.
+      const progress=t/duration;
+      const envelope=Math.sin(Math.PI*progress)**1.3;
+      const frequency=170+330*Math.sin(Math.PI*progress);
+      phase+=2*Math.PI*frequency/sampleRate;
+      low+=(.06+.12*Math.sin(Math.PI*progress))*(noise-low);
+      const smack=Math.exp(-(((t-.245)/.013)**2));
+      samples[i]=envelope*(.18*Math.sin(phase)+.055*Math.sin(phase*2)+.55*low)+smack*.14*noise;
+    }
+  }
+  return samples;
+}
 // Small synthesized arcade cues; no downloads or audio files required.
 export function createMazeAudio(Context = globalThis.AudioContext || globalThis.webkitAudioContext) {
   let context = null, muted = false, disposed = false, speech = null;
-  const voices = new Set();
+  const voices = new Set(), mouthBuffers = new Map();
   function unlock() {
     if (disposed || !Context) return;
     try {
@@ -58,6 +88,18 @@ export function createMazeAudio(Context = globalThis.AudioContext || globalThis.
     },
     play(name) {
       if (muted || disposed || !context || context.state !== 'running' || !cues[name]) return;
+      if((name==='iceChew'||name==='iceSlurp')&&context.createBuffer&&context.createBufferSource){
+        if(!mouthBuffers.has(name)){
+          const samples=makeIceMouthSound(name,context.sampleRate);
+          const buffer=context.createBuffer(1,samples.length,context.sampleRate);
+          buffer.getChannelData(0).set(samples);mouthBuffers.set(name,buffer);
+        }
+        const source=context.createBufferSource(),gain=context.createGain();
+        source.buffer=mouthBuffers.get(name);gain.gain.setValueAtTime(.7,context.currentTime);
+        source.connect(gain);gain.connect(context.destination);voices.add(source);
+        source.onended=()=>{voices.delete(source);source.disconnect();gain.disconnect();};
+        source.start(context.currentTime);return;
+      }
       if (name === 'eaten' || name === 'crash') stop();
       let at = context.currentTime;
       for (const [from, to, duration] of cues[name]) {
