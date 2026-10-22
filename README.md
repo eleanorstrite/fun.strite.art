@@ -50,7 +50,7 @@ A future Three.js/WebGL renderer can use the same contract without replacing cha
 
 ## Saves and limitations
 
-Progress is stored under `sidequest.save.v1` in localStorage for this browser and origin. Export/import transfers saves between browsers. Imports replace current progress after confirmation. There is no account sync, multiplayer, server verification, or cross-tab merge. Avoid playing in multiple tabs at once. Static hosting cannot prevent players from editing local saves; coins have no monetary value. If storage is unavailable, play still works in memory and the UI recommends exporting.
+Progress is stored under `sidequest.save.v1` in localStorage for this browser and origin. Export/import transfers saves between browsers. Imports replace current progress after confirmation. There is no account sync, online multiplayer, server verification, or cross-tab merge. Tag supports two players on the same device. Avoid playing in multiple tabs at once. Static hosting cannot prevent players from editing local saves; coins have no monetary value. If storage is unavailable, play still works in memory and the UI recommends exporting.
 
 ## Verification
 
@@ -109,3 +109,9 @@ Only completed courses update the personal best, keeping the lowest time. Failed
 
 - `src/air-race.js`: deterministic hoop checks, energy and race timing, perspective rendering, airplane art, touch/keyboard controls, and lifecycle.
 - Shared sessions accept an optional positive `timeMs` on completion; statistics retain optional `bestTimeMs` alongside coin records. Older saves receive a default airplane.
+
+## Tag
+
+Choose a computer opponent or two players sharing a keyboard before starting. Player 1 uses W/A/D and Player 2 uses the arrow keys; either set works against the computer. Touch pads support held movement and simultaneous jumps. A three-second countdown starts a 60-second round. Contact passes Tag, with a 1.5-second shield to prevent immediate tag-backs; whoever is still tagged at the end loses. Completed rounds award 5 coins to the shared wallet; closing early gives no reward.
+
+Three original platform layouts include one-way landing platforms and high-bounce trampolines. Four backgrounds and each player's person/dragon/cat/dog, color, outfit, hat, and accessory are free. Choices lock during a round, remain available on replay, and save locally under `sidequest.tag.settings.v1` (separate from wallet exports). The computer chases, flees, climbs, and drops from platforms. Pause, hidden tabs, and closing the dialog stop gameplay.
