@@ -1,5 +1,5 @@
 import { createMazeAudio } from './maze-audio.js';
-export const STORM_WIDTH=10,STORM_ROWS=24,STORM_TARGET=18,STORM_SECONDS=60;
+export const STORM_WIDTH=10,STORM_ROWS=24,STORM_TARGET=18,STORM_SECONDS=30;
 export const STORM_HAZARDS=['Hurricane','Tornado','Tsunami','Wildfire'];
 const SHAPES=[[[0,0],[1,0],[2,0],[3,0]],[[0,0],[1,0],[0,1],[1,1]],[[1,0],[0,1],[1,1],[2,1]],[[1,0],[2,0],[0,1],[1,1]],[[0,0],[1,0],[1,1],[2,1]],[[0,0],[0,1],[1,1],[2,1]],[[2,0],[0,1],[1,1],[2,1]]];
 const COLORS=['#70dce8','#f9d65c','#bc8bea','#8fce73','#f092b4','#789ee5','#f6a465'];
@@ -10,7 +10,7 @@ function nextPiece(s){
   const kind=s.bag.pop();return {kind,cells:SHAPES[kind].map(p=>[...p]),x:3,y:0};
 }
 export function createStormState(random=Math.random){
-  const s={board:Array.from({length:STORM_ROWS},()=>Array(STORM_WIDTH).fill(0)),random,bag:[],piece:null,next:null,status:'ready',remaining:60,fall:0,height:0,locked:0,clip:0,won:false,hazard:null};
+  const s={board:Array.from({length:STORM_ROWS},()=>Array(STORM_WIDTH).fill(0)),random,bag:[],piece:null,next:null,status:'ready',remaining:STORM_SECONDS,fall:0,height:0,locked:0,clip:0,won:false,hazard:null};
   s.piece=nextPiece(s);s.next=nextPiece(s);return s;
 }
 function endStorm(s,won,emit){s.won=won;s.status='ending';s.clip=0;if(!won){s.hazard=STORM_HAZARDS[Math.min(3,Math.floor(s.random()*4))];emit('bell');}else emit('win');}
@@ -119,7 +119,7 @@ export function drawStorm(c,s,width,height,reduced=false){
     for(const [x,y] of s.piece.cells)block(c,ox+(s.piece.x+x)*cell,oy+(s.piece.y+y)*cell,cell,COLORS[s.piece.kind]);
   }
   const targetY=oy+(24-STORM_TARGET)*cell;c.strokeStyle='#ffe296';c.lineWidth=3;c.setLineDash([8,6]);c.beginPath();c.moveTo(ox-12,targetY);c.lineTo(ox+250,targetY);c.stroke();c.setLineDash([]);label(c,'GOAL',68,targetY+6,15,'#ffe296');
-  label(c,Math.ceil(s.remaining)+'s',470,156,40,s.remaining<=10?'#ffb39b':'#ffe296');label(c,'TIME LEFT',470,182,13);rect(c,404,199,132,7,'#15283f',3);rect(c,404,199,132*s.remaining/60,7,'#8cd4ca',3);
+  label(c,Math.ceil(s.remaining)+'s',470,156,40,s.remaining<=10?'#ffb39b':'#ffe296');label(c,'TIME LEFT',470,182,13);rect(c,404,199,132,7,'#15283f',3);rect(c,404,199,132*s.remaining/STORM_SECONDS,7,'#8cd4ca',3);
   label(c,s.height+' / '+STORM_TARGET,470,254,28);label(c,'STACK HEIGHT',470,279,12);label(c,'NEXT',470,340,15);
   for(const [x,y] of s.next.cells)block(c,420+x*23,363+y*23,23,COLORS[s.next.kind]);
   hazard(c,'Tornado',470,520,80,0);label(c,'Beat the bell!',470,577,15,'#c2dce2');
@@ -147,7 +147,7 @@ export function createStormStack({canvas,onHud,onFinish,controls=document.queryS
       b.addEventListener('keyup',()=>held.delete('button'),options);b.addEventListener('blur',clear,options);
     }else b.onclick=()=>{act(name);canvas.focus({preventScroll:true});};
   }
-  const tip=document.createElement('p');tip.textContent='Reach 18 blocks high in one minute. Stack pieces rather than clearing rows. Finish a round for 5 coins, or win for 25 coins.';controls.append(tip);
+  const tip=document.createElement('p');tip.textContent='Reach 18 blocks high in 30 seconds. Stack pieces rather than clearing rows. Finish a round for 5 coins, or win for 25 coins.';controls.append(tip);
   const skip=document.createElement('button');skip.type='button';skip.className='button outline';skip.textContent='Skip ending';controls.append(skip);skip.hidden=true;
   function finish(){if(!active)return;active=false;clear();audio.stop();const completed=s.status==='finished';onFinish(completed?(s.won?25:5):0,{title:completed?(s.won?'You beat the storm!':'The hazards win this round!'):'Stack saved.',detail:s.height+' / 18 blocks high'+(s.hazard?' · '+s.hazard:''),score:s.height});}
   skip.onclick=()=>{if(active&&!paused&&!document.hidden&&s.status==='ending'){s.status='finished';finish();}};
