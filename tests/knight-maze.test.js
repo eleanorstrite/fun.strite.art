@@ -239,13 +239,27 @@ test('3D chase camera keeps walls below the knight and dragon and leaves simulat
   }
 });
 
-test('3D arrows follow the knight in all four headings while 2D keeps map directions',()=>{
+test('3D and 2D arrows keep the same compass direction for every knight heading',()=>{
   const headings=['up','right','down','left'];
   for(let i=0;i<4;i++){
-    for(const [key,offset] of Object.entries({up:0,right:1,down:2,left:3})){
-      assert.equal(mazeInputDirection(key,headings[i],'3d'),headings[(i+offset)%4]);
+    for(const key of headings){
+      assert.equal(mazeInputDirection(key,headings[i],'3d'),key);
       assert.equal(mazeInputDirection(key,headings[i],'2d'),key);
     }
   }
   assert.equal(mazeInputDirection('bad','up','3d'),null);
+});
+
+
+test('steady 3D camera does not rotate when the knight changes heading',()=>{
+  const state=createMazeState();
+  const point=()=>projectMazePoint(state,state.player.x+1,state.player.y-1,0,760,760);
+  const before=point();
+  for(const facing of ['up','right','down','left']){
+    state.player.dir=facing;
+    assert.deepEqual(point(),before);
+  }
+  const center=projectMazePoint(state,state.player.x,state.player.y,0,760,760);
+  assert.ok(before.x>center.x);
+  assert.ok(before.y<center.y);
 });

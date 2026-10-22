@@ -352,36 +352,33 @@ export function drawMaze3D(ctx,s,character,width,height,angle=-Math.PI/2){
   ctx.fillStyle='#10151fe8';ctx.fillRect(10,10,width-20,67);
   ctx.fillStyle=theme.accent;ctx.textAlign='left';ctx.font='bold 17px sans-serif';ctx.fillText('LEVEL '+(s.level+1)+' · '+theme.name+' · 3D',24,35);
   ctx.font='14px sans-serif';ctx.fillText(s.sword>0?'Sword: '+s.sword.toFixed(1)+'s':'Find a sword · '+s.gems.size+' gems left',24,59);
-  // The north-up minimap provides a fixed reference as the chase camera turns.
+  // Both the camera and minimap stay north-up, including at corners and portals.
   const cell=Math.min(5,width/125),size=cell*19,mx=width-size-18,my=90;
   ctx.fillStyle='#10151fdd';ctx.fillRect(mx-6,my-6,size+12,size+30);
   for(let y=0;y<19;y++)for(let x=0;x<19;x++){ctx.fillStyle=s.maze[y][x]==='#'?theme.light:theme.floor;ctx.fillRect(mx+x*cell,my+y*cell,cell,cell);}
   if(s.boosts.eliminator<=0)for(const d of s.dragons)if(d.respawn<=0){ctx.fillStyle=colors[d.index];ctx.fillRect(mx+d.x*cell,my+d.y*cell,cell+1,cell+1);}
   ctx.fillStyle='#fff3bd';ctx.fillRect(mx+s.player.x*cell,my+s.player.y*cell,cell+1,cell+1);
   ctx.font='11px sans-serif';ctx.textAlign='center';ctx.fillStyle='#fff3bd';ctx.fillText('↑ NORTH',mx+size/2,my+size+17);
-  ctx.fillStyle='#10151fdd';ctx.fillRect(10,height-34,width-20,25);ctx.fillStyle='#f4e7ce';ctx.font='13px sans-serif';ctx.fillText('↑ Forward · ← → Turn · ↓ Turn around',width/2,height-16);
+  ctx.fillStyle='#10151fdd';ctx.fillRect(10,height-34,width-20,25);ctx.fillStyle='#f4e7ce';ctx.font='13px sans-serif';ctx.fillText('↑ North · ↓ South · ← West · → East',width/2,height-16);
   if(s.status==='dying'){
     ctx.fillStyle='#10151fc9';ctx.fillRect(0,height*.35,width,130);ctx.fillStyle='#f4d388';ctx.font='bold 30px sans-serif';ctx.fillText('GOBBLED UP!',width/2,height*.35+55);
     ctx.font='18px sans-serif';ctx.fillText(s.lives?'Get ready to try again…':'Your last life!',width/2,height*.35+90);
   }
 }
 export function drawKnightPreview(canvas,character,modifiers) { const ctx=canvas.getContext('2d');if(ctx)drawMaze(ctx,createMazeState(modifiers),character,canvas.width,canvas.height,true); }
-// Resolve each press once: held keys must not repeatedly rotate the knight.
+// Fixed compass controls match the steady north-facing camera in both views.
 export function mazeInputDirection(direction, facing, view) {
-  if(!DIRECTIONS[direction])return null;
-  if(view!=='3d')return direction;
-  const compass=['up','right','down','left'];
-  return compass[(compass.indexOf(facing)+{up:0,right:1,down:2,left:3}[direction]+4)%4];
+  return DIRECTIONS[direction]?direction:null;
 }
 export function createKnightMaze({canvas,character,modifiers,consumeBoost,onHud,onFinish,level=0,onLevelChange=()=>{},view='2d'}) {
   const ctx=canvas.getContext('2d');if(!ctx)throw Error('Your browser does not support canvas.');
   let state=createMazeState(modifiers,level),active=false,paused=false,last=0,frame,destroyed=false,ending=null;
-  let cameraView=view==='3d'?'3d':'2d',cameraAngle=Math.PI;
+  let cameraView=view==='3d'?'3d':'2d';
   const reducedMotion=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false;
   const controller=new AbortController(),options={signal:controller.signal},audio=createMazeAudio();
   const input={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',w:'up',s:'down',a:'left',d:'right'};
   const turn=direction=>{audio.unlock();if(!active||paused||ending||document.hidden||state.status!=='playing')return;const resolved=mazeInputDirection(direction,state.player.dir,cameraView);if(resolved)state.wanted=resolved;};
-  canvas.addEventListener('keydown',e=>{if(e.key==='Enter'&&ending&&active){e.preventDefault();audio.stop();finish();return;}const dir=input[e.key]||input[e.key.toLowerCase()];if(dir){e.preventDefault();if(cameraView!=='3d'||!e.repeat)turn(dir);}},options);
+  canvas.addEventListener('keydown',e=>{if(e.key==='Enter'&&ending&&active){e.preventDefault();audio.stop();finish();return;}const dir=input[e.key]||input[e.key.toLowerCase()];if(dir){e.preventDefault();turn(dir);}},options);
   let pointer=null;
   canvas.addEventListener('pointerdown',e=>{canvas.focus();if(ending&&active){audio.stop();finish();return;}pointer={x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId);},options);
   canvas.addEventListener('pointermove',e=>{if(!pointer)return;const dx=e.clientX-pointer.x,dy=e.clientY-pointer.y;if(Math.hypot(dx,dy)>12){turn(Math.abs(dx)>Math.abs(dy)?dx>0?'right':'left':dy>0?'down':'up');pointer={x:e.clientX,y:e.clientY};}},options);
@@ -408,17 +405,13 @@ export function createKnightMaze({canvas,character,modifiers,consumeBoost,onHud,
       }
     }
     if(ending)(state.status==='lost'?drawDefeat:drawVictory)(ctx,ending.time,canvas.width,canvas.height,drawEndingKnight,reducedMotion,character.dragon);
-    else if(cameraView==='3d'){
-      const dir=DIRECTIONS[state.player.dir],target=Math.atan2(dir[1],dir[0]);
-      const delta=Math.atan2(Math.sin(target-cameraAngle),Math.cos(target-cameraAngle));
-      if(!paused)cameraAngle+=reducedMotion?delta:delta*Math.min(1,dt*8);
-      drawMaze3D(ctx,state,character,canvas.width,canvas.height,cameraAngle);
-    }else drawMaze(ctx,state,character,canvas.width,canvas.height);
+    else if(cameraView==='3d')drawMaze3D(ctx,state,character,canvas.width,canvas.height);
+    else drawMaze(ctx,state,character,canvas.width,canvas.height);
     frame=requestAnimationFrame(tick);
   }
   document.addEventListener?.('visibilitychange',()=>{last=0;if(document.hidden)audio.stop();},options);
   frame=requestAnimationFrame(tick);
-  return {setView(value){if(!['2d','3d'].includes(value)||destroyed)return false;cameraView=value;const dir=DIRECTIONS[state.player.dir];cameraAngle=Math.atan2(dir[1],dir[0]);canvas.focus({preventScroll:true});return true;},selectLevel(value){
+  return {setView(value){if(!['2d','3d'].includes(value)||destroyed)return false;cameraView=value;canvas.focus({preventScroll:true});return true;},selectLevel(value){
     if(destroyed||!Number.isInteger(value)||!KNIGHT_LEVELS[value])return false;
     audio.stop();finish();level=value;state=createMazeState(modifiers,level);
     ending=null;paused=false;last=0;pointer=null;onLevelChange(level);hud();return true;
