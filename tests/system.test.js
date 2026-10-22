@@ -137,3 +137,12 @@ test('Raven selection persists and times stay separate by difficulty',()=>{
  assert.equal(system.snapshot().stats['family-van-expert'].bestTimeMs,50000);
  const old=freshSave();delete old.ravenLevel;assert.equal(validateSave(old).ravenLevel,'easy');
 });
+test('stacking high scores persist independently from capped coin rewards',()=>{
+ const storage=memory(),system=createSystem(storage),run=system.beginSession('burger-stack');
+ assert.throws(()=>run.finish(40,null,-1));assert.equal(run.finish(40,null,75),true);assert.equal(run.finish(40,null,90),false);
+ system.beginSession('burger-stack').finish(20,null,20);
+ assert.equal(system.snapshot().stats['burger-stack'].bestScore,75);assert.equal(system.snapshot().coins,60);
+ const copy=createSystem(memory());copy.importSave(system.exportSave());assert.equal(copy.snapshot().stats['burger-stack'].bestScore,75);
+ assert.equal(createSystem(storage).snapshot().stats['burger-stack'].bestScore,75);
+ const bad=JSON.parse(system.exportSave());bad.stats['burger-stack'].bestScore='75';assert.throws(()=>validateSave(bad));
+});

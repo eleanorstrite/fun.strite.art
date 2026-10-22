@@ -115,3 +115,9 @@ Only completed courses update the personal best, keeping the lowest time. Failed
 Choose a computer opponent or two players sharing a keyboard before starting. Player 1 uses W/A/D and Player 2 uses the arrow keys; either set works against the computer. Touch pads support held movement and simultaneous jumps. A three-second countdown starts a 60-second round. Contact passes Tag, with a 1.5-second shield to prevent immediate tag-backs; whoever is still tagged at the end loses. Completed rounds award 5 coins to the shared wallet; closing early gives no reward.
 
 Three original platform layouts include one-way landing platforms and high-bounce trampolines. Four backgrounds and each player's person/dragon/cat/dog, color, outfit, hat, and accessory are free. Choices lock during a round, remain available on replay, and save locally under `sidequest.tag.settings.v1` (separate from wallet exports). The computer chases, flees, climbs, and drops from platforms. Pause, hidden tabs, and closing the dialog stop gameplay.
+
+## Stack the Hamburger
+
+Click/tap the arena, press Space or Enter, or use Drop layer to drop each sliding ingredient. Cheese, lettuce, tomato, patty, and bun repeat above a bun base. Only the exact horizontal overlap survives; cutoffs fall away and the next piece inherits the remaining width. A complete miss starts a skippable animated ending: a pedestrian eats the hamburger, slips on a puddle, and tosses it into a trash bin.
+
+The layer count and personal best appear above the tower. Best scores use the shared save's optional `stats[gameId].bestScore`, independently of coins or race times, and transfer with save export/import. Each layer pays 1 coin, capped at 40 per game. Completion or closing settles the session once; pausing and hidden tabs freeze motion and the ending.

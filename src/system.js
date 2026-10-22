@@ -90,8 +90,9 @@ export function validateSave(data) {
   const stats = {};
   for (const [id, stat] of Object.entries(data.stats)) {
     if (!/^[a-z][a-z0-9-]{0,40}$/.test(id) || !stat || !validInt(stat.plays) || !validInt(stat.best)) throw new Error('Invalid game progress in save file.');
+    if(stat.bestScore!==undefined&&!validInt(stat.bestScore))throw Error('Invalid best score.');
     if(stat.bestTimeMs!==undefined&&(!validInt(stat.bestTimeMs)||stat.bestTimeMs===0))throw Error('Invalid best race time.');
-    Object.defineProperty(stats, id, { value: { plays: stat.plays, best: stat.best,...(stat.bestTimeMs===undefined?{}:{bestTimeMs:stat.bestTimeMs}) }, enumerable: true, writable: true, configurable: true });
+    Object.defineProperty(stats, id, { value: { plays: stat.plays, best: stat.best,...(stat.bestScore===undefined?{}:{bestScore:stat.bestScore}),...(stat.bestTimeMs===undefined?{}:{bestTimeMs:stat.bestTimeMs}) }, enumerable: true, writable: true, configurable: true });
   }
   return { version: 1, mazeLevel, ravenLevel, unlimitedCoins: data.unlimitedCoins===true, coins: Math.min(1000000000,data.coins+(data.upgrades.includes('garden')?60:0)+(data.upgrades.includes('flight-sunset')?200:0)), character: { name: data.character.name.trim(), color: data.character.color, style: data.character.style, ...look, flight, plane:{color:plane.color,style:plane.style,difficulty:planeDifficulty,background:planeBackground,hat,scarf,accessoryColor}, robot:{outfit:robot.outfit,hat:robot.hat,color:robot.color,glasses:robot.glasses,headphones:robot.headphones,backpack:robot.backpack} }, upgrades: [...new Set(data.upgrades.filter(id=>!['garden','flight-sunset','boots','magnet','eliminator','snack'].includes(id)))], boosts:{boots:boosts.boots,magnet:boosts.magnet,eliminator,snack}, stats };
 }
@@ -138,14 +139,15 @@ export function createSystem(storage, onStorageError = () => {}) {
     beginSession(gameId) {
       if (!/^[a-z][a-z0-9-]{0,40}$/.test(gameId)) throw new Error('Invalid game ID.');
       let settled = false;
-      return { finish(coins,timeMs=null) {
+      return { finish(coins,timeMs=null,score=null) {
         if (settled) return false;
         if (!Number.isSafeInteger(coins) || coins < 0 || coins > 1000000000) throw new Error('Invalid session reward.');
         if(timeMs!==null&&(!Number.isSafeInteger(timeMs)||timeMs<=0||timeMs>1000000000))throw Error('Invalid finish time.');
+        if(score!==null&&(!Number.isSafeInteger(score)||score<0||score>1000000000))throw Error('Invalid score.');
         settled = true;
         const previous = Object.hasOwn(state.stats, gameId) ? state.stats[gameId] : { plays: 0, best: 0 };
         state.coins = Math.min(1000000000, state.coins + coins);
-        state.stats[gameId] = { plays: Math.min(1000000000, previous.plays + 1), best: Math.max(previous.best, coins),...((previous.bestTimeMs!==undefined||timeMs!==null)?{bestTimeMs:timeMs===null?previous.bestTimeMs:Math.min(previous.bestTimeMs??timeMs,timeMs)}:{}) };
+        state.stats[gameId] = { plays: Math.min(1000000000, previous.plays + 1), best: Math.max(previous.best, coins),...((previous.bestScore!==undefined||score!==null)?{bestScore:Math.max(previous.bestScore??0,score??0)}:{}),...((previous.bestTimeMs!==undefined||timeMs!==null)?{bestTimeMs:timeMs===null?previous.bestTimeMs:Math.min(previous.bestTimeMs??timeMs,timeMs)}:{}) };
         persist(); return true;
       } };
     },
