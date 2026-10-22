@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MAZE, KNIGHT_LEVELS, PORTAL_ROW, activateMazeBoost, createMazeState, neighbors, tickMaze, SWORD_SECONDS, createKnightMaze, drawKnight, calculateMazeReward, drawMaze3D, projectMazePoint, MAZE_WALL_HEIGHT, mazeInputDirection } from '../src/knight-maze.js';
+import { MAZE, KNIGHT_LEVELS, PORTAL_ROW, activateMazeBoost, createMazeState, neighbors, tickMaze, SWORD_SECONDS, createKnightMaze, drawKnight, calculateMazeReward, drawMaze3D, projectMazePoint, MAZE_WALL_HEIGHT, mazeInputDirection, advanceMazeLook } from '../src/knight-maze.js';
 function safeState(){const state=createMazeState();state.player.dir='up';state.dragons.forEach(d=>d.respawn=999);return state;}
 function elapse(state,seconds){for(let i=0;i<Math.round(seconds*100);i++)tickMaze(state,.01);}
 test('every gem and sword is reachable in a rectangular maze',()=>{
@@ -268,15 +268,20 @@ test('steady 3D camera does not rotate when the knight changes heading',()=>{
 });
 
 
-test('wide 3D view shows approaching dragons five tiles behind and beside the knight',()=>{
+test('knight eye view has a level horizon, large nearby dragons, and clips behind the eye',()=>{
   const state=createMazeState();
   for(const size of [380,760]){
-    for(const [dx,dy] of [[-5,0],[5,0],[0,5],[-4,5],[4,5],[0,-5]]){
-      for(const z of [0,.78,1.55]){
-        const p=projectMazePoint(state,state.player.x+dx,state.player.y+dy,z,size,size);
-        assert.ok(p && p.x>0 && p.x<size);
-        assert.ok(p.y>77 && p.y<size-34,`Visible at ${dx},${dy}, height ${z}`);
-      }
-    }
+    const ahead=projectMazePoint(state,state.player.x,state.player.y-2,1.05,size,size);
+    assert.equal(ahead.y,size*.46);
+    assert.ok(ahead.scale>size*.25);
+    assert.equal(projectMazePoint(state,state.player.x,state.player.y+2,0,size,size),null);
   }
+});
+test('comfort turns change heading only at full fade and settle without rotation',()=>{
+  const look={facing:'up',phase:0,time:0};
+  assert.equal(advanceMazeLook(look,'left',.06),.5);assert.equal(look.facing,'up');
+  assert.equal(advanceMazeLook(look,'left',.06),1);assert.equal(look.facing,'left');
+  assert.equal(advanceMazeLook(look,'left',.08),.5);
+  assert.equal(advanceMazeLook(look,'left',.08),0);assert.equal(look.phase,0);
+  advanceMazeLook(look,'right',.06);const before={...look};advanceMazeLook(look,'right',0);assert.deepEqual(look,before);
 });

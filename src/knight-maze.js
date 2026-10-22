@@ -275,22 +275,44 @@ export function drawMaze(ctx,s,character,width,height,preview=false) {
   }
 }
 export const MAZE_WALL_HEIGHT=.35;
-export function projectMazePoint(s,x,y,z,width,height,angle=-Math.PI/2){
+// Eye-level perspective with a level horizon and no head bob.
+export function projectMazePoint(s,x,y,z,width,height,angle=-Math.PI/2,raw=false){
   const fx=Math.cos(angle),fy=Math.sin(angle),dx=x-s.player.x,dy=y-s.player.y;
-  // Pull back and raise the fixed camera to keep nearby paths visible on all sides.
-  const forward=dx*fx+dy*fy+9,side=-dx*fy+dy*fx;
-  const depth=forward*.8+(9-z)*.6;
-  if(depth<.6)return null;
-  const focal=Math.min(width,height)*.74;
-  return {x:width/2+side*focal/depth,y:height*.43+((9-z)*.8-forward*.6)*focal/depth,scale:focal/depth,depth};
+  const depth=dx*fx+dy*fy+.15,side=-dx*fy+dy*fx,vertical=1.05-z;
+  if(depth<.08&&!raw)return null;
+  const focal=Math.min(width,height)*.62;
+  return {x:width/2+side*focal/Math.max(.08,depth),y:height*.46+vertical*focal/Math.max(.08,depth),scale:focal/Math.max(.08,depth),depth,side,vertical};
+}
+// Change heading under a brief fade, rather than sweeping the scenery past the player.
+export function advanceMazeLook(look,facing,dt){
+  if(look.phase===0&&look.facing!==facing){look.phase=1;look.time=0;}
+  if(look.phase){
+    look.time+=Math.max(0,dt);
+    if(look.phase===1&&look.time>=.12){look.facing=facing;look.phase=2;look.time=0;}
+    else if(look.phase===2&&look.time>=.16){look.phase=0;look.time=0;}
+  }
+  return look.phase===1?Math.min(1,look.time/.12):look.phase===2?1-Math.min(1,look.time/.16):0;
 }
 export function drawMaze3D(ctx,s,character,width,height,angle=-Math.PI/2){
-  const theme=KNIGHT_LEVELS[s.level],project=(x,y,z=0)=>projectMazePoint(s,x,y,z,width,height,angle);
+  const theme=KNIGHT_LEVELS[s.level],project=(x,y,z=0)=>projectMazePoint(s,x,y,z,width,height,angle,true);
   ctx.imageSmoothingEnabled=false;
   const sky=ctx.createLinearGradient(0,0,0,height);sky.addColorStop(0,theme.shadow);sky.addColorStop(1,theme.floor);
   ctx.fillStyle=sky;ctx.fillRect(0,0,width,height);
   const face=(points,color)=>{
     if(points.some(p=>!p))return;
+    // Clip polygons against the eye's near plane, so nearby walls stay solid.
+    if(points[0].depth!==undefined){
+      const clipped=[];
+      for(let i=0;i<points.length;i++){
+        const a=points[i],b=points[(i+1)%points.length],inside=a.depth>=.08;
+        if(inside)clipped.push(a);
+        if(inside!==(b.depth>=.08)){
+          const t=(.08-a.depth)/(b.depth-a.depth),side=a.side+(b.side-a.side)*t,vertical=a.vertical+(b.vertical-a.vertical)*t,focal=Math.min(width,height)*.62;
+          clipped.push({x:width/2+side*focal/.08,y:height*.46+vertical*focal/.08});
+        }
+      }
+      points=clipped;if(points.length<3)return;
+    }
     ctx.fillStyle=color;ctx.beginPath();points.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();ctx.fill();
     ctx.strokeStyle='#10192355';ctx.lineWidth=.7;ctx.stroke();
   };
@@ -305,17 +327,17 @@ export function drawMaze3D(ctx,s,character,width,height,angle=-Math.PI/2){
         for(let i=0;i<4;i++){const j=(i+1)%4;face([base[i],base[j],top[j],top[i]],i%2?theme.wall:theme.shadow);}
         face(top,theme.light);
       }});
-    }else if(s.gems.has(key(x,y))){
-      const p=project(x,y,.14);if(p)objects.push({depth:center.depth,draw:()=>{
+    }else if(center.depth>=.08&&s.gems.has(key(x,y))){
+      const p=project(x,y,.14);if(p&&p.depth>=.08)objects.push({depth:center.depth,draw:()=>{
         const r=Math.max(2,p.scale*.10);
         face([{x:p.x,y:p.y-r*1.6},{x:p.x+r,y:p.y},{x:p.x,y:p.y+r*1.6},{x:p.x-r,y:p.y}],['#ed6f94','#72dbcb','#b79af5','#f2c875','#76bdf4'][(x+y*2)%5]);
       }});
     }
     if(s.swords.has(key(x,y))){
-      const p=project(x,y,.4);if(p)objects.push({depth:center.depth,draw:()=>sword(ctx,p.x,p.y,p.scale*.65)});
+      const p=project(x,y,.4);if(p&&p.depth>=.08)objects.push({depth:center.depth,draw:()=>sword(ctx,p.x,p.y,p.scale*.65)});
     }
     if((x===0||x===18)&&y===PORTAL_ROW){
-      const p=project(x,y,.5);if(p)objects.push({depth:center.depth,draw:()=>{
+      const p=project(x,y,.5);if(p&&p.depth>=.08)objects.push({depth:center.depth,draw:()=>{
         ctx.strokeStyle='#be9cff';ctx.lineWidth=4;ctx.beginPath();ctx.ellipse(p.x,p.y,p.scale*.28,p.scale*.6,0,0,7);ctx.stroke();
       }});
     }
@@ -323,58 +345,29 @@ export function drawMaze3D(ctx,s,character,width,height,angle=-Math.PI/2){
   const colors=(DRAGON_STYLES[character.dragon]||DRAGON_STYLES.classic).colors;
   for(const dragon of s.dragons){
     if(dragon.respawn>0||s.boosts.eliminator>0)continue;
-    const foot=project(dragon.x,dragon.y),p=project(dragon.x,dragon.y,.78);if(!foot||!p)continue;
+    const foot=project(dragon.x,dragon.y),p=project(dragon.x,dragon.y,.78);if(!foot||!p||foot.depth<.08||p.depth<.08)continue;
     objects.push({depth:foot.depth,draw:()=>{
       actorShadow(ctx,foot.x,foot.y,p.scale*.8);
       ctx.globalAlpha=s.sword>0?.65:1;
       pixels(ctx,DRAGON,p.x,p.y,p.scale*1.55,{h:'#e2d8bd',d:colors[dragon.index],b:'#e9b47e',w:'#c99373',e:s.sword>0?'#bcecff':'#ffda70'},dragon.dir==='right');ctx.globalAlpha=1;
     }});
   }
-  const foot=project(s.player.x,s.player.y),knight=project(s.player.x,s.player.y,.52);
-  if(knight&&foot&&(s.grace<=0||Math.floor(s.elapsed*8)%2===0)){
-    objects.push({depth:foot.depth,draw:()=>{
-      actorShadow(ctx,foot.x,foot.y,knight.scale*.8);
-      // Turn only the character; the world and camera remain steady.
-      ctx.save();ctx.translate(knight.x,knight.y);ctx.scale(knight.scale/60,knight.scale/60);
-      const armor=ARMORS[character.armor]||ARMORS.silver;
-      const facing=s.player.dir,profile=facing==='left'||facing==='right',front=facing==='down';
-      if(profile)ctx.scale(facing==='left'?-.78:.78,1);
-      // A side-facing cape trails behind the shoulder, never over the face.
-      if(character.cape!==false&&(profile||front)){
-        ctx.fillStyle=character.color;ctx.beginPath();ctx.moveTo(-15,-1);ctx.lineTo(profile?-5:15,-1);ctx.lineTo(profile?-15:21,27);ctx.lineTo(profile?-29:-21,27);ctx.closePath();ctx.fill();
-      }
-      ctx.fillStyle=armor.dark;ctx.fillRect(-16,1,32,24);ctx.fillRect(-15,24,10,10);ctx.fillRect(5,24,10,10);
-      if(character.cape!==false&&!profile&&!front){ctx.fillStyle=character.color;ctx.beginPath();ctx.moveTo(-15,-1);ctx.lineTo(15,-1);ctx.lineTo(21,27);ctx.lineTo(-21,27);ctx.closePath();ctx.fill();}
-      ctx.fillStyle=armor.light;ctx.beginPath();ctx.roundRect(-16,-24,32,26,8);ctx.fill();ctx.fillStyle=armor.dark;ctx.fillRect(-16,-5,32,5);
-      if(front||profile){
-        // Visor, eye slit, and projecting nose make the heading easy to read.
-        ctx.fillStyle=armor.dark;ctx.fillRect(profile?3:-13,-17,profile?15:26,12);
-        ctx.fillStyle='#172431';ctx.fillRect(profile?8:-11,-15,profile?12:22,4);
-        ctx.fillStyle='#e2f3f5';ctx.fillRect(profile?12:-8,-14,profile?6:5,2);
-        if(front)ctx.fillRect(3,-14,5,2);
-        ctx.fillStyle=armor.light;ctx.fillRect(profile?16:-2,-13,profile?7:4,12);
-        ctx.fillRect(-10,4,20,14);ctx.fillStyle=armor.dark;ctx.fillRect(-1,5,2,12);
-      }
-      if(character.helmet==='horns'){ctx.fillStyle='#f3dfb2';ctx.fillRect(-23,-29,7,18);ctx.fillRect(16,-29,7,18);}
-      else if(character.helmet==='crown'){ctx.fillStyle='#f5cc65';ctx.fillRect(-17,-28,34,9);for(let i=-17;i<=17;i+=14)ctx.fillRect(i,-36,6,12);}
-      else if(character.helmet==='winged'){ctx.fillStyle='#e0f3ff';face([{x:-16,y:-18},{x:-29,y:-31},{x:-25,y:-10}],ctx.fillStyle);face([{x:16,y:-18},{x:29,y:-31},{x:25,y:-10}],ctx.fillStyle);}
-      else if(character.helmet!=='plain'){ctx.fillStyle=character.color;ctx.fillRect(-4,-37,8,16);}
-      if(character.shield){ctx.fillStyle=armor.light;ctx.beginPath();ctx.ellipse(-23,9,9,14,0,0,7);ctx.fill();}
-      if(s.sword>0)sword(ctx,27,0,45);
-      ctx.restore();
-    }});
-  }
   objects.sort((a,b)=>b.depth-a.depth);for(const object of objects)object.draw();
+  // The visible shield and sword place the viewer inside the knight's helmet.
+  if(character.shield){ctx.fillStyle=(ARMORS[character.armor]||ARMORS.silver).light;ctx.beginPath();ctx.ellipse(width*.13,height*.96,width*.12,height*.2,-.2,0,7);ctx.fill();ctx.fillStyle=character.color;ctx.fillRect(width*.115,height*.81,width*.03,height*.17);}
+  if(s.sword>0)sword(ctx,width*.85,height*.82,height*.34);
   ctx.fillStyle='#10151fe8';ctx.fillRect(10,10,width-20,67);
   ctx.fillStyle=theme.accent;ctx.textAlign='left';ctx.font='bold 17px sans-serif';ctx.fillText('LEVEL '+(s.level+1)+' · '+theme.name+' · 3D',24,35);
   ctx.font='14px sans-serif';ctx.fillText(s.sword>0?'Sword: '+s.sword.toFixed(1)+'s':'Find a sword · '+s.gems.size+' gems left',24,59);
-  // Both the camera and minimap stay north-up, including at corners and portals.
+  // The minimap stays north-up even while looking in another direction.
   const cell=Math.min(5,width/125),size=cell*19,mx=width-size-18,my=90;
   ctx.fillStyle='#10151fdd';ctx.fillRect(mx-6,my-6,size+12,size+30);
   for(let y=0;y<19;y++)for(let x=0;x<19;x++){ctx.fillStyle=s.maze[y][x]==='#'?theme.light:theme.floor;ctx.fillRect(mx+x*cell,my+y*cell,cell,cell);}
   if(s.boosts.eliminator<=0)for(const d of s.dragons)if(d.respawn<=0){ctx.fillStyle=colors[d.index];ctx.fillRect(mx+d.x*cell,my+d.y*cell,cell+1,cell+1);}
   ctx.fillStyle='#fff3bd';ctx.fillRect(mx+s.player.x*cell,my+s.player.y*cell,cell+1,cell+1);
   ctx.font='11px sans-serif';ctx.textAlign='center';ctx.fillStyle='#fff3bd';ctx.fillText('↑ NORTH',mx+size/2,my+size+17);
+  const heading=Math.round((angle+Math.PI/2)/(Math.PI/2)+4)%4;
+  ctx.fillText('LOOKING '+['NORTH','EAST','SOUTH','WEST'][heading],width/2,98);
   ctx.fillStyle='#10151fdd';ctx.fillRect(10,height-34,width-20,25);ctx.fillStyle='#f4e7ce';ctx.font='13px sans-serif';ctx.fillText('↑ North · ↓ South · ← West · → East',width/2,height-16);
   if(s.status==='dying'){
     ctx.fillStyle='#10151fc9';ctx.fillRect(0,height*.35,width,130);ctx.fillStyle='#f4d388';ctx.font='bold 30px sans-serif';ctx.fillText('GOBBLED UP!',width/2,height*.35+55);
@@ -382,7 +375,7 @@ export function drawMaze3D(ctx,s,character,width,height,angle=-Math.PI/2){
   }
 }
 export function drawKnightPreview(canvas,character,modifiers) { const ctx=canvas.getContext('2d');if(ctx)drawMaze(ctx,createMazeState(modifiers),character,canvas.width,canvas.height,true); }
-// Fixed compass controls match the steady north-facing camera in both views.
+// Keep compass controls consistent between views; the fixed minimap is the reference.
 export function mazeInputDirection(direction, facing, view) {
   return DIRECTIONS[direction]?direction:null;
 }
@@ -390,6 +383,7 @@ export function createKnightMaze({canvas,character,modifiers,consumeBoost,onHud,
   const ctx=canvas.getContext('2d');if(!ctx)throw Error('Your browser does not support canvas.');
   let state=createMazeState(modifiers,level),active=false,paused=false,last=0,frame,destroyed=false,ending=null;
   let cameraView=view==='3d'?'3d':'2d';
+  let look={facing:state.player.dir,phase:0,time:0};
   const reducedMotion=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false;
   const controller=new AbortController(),options={signal:controller.signal},audio=createMazeAudio();
   const input={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',w:'up',s:'down',a:'left',d:'right'};
@@ -421,15 +415,19 @@ export function createKnightMaze({canvas,character,modifiers,consumeBoost,onHud,
       }
     }
     if(ending)(state.status==='lost'?drawDefeat:drawVictory)(ctx,ending.time,canvas.width,canvas.height,drawEndingKnight,reducedMotion,character.dragon);
-    else if(cameraView==='3d')drawMaze3D(ctx,state,character,canvas.width,canvas.height);
+    else if(cameraView==='3d'){
+      const fade=advanceMazeLook(look,state.player.dir,paused||document.hidden?0:dt),dir=DIRECTIONS[look.facing];
+      drawMaze3D(ctx,state,character,canvas.width,canvas.height,Math.atan2(dir[1],dir[0]));
+      if(fade>0){ctx.fillStyle=`rgba(16,21,31,${fade})`;ctx.fillRect(0,105,canvas.width,canvas.height-139);}
+    }
     else drawMaze(ctx,state,character,canvas.width,canvas.height);
     frame=requestAnimationFrame(tick);
   }
   document.addEventListener?.('visibilitychange',()=>{last=0;if(document.hidden)audio.stop();},options);
   frame=requestAnimationFrame(tick);
-  return {setView(value){if(!['2d','3d'].includes(value)||destroyed)return false;cameraView=value;canvas.focus({preventScroll:true});return true;},selectLevel(value){
+  return {setView(value){if(!['2d','3d'].includes(value)||destroyed)return false;cameraView=value;look={facing:state.player.dir,phase:0,time:0};canvas.focus({preventScroll:true});return true;},selectLevel(value){
     if(destroyed||!Number.isInteger(value)||!KNIGHT_LEVELS[value])return false;
     audio.stop();finish();level=value;state=createMazeState(modifiers,level);
     ending=null;paused=false;last=0;pointer=null;onLevelChange(level);hud();return true;
-  },activateBoost(id){if(!active||paused||ending||document.hidden)return false;const used=activateMazeBoost(state,id,consumeBoost);hud();canvas.focus();return used;},selectNextLevel(){if(active||state.status!=='won'||state.level>=KNIGHT_LEVELS.length-1)return false;level=state.level+1;onLevelChange(level);state=createMazeState(modifiers,level);ending=null;return true;},start(){audio.stop();audio.unlock();ending=null;state=createMazeState(modifiers,level);active=true;paused=false;last=0;hud();canvas.focus();},pause(value){paused=value;last=0;pointer=null;if(value)audio.stop();else audio.unlock();hud();},setCharacter(value){character={...value};},setMuted:value=>audio.setMuted(value),input:turn,destroy(){if(destroyed)return;destroyed=true;cancelAnimationFrame(frame);controller.abort();audio.destroy();finish();}};
+  },activateBoost(id){if(!active||paused||ending||document.hidden)return false;const used=activateMazeBoost(state,id,consumeBoost);hud();canvas.focus();return used;},selectNextLevel(){if(active||state.status!=='won'||state.level>=KNIGHT_LEVELS.length-1)return false;level=state.level+1;onLevelChange(level);state=createMazeState(modifiers,level);ending=null;return true;},start(){audio.stop();audio.unlock();ending=null;state=createMazeState(modifiers,level);look={facing:state.player.dir,phase:0,time:0};active=true;paused=false;last=0;hud();canvas.focus();},pause(value){paused=value;last=0;pointer=null;if(value)audio.stop();else audio.unlock();hud();},setCharacter(value){character={...value};},setMuted:value=>audio.setMuted(value),input:turn,destroy(){if(destroyed)return;destroyed=true;cancelAnimationFrame(frame);controller.abort();audio.destroy();finish();}};
 }
