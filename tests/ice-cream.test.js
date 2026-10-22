@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createIceRecipe, createIceCream, drawIceScene, scatterIceChips, iceBiteCount, pourIceChocolate, tickIceChocolate } from '../src/ice-cream.js';
+import { createIceRecipe, createIceCream, drawIceScene, scatterIceChips, iceBiteCount, pourIceChocolate, tickIceChocolate, iceCleanup } from '../src/ice-cream.js';
 import { ICE_CONES, ICE_FLAVORS, ICE_TOPPINGS, ICE_SHOP_ITEMS, iceIngredientUnlocked } from '../src/ice-settings.js';
 import { createSystem } from '../src/system.js';
 
@@ -22,10 +22,10 @@ test('ice cream buttons preserve choices, toggle toppings, pause the ending, fin
     setAttribute(name,value){this.attributes[name]=value;}
     focus(){}
   }
-  let frame,finishes=0,now=100;
+  let frame,finishes=0,now=100,bottles=0;
   const wallet=createSystem({getItem:()=>null,setItem(){}});let session=wallet.beginSession('ice-cream');
   const handlers={},drops=[];
-  const ctx=new Proxy({ellipse(x,y,rx,ry){if(this.fillStyle==='#633c32')drops.push({x,y,rx});}},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
+  const ctx=new Proxy({fillText(text){if(text==='CHOCO')bottles++;},ellipse(x,y,rx,ry){if(this.fillStyle==='#633c32')drops.push({x,y,rx});}},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
   const controls=new IceElement(),canvas={width:900,height:620,getContext:()=>ctx,addEventListener:(name,fn)=>handlers[name]=fn,focus(){},setPointerCapture(){},getBoundingClientRect:()=>({left:0,top:0,width:450,height:310})};
   globalThis.document={hidden:false,createElement:()=>new IceElement(),addEventListener(){}};
   globalThis.requestAnimationFrame=fn=>(frame=fn,1);globalThis.cancelAnimationFrame=()=>{};
@@ -52,6 +52,10 @@ test('ice cream buttons preserve choices, toggle toppings, pause the ending, fin
     const cancelled=drops.at(-1).rx;advance(3);assert.equal(drops.at(-1).rx<=cancelled,true);
     engine.pause(true);advance(1);const pausedSize=drops.at(-1).rx;advance(4);assert.equal(drops.at(-1).rx,pausedSize);
     engine.pause(false);globalThis.document.hidden=true;advance(4);assert.equal(drops.at(-1).rx,pausedSize);globalThis.document.hidden=false;
+    const shown=bottles;choices.children[0].onclick();advance(2);assert.equal(bottles,shown);
+    assert.equal(choices.children[2].attributes['aria-pressed'],'true');
+    choices.children[2].onclick();advance(1);assert.equal(bottles>shown,true);
+    assert.equal(choices.children[2].attributes['aria-pressed'],'true');
     back.onclick();assert.equal(choices.children[3].attributes['aria-pressed'],'true');
     tabs.children[0].onclick();assert.equal(choices.children[2].attributes['aria-pressed'],'true');
     tabs.children[2].onclick();next.onclick();assert.equal(next.disabled,true);
@@ -169,4 +173,19 @@ test('a pour above the scoop lands on it instead of falling through it',()=>{
   const r=createIceRecipe();r.toppings=['sauce'];pourIceChocolate(r,50,-75,.12);
   for(let i=0;i<30;i++)tickIceChocolate(r,.1);
   assert.equal(r.sauceDrops.length,1);assert.equal(r.sauceFalling.length,0);assert.equal(r.saucePuddles.length,0);
+});
+
+test('dragon cleanup removes all puddles after eating and extends only messy endings',()=>{
+  const recipe=createIceRecipe();recipe.toppings=['sauce'];recipe.saucePuddles=[{x:-120,volume:1},{x:0,volume:2},{x:170,volume:.2}];
+  const before=JSON.stringify(recipe);
+  assert.equal(iceCleanup(recipe,5).licking,false);
+  assert.equal(iceCleanup(recipe,5).puddles.length,3);
+  assert.equal(iceCleanup(recipe,6).licking,true);
+  assert.equal(iceCleanup(recipe,7).puddles.length<3,true);
+  assert.equal(iceCleanup(recipe,8.5).puddles.length,0);
+  assert.equal(iceCleanup(recipe,10.8).puddles.length,0);
+  const ctx=new Proxy({},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
+  for(const t of [5,5.5,6,7,8.5,10.8])for(const reduced of [false,true])drawIceScene(ctx,recipe,900,620,t,reduced);
+  assert.equal(JSON.stringify(recipe),before);
+  assert.equal(iceCleanup(createIceRecipe(),6).end,7.5);
 });
