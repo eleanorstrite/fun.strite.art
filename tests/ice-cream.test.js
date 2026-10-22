@@ -56,8 +56,9 @@ test('ice cream buttons preserve choices, toggle toppings, pause the ending, fin
     assert.equal(choices.children[2].attributes['aria-pressed'],'true');
     choices.children[2].onclick();advance(1);assert.equal(bottles>shown,true);
     assert.equal(choices.children[2].attributes['aria-pressed'],'true');
-    const mode=controls.children[5];mode.onclick();assert.equal(mode.attributes['aria-pressed'],'false');assert.ok(mode.textContent.includes('Normal'));
+    const mode=controls.children[5];assert.equal(mode.attributes['aria-pressed'],'false');assert.ok(mode.textContent.includes('Normal'));
     mode.onclick();assert.equal(mode.attributes['aria-pressed'],'true');
+    mode.onclick();assert.equal(mode.attributes['aria-pressed'],'false');
     choices.children[7].onclick();advance(2);assert.ok(caramelBottles>0);
     handlers.pointerdown(pointer);advance(3);handlers.pointerup(pointer);
     const caramelShown=caramelBottles;choices.children[0].onclick();advance(2);assert.equal(caramelBottles,caramelShown);
@@ -199,7 +200,7 @@ test('dragon cleanup removes all puddles after eating and extends only messy end
 });
 
 test('ending sounds match four bites and only slurp during chocolate cleanup',()=>{
-  const clean=createIceRecipe(),messy=createIceRecipe();messy.toppings=['sauce'];messy.saucePuddles=[{x:80,volume:1}];
+  const clean=createIceRecipe(),messy=createIceRecipe();assert.equal(clean.funny,false);assert.deepEqual(iceEndingSounds(clean,0,10),[]);clean.funny=messy.funny=true;messy.toppings=['sauce'];messy.saucePuddles=[{x:80,volume:1}];
   assert.deepEqual(iceEndingSounds(clean,0,7.5),Array(4).fill('iceChew'));
   assert.deepEqual(iceEndingSounds(messy,0,10.8),[...Array(4).fill('iceChew'),...Array(6).fill('iceSlurp')]);
   assert.deepEqual(iceEndingSounds(messy,6,6),[]);

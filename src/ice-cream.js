@@ -7,7 +7,7 @@ const syrupKind=p=>p.kind||'sauce';
 const hasSyrup=r=>r.toppings.some(t=>t==='sauce'||t==='caramel');
 const syrupColor=p=>syrupKind(p)==='caramel'?'#c38532':'#633c32';
 const syrupShine=p=>syrupKind(p)==='caramel'?'#f6ce78':'#a46b48';
-export function createIceRecipe(){return {funny:true,cone:'waffle',flavor:'vanilla',toppings:[],sauceDrops:[]};}
+export function createIceRecipe(){return {funny:false,cone:'waffle',flavor:'vanilla',toppings:[],sauceDrops:[]};}
 export function pourIceChocolate(recipe,x,y,seconds,kind="sauce"){
   if(!['sauce','caramel'].includes(kind)||!recipe.toppings.includes(kind)||!Number.isFinite(seconds)||seconds<=0||!Number.isFinite(x)||!Number.isFinite(y))return;
   if(Math.abs(x)>240||y< -90||y>162)return;
@@ -377,7 +377,7 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
   const audio=createMazeAudio(),controller=new AbortController();
   const reduced=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false;
   let recipe=createIceRecipe(),step=0,active=false,paused=false,clip=null,spoken=false,destroyed=false,last=0,frame;
-  let funny=true,userMuted=false;
+  let funny=false,userMuted=false;
   let activeTopping=null,bottle={x:0,y:-30},squeezing=false,pointer=null,drag=null;
   const stopPour=()=>{squeezing=false;pointer=null;drag=null;};
   const canPour=()=>active&&!paused&&clip===null&&step===2&&['sauce','caramel'].includes(activeTopping)&&recipe.toppings.includes(activeTopping)&&!document.hidden;
