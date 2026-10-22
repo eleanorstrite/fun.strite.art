@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createIceRecipe, createIceCream, drawIceScene, scatterIceChips, iceBiteCount, pourIceChocolate, tickIceChocolate, iceCleanup } from '../src/ice-cream.js';
+import { createIceRecipe, createIceCream, drawIceScene, scatterIceChips, iceBiteCount, pourIceChocolate, tickIceChocolate, iceCleanup, iceEndingSounds } from '../src/ice-cream.js';
 import { ICE_CONES, ICE_FLAVORS, ICE_TOPPINGS, ICE_SHOP_ITEMS, iceIngredientUnlocked } from '../src/ice-settings.js';
 import { createSystem } from '../src/system.js';
 
@@ -188,4 +188,14 @@ test('dragon cleanup removes all puddles after eating and extends only messy end
   for(const t of [5,5.5,6,7,8.5,10.8])for(const reduced of [false,true])drawIceScene(ctx,recipe,900,620,t,reduced);
   assert.equal(JSON.stringify(recipe),before);
   assert.equal(iceCleanup(createIceRecipe(),6).end,7.5);
+});
+
+test('ending sounds match four bites and only slurp during chocolate cleanup',()=>{
+  const clean=createIceRecipe(),messy=createIceRecipe();messy.toppings=['sauce'];messy.saucePuddles=[{x:80,volume:1}];
+  assert.deepEqual(iceEndingSounds(clean,0,7.5),Array(4).fill('iceChew'));
+  assert.deepEqual(iceEndingSounds(messy,0,10.8),[...Array(4).fill('iceChew'),...Array(6).fill('iceSlurp')]);
+  assert.deepEqual(iceEndingSounds(messy,6,6),[]);
+  assert.deepEqual(iceEndingSounds(messy,8.5,10.8),[]);
+  const framed=[];for(let i=0;i<108;i++)framed.push(...iceEndingSounds(messy,i/10,(i+1)/10));
+  assert.deepEqual(framed,iceEndingSounds(messy,0,10.8));
 });

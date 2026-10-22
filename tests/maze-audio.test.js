@@ -45,7 +45,7 @@ test('flight cues are distinct, crash interrupts flaps, and mute suppresses all 
  assert.equal(notes.length,count);audio.destroy();
 });
 
-test('pumpkin effects have distinct cues, short carving bursts, and obey mute and cleanup',()=>{
+test('pumpkin and ice cream effects have distinct cues and obey mute and cleanup',()=>{
   const notes=[],param=()=>({setValueAtTime(value){this.value=value;},linearRampToValueAtTime(){},exponentialRampToValueAtTime(){}});
   class Context{
     state='running';currentTime=0;destination={};
@@ -54,7 +54,7 @@ test('pumpkin effects have distinct cues, short carving bursts, and obey mute an
     close(){return Promise.resolve();}
   }
   const audio=createMazeAudio(Context);audio.unlock();
-  const cues=['pumpkinScoop','pumpkinCarve','pumpkinScrape','pumpkinSnip','pumpkinPick','pumpkinUndo','pumpkinReady'];
+  const cues=['pumpkinScoop','pumpkinCarve','pumpkinScrape','pumpkinSnip','pumpkinPick','pumpkinUndo','pumpkinReady','iceChew','iceSlurp'];
   const signatures=[];
   for(const cue of cues){
     const start=notes.length;audio.play(cue);

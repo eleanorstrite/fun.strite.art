@@ -250,6 +250,16 @@ export function iceCleanup(recipe,time){
   return {puddles:puddles.map(p=>({...p,volume:p.volume*(1-iceClamp((x-p.x+10)/20,0,1))})).filter(p=>p.volume>0),
     licking:time>=5.5&&time<8.5,x,thanks:8.8,end:10.8};
 }
+// Timeline crossings keep sound in step with bites and tongue strokes, including
+// after a pause; no independent timers can keep playing while the game is paused.
+export function iceEndingSounds(recipe,from,to){
+  const cues=[];
+  for(let i=0;i<4;i++){const at=2.1+i*.95;if(from<at&&to>=at)cues.push('iceChew');}
+  if(iceCleanup(recipe,to).end>ICE_CLIP_SECONDS){
+    for(let i=0;i<6;i++){const at=5.5625+i*.5;if(from<at&&to>=at)cues.push('iceSlurp');}
+  }
+  return cues;
+}
 export function drawIceScene(ctx,recipe,width,height,clipTime=null,reducedMotion=false){
   ctx.save();ctx.scale(width/900,height/620);
   ctx.fillStyle='#fff1df';ctx.fillRect(0,0,900,620);
@@ -305,7 +315,7 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
   const ctx=canvas.getContext('2d');if(!ctx)throw Error('Your browser does not support canvas.');
   const audio=createMazeAudio(),controller=new AbortController();
   const reduced=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false;
-  let recipe=createIceRecipe(),step=0,active=false,paused=false,clip=null,spoken=false,lastBites=0,destroyed=false,last=0,frame;
+  let recipe=createIceRecipe(),step=0,active=false,paused=false,clip=null,spoken=false,destroyed=false,last=0,frame;
   let activeTopping=null,bottle={x:0,y:-30},squeezing=false,pointer=null,drag=null;
   const stopPour=()=>{squeezing=false;pointer=null;drag=null;};
   const canPour=()=>active&&!paused&&clip===null&&step===2&&activeTopping==='sauce'&&recipe.toppings.includes('sauce')&&!document.hidden;
@@ -394,7 +404,7 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
         const x=Math.round(drop.x/4)*4;let puddle=recipe.saucePuddles.find(p=>p.x===x);
         if(!puddle){puddle={x,volume:0};recipe.saucePuddles.push(puddle);}puddle.volume=Math.min(30,puddle.volume+drop.volume);
       }
-      recipe.sauceFalling=[];clip=0;spoken=false;lastBites=0;audio.play('win');
+      recipe.sauceFalling=[];clip=0;spoken=false;audio.play('win');
     }
     renderControls();heading.focus({preventScroll:true});
   };
@@ -406,9 +416,9 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
     if(destroyed)return;
     const dt=last?Math.min(.1,(now-last)/1000):0;last=now;
     if(active&&!paused&&!document.hidden&&clip!==null){
-      const cleanup=iceCleanup(recipe,clip);
+      const cleanup=iceCleanup(recipe,clip),previousClip=clip;
       clip=Math.min(cleanup.end,clip+dt);
-      const bites=iceBiteCount(clip);if(bites>lastBites){lastBites=bites;audio.play('gulp');}
+      for(const cue of iceEndingSounds(recipe,previousClip,clip))audio.play(cue);
       if(clip>=cleanup.thanks&&!spoken){spoken=true;audio.say('Yum! Thank you!',1.1);}
       if(clip>=cleanup.end)finish();
     }
