@@ -266,3 +266,17 @@ test('steady 3D camera does not rotate when the knight changes heading',()=>{
   assert.ok(before.x>center.x);
   assert.ok(before.y<center.y);
 });
+
+
+test('wide 3D view shows approaching dragons five tiles behind and beside the knight',()=>{
+  const state=createMazeState();
+  for(const size of [380,760]){
+    for(const [dx,dy] of [[-5,0],[5,0],[0,5],[-4,5],[4,5],[0,-5]]){
+      for(const z of [0,.78,1.55]){
+        const p=projectMazePoint(state,state.player.x+dx,state.player.y+dy,z,size,size);
+        assert.ok(p && p.x>0 && p.x<size);
+        assert.ok(p.y>77 && p.y<size-34,`Visible at ${dx},${dy}, height ${z}`);
+      }
+    }
+  }
+});

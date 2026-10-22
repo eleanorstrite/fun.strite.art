@@ -277,11 +277,12 @@ export function drawMaze(ctx,s,character,width,height,preview=false) {
 export const MAZE_WALL_HEIGHT=.35;
 export function projectMazePoint(s,x,y,z,width,height,angle=-Math.PI/2){
   const fx=Math.cos(angle),fy=Math.sin(angle),dx=x-s.player.x,dy=y-s.player.y;
-  const forward=dx*fx+dy*fy+4,side=-dx*fy+dy*fx;
-  const depth=forward*.8+(5-z)*.6;
+  // Pull back and raise the fixed camera to keep nearby paths visible on all sides.
+  const forward=dx*fx+dy*fy+9,side=-dx*fy+dy*fx;
+  const depth=forward*.8+(9-z)*.6;
   if(depth<.6)return null;
   const focal=Math.min(width,height)*.74;
-  return {x:width/2+side*focal/depth,y:height*.48+((5-z)*.8-forward*.6)*focal/depth,scale:focal/depth,depth};
+  return {x:width/2+side*focal/depth,y:height*.43+((9-z)*.8-forward*.6)*focal/depth,scale:focal/depth,depth};
 }
 export function drawMaze3D(ctx,s,character,width,height,angle=-Math.PI/2){
   const theme=KNIGHT_LEVELS[s.level],project=(x,y,z=0)=>projectMazePoint(s,x,y,z,width,height,angle);
