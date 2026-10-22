@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {createBurgerState,dropBurger,landBurger,tickBurger,drawBurgerScene,drawBurgerEnding,BURGER_INGREDIENTS,BURGER_BACKGROUNDS,createBurgerStack} from '../src/burger-stack.js';
+import {createBurgerState,dropBurger,landBurger,tickBurger,drawBurgerScene,drawBurgerEnding,BURGER_INGREDIENTS,BURGER_BACKGROUNDS,burgerPersonPose,createBurgerStack} from '../src/burger-stack.js';
 const ready=()=>({...createBurgerState(),status:'playing'});
 test('burger drops trim each edge and preserve the exact surviving width for the next piece',()=>{
  const s=ready();s.moving.x=220;dropBurger(s);landBurger(s);
@@ -45,4 +45,11 @@ test('burger engine accepts drops, pauses, skips endings and settles once on clo
   controls.children[1].onclick();assert.equal(count,1);assert.equal(result.score,1);assert.equal(result.coins,1);
   engine.destroy();assert.equal(count,1);engine.destroy();
  }finally{engine?.destroy();Object.assign(globalThis,original);}
+});
+
+test('hamburger ending person reacts and falls completely flat before the burger reaches the trash',()=>{
+ const walking=burgerPersonPose(2),slipping=burgerPersonPose(3.5),fallen=burgerPersonPose(4.2);
+ assert.equal(walking.angle,0);assert.equal(walking.surprised,false);assert.equal(slipping.surprised,true);
+ assert.ok(slipping.angle<0&&slipping.angle>-Math.PI/2);assert.equal(fallen.angle,-Math.PI/2);assert.equal(fallen.y,480);
+ assert.deepEqual(burgerPersonPose(7),fallen);
 });

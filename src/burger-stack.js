@@ -58,6 +58,53 @@ function drawSmallBurger(c,x,y,scale=1,bite=false){
   burgerOval(c,0,-8,31,18,'#e4ad69');burgerRound(c,-31,-8,62,12,4,'#e4ad69');
   for(let i=0;i<7;i++)burgerOval(c,-20+i*7,-11-(i%2)*7,2,1,'#ffedbe');c.restore();
 }
+export function burgerPersonPose(time){
+  const fall=burgerClamp((time-3)/1.1,0,1),ease=fall*fall*(3-2*fall);
+  return {x:100+Math.min(time,3)*100+ease*40,y:430+ease*50-Math.sin(fall*Math.PI)*14,angle:ease===0?0:-Math.PI/2*ease,fall,surprised:time>=3};
+}
+function drawBurgerPerson(c,time,reduced){
+  const pose=burgerPersonPose(time),{fall,surprised}=pose;
+  const stride=time<3&&!reduced?Math.sin(time*9)*15:0,kick=Math.sin(fall*Math.PI)*30;
+  burgerOval(c,pose.x-(fall*50),510,35+fall*85,8,'#4c51422b');
+  c.save();c.translate(pose.x,pose.y);c.rotate(pose.angle);c.lineCap='round';c.lineJoin='round';
+  // Jointed legs, trouser seams, cuffs, and shoes keep the silhouette human.
+  for(const side of [-1,1]){
+    const kneeX=side*10+stride*side+kick*side,kneeY=32-kick*.3,footX=side*12-stride*side+kick*side,footY=68-kick;
+    c.strokeStyle=side<0?'#3b506a':'#506c89';c.lineWidth=18;c.beginPath();c.moveTo(side*10,-2);c.lineTo(kneeX,kneeY);c.lineTo(footX,footY);c.stroke();
+    c.strokeStyle='#90a2b266';c.lineWidth=2;c.beginPath();c.moveTo(side*10+4,3);c.lineTo(kneeX+4,kneeY);c.lineTo(footX+4,footY-5);c.stroke();
+    burgerRound(c,footX-9,footY-3,27,11,5,'#323a46');c.fillStyle='#ece6d5';c.fillRect(footX-8,footY+5,25,3);
+  }
+  // Arms are drawn once, with elbows unfolding during the slip.
+  for(const side of [-1,1]){
+    const elbowX=side<0?-32-kick:36+kick,elbowY=side<0?-42:-65-kick;
+    const handX=side<0?-28-kick:40+kick,handY=side<0?-15:-100-kick;
+    const rest=burgerClamp((fall-.65)/.35,0,1),ex=elbowX+(side*20-elbowX)*rest,ey=elbowY+(-42-elbowY)*rest,hx=handX+(side*18-handX)*rest,hy=handY+(-10-handY)*rest;
+    c.strokeStyle=side<0?'#d6a47e':'#edc39c';c.lineWidth=11;c.beginPath();c.moveTo(side*19,-74);c.lineTo(ex,ey);c.lineTo(hx,hy);c.stroke();
+    burgerOval(c,hx,hy,6,8,'#efc5a2');
+    burgerOval(c,hx-4,hy+2,3,4,'#f6d6b6');
+  }
+  burgerPoly(c,[[-21,-83],[18,-83],[24,-60],[20,1],[-20,1],[-25,-60]],burgerGradient(c,-83,2,['#df8c7b','#b9635c']));
+  burgerPoly(c,[[-20,-82],[-31,-70],[-24,-56],[-12,-63]],'#cc796b');burgerPoly(c,[[17,-82],[29,-69],[24,-57],[12,-65]],'#e39884');
+  burgerRound(c,-10,-100,20,23,5,'#e7b48e');
+  burgerPoly(c,[[-13,-86],[0,-77],[-5,-65],[-19,-82]],'#efb19a');burgerPoly(c,[[0,-77],[12,-88],[20,-82],[7,-65]],'#efb19a');
+  c.strokeStyle='#f1b8a466';c.lineWidth=2;c.beginPath();c.moveTo(2,-67);c.lineTo(2,-7);c.moveTo(-18,-17);c.lineTo(-7,-22);c.moveTo(7,-36);c.lineTo(18,-31);c.stroke();
+  for(const y of [-57,-39,-21])burgerOval(c,2,y,1.7,1.7,'#683f43');
+  c.fillStyle='#514543';c.fillRect(-20,-3,40,6);c.strokeStyle='#cab88e';c.lineWidth=2;c.strokeRect(-4,-3,8,6);
+  // Sculpted face, ear, hair, nose, and an unmistakable startled expression.
+  burgerOval(c,0,-119,23,29,burgerGradient(c,-148,-90,['#f7d6b4','#dfaa83']));burgerOval(c,-22,-117,5,8,'#d7a37f');burgerOval(c,-22,-117,2,4,'#bd876c');
+  burgerPoly(c,[[14,-119],[26,-110],[16,-108]],'#e4b08c');
+  c.fillStyle='#58463d';c.beginPath();c.moveTo(-23,-118);c.bezierCurveTo(-34,-147,-11,-158,10,-148);c.bezierCurveTo(28,-148,24,-132,17,-133);c.lineTo(7,-139);c.quadraticCurveTo(-6,-126,-20,-133);c.closePath();c.fill();
+  c.strokeStyle='#81634e';c.lineWidth=3;c.beginPath();c.moveTo(-18,-143);c.quadraticCurveTo(-4,-152,13,-141);c.stroke();
+  for(const x of [-4,12]){
+    burgerOval(c,x,-119,4.5,surprised?6:3.5,'#fff9eb');burgerOval(c,x+1,-118,2.2,surprised?3.2:2.5,'#354450');burgerOval(c,x,-120,1,1,'#fff');
+    c.strokeStyle='#624c40';c.lineWidth=2;c.beginPath();c.moveTo(x-5,surprised?-132:-127);c.quadraticCurveTo(x,surprised?-136:-129,x+4,surprised?-132:-127);c.stroke();
+  }
+  if(surprised){burgerOval(c,8,-102,6,8,'#703e40');burgerOval(c,8,-99,3,2,'#dc8c83');}
+  else{c.strokeStyle='#a56c59';c.lineWidth=2;c.beginPath();c.arc(8,-106,6,0,Math.PI);c.stroke();}
+  if(time<3.15)drawSmallBurger(c,43+kick,-111-kick,.65,time>1.3);
+  c.restore();
+  if(time>=3&&time<3.7&&!reduced)for(let i=0;i<8;i++){const age=(time-3),x=400+(i-3.5)*age*70,y=503-Math.sin(Math.min(1,age/.7)*Math.PI)*(18+i%3*12);burgerOval(c,x,y,2,4,'#83b9c9');}
+}
 export function drawBurgerEnding(c,time,width,height,score,best,reduced=false){
   c.save();c.fillStyle='#244d59';c.fillRect(0,0,width,height);const scale=Math.min(width/900,height/650);c.translate((width-900*scale)/2,(height-650*scale)/2);c.scale(scale,scale);
   c.fillStyle=burgerGradient(c,0,650,['#d8eced','#fff0d2']);c.fillRect(0,0,900,650);
@@ -67,15 +114,13 @@ export function drawBurgerEnding(c,time,width,height,score,best,reduced=false){
   burgerOval(c,400,506,75,12,'#78adbd');burgerOval(c,392,502,50,4,'#bedfe4');
   // The open bin is behind the flying burger; its front is drawn afterward.
   burgerOval(c,735,420,43,12,'#263b43');
-  const walking=time<3,walkX=100+Math.min(time,3)*100,slip=burgerClamp((time-3)/.7,0,1),land=burgerClamp((time-3.7)/.5,0,1);
-  c.save();c.translate(walkX+slip*36,480+land*22);c.rotate(walking?0:slip*-.95);
-  const stride=walking&&!reduced?Math.sin(time*10)*15:0;
-  c.strokeStyle='#3e526b';c.lineWidth=15;c.lineCap='round';c.beginPath();c.moveTo(-13,-53);c.lineTo(-14-stride,0);c.moveTo(13,-53);c.lineTo(14+stride,0);c.stroke();
-  burgerRound(c,-25,-125,50,76,16,'#db786b');burgerOval(c,0,-154,27,31,'#efc5a2');burgerOval(c,-3,-176,27,13,'#604c42');burgerOval(c,13,-156,3,4,'#2d3d4b');
-  c.strokeStyle='#a8715c';c.lineWidth=2;c.beginPath();c.arc(16,-144,6,0,Math.PI);c.stroke();
-  c.strokeStyle='#efc5a2';c.lineWidth=12;c.beginPath();c.moveTo(-22,-110);c.lineTo(-34,-73);c.moveTo(23,-110);c.lineTo(walking?45:72,walking?-135:-151);c.stroke();
-  if(time<3.15)drawSmallBurger(c,47,-143,.65,time>1.3);c.restore();
-  if(time>=3.15&&time<5.5){const p=burgerClamp((time-3.15)/2.35,0,1),x=450+(735-450)*p,y=310+110*p-Math.sin(p*Math.PI)*230;c.save();c.translate(x,y);c.rotate(reduced?0:p*Math.PI*3);drawSmallBurger(c,0,0,.75,true);c.restore();}
+  drawBurgerPerson(c,time,reduced);
+  if(time>=3.15&&time<5.5){
+    const release=burgerPersonPose(3.15),kick=Math.sin(release.fall*Math.PI)*30,lx=43+kick,ly=-111-kick;
+    const fromX=release.x+lx*Math.cos(release.angle)-ly*Math.sin(release.angle),fromY=release.y+lx*Math.sin(release.angle)+ly*Math.cos(release.angle);
+    const p=burgerClamp((time-3.15)/2.35,0,1),x=fromX+(735-fromX)*p,y=fromY+(420-fromY)*p-Math.sin(p*Math.PI)*230;
+    c.save();c.translate(x,y);c.rotate(reduced?0:p*Math.PI*3);drawSmallBurger(c,0,0,.65,true);c.restore();
+  }
   burgerPoly(c,[[694,423],[776,423],[765,515],[705,515]],'#526f79');c.strokeStyle='#92adb1';c.lineWidth=4;for(let x=710;x<770;x+=16){c.beginPath();c.moveTo(x,438);c.lineTo(x,501);c.stroke();}
   burgerRound(c,689,420,92,9,4,'#829ea3');c.fillStyle='#e2eece';c.font='bold 15px sans-serif';c.textAlign='center';c.fillText('TRASH',735,474);
   if(time>=5.5){c.fillStyle='#477a8b';c.font='bold 24px sans-serif';c.fillText('Plop!',735,393);}
