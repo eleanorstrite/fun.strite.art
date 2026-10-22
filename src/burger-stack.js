@@ -64,43 +64,52 @@ export function burgerPersonPose(time){
 }
 function drawBurgerPerson(c,time,reduced){
   const pose=burgerPersonPose(time),{fall,surprised}=pose;
-  const stride=time<3&&!reduced?Math.sin(time*9)*15:0,kick=Math.sin(fall*Math.PI)*30;
+  const stride=time<3&&!reduced?Math.sin(time*Math.PI/0.6)*12:0,kick=Math.sin(fall*Math.PI)*30;
   burgerOval(c,pose.x-(fall*50),510,35+fall*85,8,'#4c51422b');
-  c.save();c.translate(pose.x,pose.y);c.rotate(pose.angle);c.lineCap='round';c.lineJoin='round';
-  // Jointed legs, trouser seams, cuffs, and shoes keep the silhouette human.
+  // Side-view gait: a planted foot stays in place while the other swings forward.
+  c.save();c.lineCap='round';c.lineJoin='round';
   for(const side of [-1,1]){
-    const kneeX=side*10+stride*side+kick*side,kneeY=32-kick*.3,footX=side*12-stride*side+kick*side,footY=68-kick;
-    c.strokeStyle=side<0?'#3b506a':'#506c89';c.lineWidth=18;c.beginPath();c.moveTo(side*10,-2);c.lineTo(kneeX,kneeY);c.lineTo(footX,footY);c.stroke();
-    c.strokeStyle='#90a2b266';c.lineWidth=2;c.beginPath();c.moveTo(side*10+4,3);c.lineTo(kneeX+4,kneeY);c.lineTo(footX+4,footY-5);c.stroke();
-    burgerRound(c,footX-9,footY-3,27,11,5,'#323a46');c.fillStyle='#ece6d5';c.fillRect(footX-8,footY+5,25,3);
+    const phase=((Math.min(time,3)+(side<0?.6:0))%1.2),swing=phase>=.6;
+    const localX=swing?-30+100*(phase-.6):30-100*phase;
+    const lift=swing&&!reduced?Math.sin((phase-.6)/.6*Math.PI)*20:0;
+    const settle=fall*fall*(3-2*fall),hip={x:pose.x+side*2,y:pose.y};
+    const target={x:pose.x+localX*(1-settle)+(66+side*7)*settle,y:(502-lift)*(1-settle)+(487+side*8)*settle-Math.sin(fall*Math.PI)*25};
+    const dx=target.x-hip.x,dy=target.y-hip.y,d=Math.max(.01,Math.hypot(dx,dy)),reach=Math.min(79,d),fx=hip.x+dx/d*reach,fy=hip.y+dy/d*reach;
+    const bend=Math.sqrt(Math.max(0,40*40-reach*reach/4)),kx=(hip.x+fx)/2+dy/d*bend,ky=(hip.y+fy)/2-dx/d*bend;
+    c.strokeStyle=side<0?'#354b64':'#526d89';c.lineWidth=17;c.beginPath();c.moveTo(hip.x,hip.y);c.lineTo(kx,ky);c.lineTo(fx,fy);c.stroke();
+    c.strokeStyle='#9aabb955';c.lineWidth=2;c.beginPath();c.moveTo(hip.x+3,hip.y);c.lineTo(kx+3,ky);c.lineTo(fx+3,fy-4);c.stroke();
+    c.save();c.translate(fx,fy);c.rotate(time<3&&swing&&!reduced?-.2*Math.sin((phase-.6)/.6*Math.PI):0);
+    burgerRound(c,-8,-5,28,11,5,'#303c48');c.fillStyle='#e8dfcd';c.fillRect(-7,3,26,3);c.restore();
   }
+  c.restore();
+  c.save();c.translate(pose.x,pose.y);c.rotate(pose.angle);c.lineCap='round';c.lineJoin='round';
   // Arms are drawn once, with elbows unfolding during the slip.
   for(const side of [-1,1]){
-    const elbowX=side<0?-32-kick:36+kick,elbowY=side<0?-42:-65-kick;
-    const handX=side<0?-28-kick:40+kick,handY=side<0?-15:-100-kick;
+    const elbowX=side<0?-9+stride-kick:36+kick,elbowY=side<0?-42:-65-kick;
+    const handX=side<0?-4+stride*1.5-kick:40+kick,handY=side<0?-15:-100-kick;
     const rest=burgerClamp((fall-.65)/.35,0,1),ex=elbowX+(side*20-elbowX)*rest,ey=elbowY+(-42-elbowY)*rest,hx=handX+(side*18-handX)*rest,hy=handY+(-10-handY)*rest;
     c.strokeStyle=side<0?'#d6a47e':'#edc39c';c.lineWidth=11;c.beginPath();c.moveTo(side*19,-74);c.lineTo(ex,ey);c.lineTo(hx,hy);c.stroke();
     burgerOval(c,hx,hy,6,8,'#efc5a2');
     burgerOval(c,hx-4,hy+2,3,4,'#f6d6b6');
   }
-  burgerPoly(c,[[-21,-83],[18,-83],[24,-60],[20,1],[-20,1],[-25,-60]],burgerGradient(c,-83,2,['#df8c7b','#b9635c']));
-  burgerPoly(c,[[-20,-82],[-31,-70],[-24,-56],[-12,-63]],'#cc796b');burgerPoly(c,[[17,-82],[29,-69],[24,-57],[12,-65]],'#e39884');
+  burgerPoly(c,[[-15,-83],[12,-83],[19,-58],[16,1],[-14,1],[-18,-60]],burgerGradient(c,-83,2,['#df8c7b','#b9635c']));
+  burgerPoly(c,[[-12,-82],[-19,-70],[-13,-56],[-4,-63]],'#cc796b');burgerPoly(c,[[7,-82],[21,-69],[17,-57],[5,-65]],'#e39884');
   burgerRound(c,-10,-100,20,23,5,'#e7b48e');
   burgerPoly(c,[[-13,-86],[0,-77],[-5,-65],[-19,-82]],'#efb19a');burgerPoly(c,[[0,-77],[12,-88],[20,-82],[7,-65]],'#efb19a');
   c.strokeStyle='#f1b8a466';c.lineWidth=2;c.beginPath();c.moveTo(2,-67);c.lineTo(2,-7);c.moveTo(-18,-17);c.lineTo(-7,-22);c.moveTo(7,-36);c.lineTo(18,-31);c.stroke();
   for(const y of [-57,-39,-21])burgerOval(c,2,y,1.7,1.7,'#683f43');
   c.fillStyle='#514543';c.fillRect(-20,-3,40,6);c.strokeStyle='#cab88e';c.lineWidth=2;c.strokeRect(-4,-3,8,6);
   // Sculpted face, ear, hair, nose, and an unmistakable startled expression.
-  burgerOval(c,0,-119,23,29,burgerGradient(c,-148,-90,['#f7d6b4','#dfaa83']));burgerOval(c,-22,-117,5,8,'#d7a37f');burgerOval(c,-22,-117,2,4,'#bd876c');
+  burgerOval(c,0,-119,23,29,burgerGradient(c,-148,-90,['#f7d6b4','#dfaa83']));burgerOval(c,-12,-117,5,8,'#d7a37f');burgerOval(c,-12,-117,2,4,'#bd876c');
   burgerPoly(c,[[14,-119],[26,-110],[16,-108]],'#e4b08c');
   c.fillStyle='#58463d';c.beginPath();c.moveTo(-23,-118);c.bezierCurveTo(-34,-147,-11,-158,10,-148);c.bezierCurveTo(28,-148,24,-132,17,-133);c.lineTo(7,-139);c.quadraticCurveTo(-6,-126,-20,-133);c.closePath();c.fill();
   c.strokeStyle='#81634e';c.lineWidth=3;c.beginPath();c.moveTo(-18,-143);c.quadraticCurveTo(-4,-152,13,-141);c.stroke();
-  for(const x of [-4,12]){
+  for(const x of [13]){
     burgerOval(c,x,-119,4.5,surprised?6:3.5,'#fff9eb');burgerOval(c,x+1,-118,2.2,surprised?3.2:2.5,'#354450');burgerOval(c,x,-120,1,1,'#fff');
     c.strokeStyle='#624c40';c.lineWidth=2;c.beginPath();c.moveTo(x-5,surprised?-132:-127);c.quadraticCurveTo(x,surprised?-136:-129,x+4,surprised?-132:-127);c.stroke();
   }
-  if(surprised){burgerOval(c,8,-102,6,8,'#703e40');burgerOval(c,8,-99,3,2,'#dc8c83');}
-  else{c.strokeStyle='#a56c59';c.lineWidth=2;c.beginPath();c.arc(8,-106,6,0,Math.PI);c.stroke();}
+  if(surprised){burgerOval(c,18,-102,5,7,'#703e40');burgerOval(c,18,-99,3,2,'#dc8c83');}
+  else{c.strokeStyle='#a56c59';c.lineWidth=2;c.beginPath();c.arc(17,-106,5,0,Math.PI);c.stroke();}
   if(time<3.15)drawSmallBurger(c,43+kick,-111-kick,.65,time>1.3);
   c.restore();
   if(time>=3&&time<3.7&&!reduced)for(let i=0;i<8;i++){const age=(time-3),x=400+(i-3.5)*age*70,y=503-Math.sin(Math.min(1,age/.7)*Math.PI)*(18+i%3*12);burgerOval(c,x,y,2,4,'#83b9c9');}
