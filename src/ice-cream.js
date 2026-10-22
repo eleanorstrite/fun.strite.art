@@ -27,11 +27,16 @@ export function pourIceChocolate(recipe,x,y,seconds,kind="sauce"){
   drop.amount=Math.min(3,drop.amount+seconds);
 }
 // Both syrups cling to the dessert, follow its taper, then fall under gravity.
+function coneBottom(cone){return cone==='waffle'?156:cone==='cup'?100:cone==='cake'?118:120;}
+function coneWidth(cone,y){
+  if(cone==='cup')return 63-16*Math.min(1,(y-5)/95);
+  if(cone==='cake')return y<38?50-(y-5)*.42:36-(y-38)*.13;
+  const bottom=coneBottom(cone),rim=cone==='waffle'?67.26:50.16;
+  return rim*Math.max(0,(bottom-y)/(bottom-5));
+}
 function chocolateSurfaceX(recipe,x,y){
   if(y<=20)return x;
-  const width=recipe.cone==='cup'?63-16*Math.min(1,(y-5)/95):57*Math.max(0,(150-y)/145);
-  const shoulder=recipe.cone==='cup'?63-16*15/95:57*130/145;
-  return x*width/shoulder;
+  return x*coneWidth(recipe.cone,y)/coneWidth(recipe.cone,20);
 }
 export function tickIceChocolate(recipe,seconds){
   if(!hasSyrup(recipe)||!Number.isFinite(seconds)||seconds<=0)return;
@@ -39,7 +44,7 @@ export function tickIceChocolate(recipe,seconds){
   // Small steps keep gravity and surface flow stable at different frame rates.
   for(let remaining=Math.min(seconds,1);remaining>0;){
     const dt=Math.min(remaining,1/60);remaining-=dt;
-    const end=recipe.cone==='cup'?100:150;
+    const end=coneBottom(recipe.cone);
     for(const drop of recipe.sauceDrops||[]){
       // New syrup stays mostly on the scoop. Existing trails never restart,
       // even when more syrup is poured onto the same spot.
@@ -134,7 +139,26 @@ export function drawIceDessert(ctx,recipe,x,y,scale=1,bites=0){
     ctx.clip('evenodd');
   }
   const coneColor={waffle:'#dca25e',sugar:'#edc88b',chocolate:'#6b4336',cup:'#8fcfd3',pretzel:'#a96f36',cookie:'#cfab73'}[recipe.cone];
-  if(recipe.cone==='cup'){
+  ctx.save();
+  if(recipe.cone==='waffle')ctx.scale(1.18,1.04);
+  else if(!['cup','cake'].includes(recipe.cone))ctx.scale(.88,.8);
+  if(recipe.cone==='cake'){
+    // A pale wafer bowl, rolled collar, and flat-bottomed embossed stem.
+    iceShape(ctx,[[-37,38],[37,38],[26,114],[20,118],[-20,118],[-26,114]],'#dfc27f');
+    ctx.save();ctx.beginPath();ctx.moveTo(-36,38);ctx.lineTo(36,38);ctx.lineTo(25,118);ctx.lineTo(-25,118);ctx.closePath();ctx.clip();
+    for(let y=45;y<114;y+=15)for(let x=-35;x<36;x+=12){
+      ctx.fillStyle='#c6a360';ctx.fillRect(x,y,8,10);
+      ctx.fillStyle='#f5dda2';ctx.fillRect(x-2,y-2,10,2);ctx.fillRect(x-2,y-2,2,12);
+      ctx.fillStyle='#e9cf91';ctx.fillRect(x+1,y+1,5,7);
+    }
+    ctx.restore();iceOval(ctx,0,115,26,4,'#d0b173');
+    iceShape(ctx,[[-51,6],[51,6],[43,26],[33,39],[-33,39],[-43,26]],'#edd7a1');
+    iceShape(ctx,[[-49,8],[-36,10],[-28,37],[-34,37],[-43,25]],'#f7e7bd');
+    iceShape(ctx,[[41,9],[50,8],[42,26],[33,38],[26,38]],'#d5b77b');
+    iceOval(ctx,0,39,37,8,'#d7b97b');iceOval(ctx,0,36,37,5,'#f3dfa9');
+    iceOval(ctx,0,5,52,10,'#e6ca8b');iceOval(ctx,0,3,49,8,'#f9e9bd');
+    iceOval(ctx,0,3,41,5,'#c8a460');iceOval(ctx,0,1,42,3,'#e2c581');
+  }else if(recipe.cone==='cup'){
     iceShape(ctx,[[-63,5],[63,5],[47,100],[-47,100]],coneColor);
     for(let i=0;i<5;i++){ctx.fillStyle=['#ef90ad','#f3c871','#b3d8af'][i%3];ctx.fillRect(-42+i*18,25,12,55);}
     iceOval(ctx,0,6,64,12,'#e7fcf3');iceOval(ctx,0,6,55,7,'#659ba5');
@@ -161,6 +185,7 @@ export function drawIceDessert(ctx,recipe,x,y,scale=1,bites=0){
     ctx.fillStyle=recipe.cone==='pretzel'?'#fff0ca':'#6f4837';
     for(const [x,y] of [[-30,25],[20,21],[0,43],[-15,69],[12,85],[0,117]])ctx.fillRect(x,y,recipe.cone==='cookie'?6:3,4);
   }
+  ctx.restore();
   const flavor=ICE_FLAVORS[recipe.flavor];
   iceOval(ctx,0,-30,69,61,flavor.color);
   for(let i=0;i<6;i++)iceOval(ctx,-52+i*21,7,16,13,flavor.color);

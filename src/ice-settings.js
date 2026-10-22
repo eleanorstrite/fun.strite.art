@@ -1,4 +1,4 @@
-export const ICE_CONES={waffle:'Waffle cone',sugar:'Sugar cone',chocolate:'Chocolate cone',cup:'Rainbow cup',pretzel:'Pretzel cone',cookie:'Cookie cone'};
+export const ICE_CONES={waffle:'Waffle cone',sugar:'Sugar cone',chocolate:'Chocolate cone',cup:'Rainbow cup',pretzel:'Pretzel cone',cookie:'Cookie cone',cake:'Cake cone'};
 export const ICE_FLAVORS={vanilla:{name:'Vanilla',color:'#fff0ce'},chocolate:{name:'Chocolate',color:'#976047'},strawberry:{name:'Strawberry',color:'#f2a1b8'},mint:{name:'Mint chip',color:'#9ddcc1'},blueberry:{name:'Blueberry',color:'#aaa0db'},rainbow:{name:'Rainbow',color:'#f4b0cb'},caramel:{name:'Salted caramel',color:'#d9a663'},cookies:{name:'Cookies & cream',color:'#c9c6cd'},mango:{name:'Mango sorbet',color:'#ffc262'}};
 export const ICE_TOPPINGS={sprinkles:'Rainbow sprinkles',chips:'Chocolate chips',sauce:'Chocolate drizzle',cream:'Whipped cream',cherry:'Cherry',stars:'Candy stars',marshmallows:'Mini marshmallows',caramel:'Caramel drizzle',berries:'Mixed berries'};
 export const ICE_UNLOCKS={
