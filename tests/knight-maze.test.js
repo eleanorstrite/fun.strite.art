@@ -227,7 +227,10 @@ test('3D chase camera keeps walls below the knight and dragon and leaves simulat
   for(let level=0;level<4;level++){
     const state=createMazeState({},level),before=JSON.stringify({...state,gems:[...state.gems],swords:[...state.swords]});
     for(const angle of [0,Math.PI/2,Math.PI,-Math.PI/2]){
-      for(const helmet of ['plain','plume','horns','crown','winged'])drawMaze3D(ctx,state,{color:'#ed6e40',armor:'gold',helmet,shield:true},760,760,angle);
+      for(const facing of ['up','down','left','right']){
+        const rendered={...state,player:{...state.player,dir:facing}};
+        for(const helmet of ['plain','plume','horns','crown','winged'])drawMaze3D(ctx,rendered,{color:'#ed6e40',armor:'gold',helmet,shield:true},760,760,angle);
+      }
       const ground=projectMazePoint(state,state.player.x,state.player.y,0,760,760,angle);
       const wall=projectMazePoint(state,state.player.x,state.player.y,MAZE_WALL_HEIGHT,760,760,angle);
       const knight=projectMazePoint(state,state.player.x,state.player.y,1,760,760,angle);

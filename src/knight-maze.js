@@ -333,12 +333,27 @@ export function drawMaze3D(ctx,s,character,width,height,angle=-Math.PI/2){
   if(knight&&foot&&(s.grace<=0||Math.floor(s.elapsed*8)%2===0)){
     objects.push({depth:foot.depth,draw:()=>{
       actorShadow(ctx,foot.x,foot.y,knight.scale*.8);
-      // Back of helmet and cape, facing into the maze.
+      // Turn only the character; the world and camera remain steady.
       ctx.save();ctx.translate(knight.x,knight.y);ctx.scale(knight.scale/60,knight.scale/60);
       const armor=ARMORS[character.armor]||ARMORS.silver;
+      const facing=s.player.dir,profile=facing==='left'||facing==='right',front=facing==='down';
+      if(profile)ctx.scale(facing==='left'?-.78:.78,1);
+      // A side-facing cape trails behind the shoulder, never over the face.
+      if(character.cape!==false&&(profile||front)){
+        ctx.fillStyle=character.color;ctx.beginPath();ctx.moveTo(-15,-1);ctx.lineTo(profile?-5:15,-1);ctx.lineTo(profile?-15:21,27);ctx.lineTo(profile?-29:-21,27);ctx.closePath();ctx.fill();
+      }
       ctx.fillStyle=armor.dark;ctx.fillRect(-16,1,32,24);ctx.fillRect(-15,24,10,10);ctx.fillRect(5,24,10,10);
-      if(character.cape!==false){ctx.fillStyle=character.color;ctx.beginPath();ctx.moveTo(-15,-1);ctx.lineTo(15,-1);ctx.lineTo(21,27);ctx.lineTo(-21,27);ctx.closePath();ctx.fill();}
+      if(character.cape!==false&&!profile&&!front){ctx.fillStyle=character.color;ctx.beginPath();ctx.moveTo(-15,-1);ctx.lineTo(15,-1);ctx.lineTo(21,27);ctx.lineTo(-21,27);ctx.closePath();ctx.fill();}
       ctx.fillStyle=armor.light;ctx.beginPath();ctx.roundRect(-16,-24,32,26,8);ctx.fill();ctx.fillStyle=armor.dark;ctx.fillRect(-16,-5,32,5);
+      if(front||profile){
+        // Visor, eye slit, and projecting nose make the heading easy to read.
+        ctx.fillStyle=armor.dark;ctx.fillRect(profile?3:-13,-17,profile?15:26,12);
+        ctx.fillStyle='#172431';ctx.fillRect(profile?8:-11,-15,profile?12:22,4);
+        ctx.fillStyle='#e2f3f5';ctx.fillRect(profile?12:-8,-14,profile?6:5,2);
+        if(front)ctx.fillRect(3,-14,5,2);
+        ctx.fillStyle=armor.light;ctx.fillRect(profile?16:-2,-13,profile?7:4,12);
+        ctx.fillRect(-10,4,20,14);ctx.fillStyle=armor.dark;ctx.fillRect(-1,5,2,12);
+      }
       if(character.helmet==='horns'){ctx.fillStyle='#f3dfb2';ctx.fillRect(-23,-29,7,18);ctx.fillRect(16,-29,7,18);}
       else if(character.helmet==='crown'){ctx.fillStyle='#f5cc65';ctx.fillRect(-17,-28,34,9);for(let i=-17;i<=17;i+=14)ctx.fillRect(i,-36,6,12);}
       else if(character.helmet==='winged'){ctx.fillStyle='#e0f3ff';face([{x:-16,y:-18},{x:-29,y:-31},{x:-25,y:-10}],ctx.fillStyle);face([{x:16,y:-18},{x:29,y:-31},{x:25,y:-10}],ctx.fillStyle);}
