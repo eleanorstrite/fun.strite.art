@@ -50,9 +50,11 @@ export const UPGRADES = [
   { id:'ember-dragons',name:'Ember dragons',group:'appearance',category:'DRAGON STYLE',icon:'♨',cost:200,description:'Dress the dragons in fiery colors. Choose in the customizer. Appearance only.' },
   { id:'ice-dragons',name:'Ice dragons',group:'appearance',category:'DRAGON STYLE',icon:'❄',cost:200,description:'Give the dragons icy blue scales. Choose in the customizer. Appearance only.' },
 ];
-export function freshSave() { return { version: 1, mazeLevel:0, coins: 0, unlimitedCoins: false, character: { name: 'Pip', color: COLORS[0], style: 'antenna', ...KNIGHT_DEFAULTS, robot:{...ROBOT_DEFAULTS}, flight:{...FLIGHT_DEFAULTS},plane:{...PLANE_DEFAULTS} }, upgrades: [], boosts: {boots:0,magnet:0,eliminator:0,snack:0}, stats: {} }; }
+export function freshSave() { return { version: 1, mazeLevel:0, ravenLevel:'easy', coins: 0, unlimitedCoins: false, character: { name: 'Pip', color: COLORS[0], style: 'antenna', ...KNIGHT_DEFAULTS, robot:{...ROBOT_DEFAULTS}, flight:{...FLIGHT_DEFAULTS},plane:{...PLANE_DEFAULTS} }, upgrades: [], boosts: {boots:0,magnet:0,eliminator:0,snack:0}, stats: {} }; }
 export function validateSave(data) {
   if(data?.unlimitedCoins!==undefined&&typeof data.unlimitedCoins!=='boolean')throw Error('Invalid wallet setting.');
+  const ravenLevel=data?.ravenLevel??'easy';
+  if(!['easy','medium','hard','expert'].includes(ravenLevel))throw Error('Invalid Raven level.');
   const mazeLevel=data?.mazeLevel??0;
   if(!Number.isInteger(mazeLevel)||mazeLevel<0||mazeLevel>3)throw Error('Invalid maze level.');
   const validInt = n => Number.isSafeInteger(n) && n >= 0 && n <= 1000000000;
@@ -91,7 +93,7 @@ export function validateSave(data) {
     if(stat.bestTimeMs!==undefined&&(!validInt(stat.bestTimeMs)||stat.bestTimeMs===0))throw Error('Invalid best race time.');
     Object.defineProperty(stats, id, { value: { plays: stat.plays, best: stat.best,...(stat.bestTimeMs===undefined?{}:{bestTimeMs:stat.bestTimeMs}) }, enumerable: true, writable: true, configurable: true });
   }
-  return { version: 1, mazeLevel, unlimitedCoins: data.unlimitedCoins===true, coins: Math.min(1000000000,data.coins+(data.upgrades.includes('garden')?60:0)+(data.upgrades.includes('flight-sunset')?200:0)), character: { name: data.character.name.trim(), color: data.character.color, style: data.character.style, ...look, flight, plane:{color:plane.color,style:plane.style,difficulty:planeDifficulty,background:planeBackground,hat,scarf,accessoryColor}, robot:{outfit:robot.outfit,hat:robot.hat,color:robot.color,glasses:robot.glasses,headphones:robot.headphones,backpack:robot.backpack} }, upgrades: [...new Set(data.upgrades.filter(id=>!['garden','flight-sunset','boots','magnet','eliminator','snack'].includes(id)))], boosts:{boots:boosts.boots,magnet:boosts.magnet,eliminator,snack}, stats };
+  return { version: 1, mazeLevel, ravenLevel, unlimitedCoins: data.unlimitedCoins===true, coins: Math.min(1000000000,data.coins+(data.upgrades.includes('garden')?60:0)+(data.upgrades.includes('flight-sunset')?200:0)), character: { name: data.character.name.trim(), color: data.character.color, style: data.character.style, ...look, flight, plane:{color:plane.color,style:plane.style,difficulty:planeDifficulty,background:planeBackground,hat,scarf,accessoryColor}, robot:{outfit:robot.outfit,hat:robot.hat,color:robot.color,glasses:robot.glasses,headphones:robot.headphones,backpack:robot.backpack} }, upgrades: [...new Set(data.upgrades.filter(id=>!['garden','flight-sunset','boots','magnet','eliminator','snack'].includes(id)))], boosts:{boots:boosts.boots,magnet:boosts.magnet,eliminator,snack}, stats };
 }
 export function createSystem(storage, onStorageError = () => {}) {
   let state = freshSave();
@@ -115,6 +117,7 @@ export function createSystem(storage, onStorageError = () => {}) {
     },
     isSaved: () => writable,
     subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
+    setRavenLevel(ravenLevel) { state=validateSave({...state,ravenLevel});persist(); },
     setMazeLevel(mazeLevel) { state=validateSave({...state,mazeLevel});persist(); },
     setCharacter(character) { state = validateSave({ ...state, character }); persist(); },
     buy(id) {

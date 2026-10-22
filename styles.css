@@ -80,3 +80,5 @@ html[data-background="aurora"]{--home-scene:url('./assets/backgrounds/aurora.svg
 #van-controls{padding:16px;margin:16px 0;background:#edf3e8;border:2px solid #b3c7b0;border-radius:18px}#van-controls[hidden]{display:none}.van-buttons{display:flex;gap:10px;flex-wrap:wrap}.van-buttons button{min-height:52px;min-width:100px;touch-action:none;user-select:none}
 
 #brand-dialog{width:min(360px,90vw)}#brand-form{display:grid;gap:14px}#brand-form h2,#brand-message{margin:0}#brand-password{width:100%;min-height:44px;padding:10px;border:1px solid var(--line);border-radius:6px}#brand-form>div{display:flex;gap:10px}
+
+.van-levels{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}.van-levels button[aria-pressed=true]{background:#294852;color:#fff;border-color:#294852}

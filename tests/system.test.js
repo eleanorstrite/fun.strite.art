@@ -126,3 +126,14 @@ test('legacy wallets remain finite and malformed unlimited settings are rejected
  assert.equal(validateSave(old).unlimitedCoins,false);
  for(const value of ['true',1,null,{}])assert.throws(()=>validateSave({...old,unlimitedCoins:value}));
 });
+test('Raven selection persists and times stay separate by difficulty',()=>{
+ const storage=memory(),system=createSystem(storage);system.setRavenLevel('expert');
+ assert.equal(createSystem(storage).snapshot().ravenLevel,'expert');
+ assert.throws(()=>system.setRavenLevel('invalid'));
+ system.beginSession('family-van-easy').finish(1,30000);
+ system.beginSession('family-van-expert').finish(10,50000);
+ assert.equal(system.snapshot().coins,11);
+ assert.equal(system.snapshot().stats['family-van-easy'].bestTimeMs,30000);
+ assert.equal(system.snapshot().stats['family-van-expert'].bestTimeMs,50000);
+ const old=freshSave();delete old.ravenLevel;assert.equal(validateSave(old).ravenLevel,'easy');
+});

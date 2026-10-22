@@ -18,8 +18,8 @@ test('jump clears barriers, held flight crosses gaps and release lands, arrows d
  s.z=gap.z+gap.length+100;tickVan(s,.05);assert.equal(s.fly,0);
 });
 test('collisions return to checkpoints, rewards cannot be farmed, and three bumps end a run',()=>{
- const s=readyVan();s.z=999;s.x=vanRoadCenter(1000);s.speed=200;tickVan(s,.05,{up:true});assert.equal(s.earned,5);assert.equal(s.checkpoint,1);
- for(let n=0;n<3;n++){s.z=1090;s.x=vanRoadCenter(1100);s.invincible=0;tickVan(s,.05);assert.equal(s.z,1000);assert.equal(s.earned,5);}
+ const s=readyVan();s.z=999;s.x=vanRoadCenter(1000);s.speed=200;tickVan(s,.05,{up:true});assert.equal(s.earned,0);assert.equal(s.checkpoint,1);
+ for(let n=0;n<3;n++){s.z=1090;s.x=vanRoadCenter(1100);s.invincible=0;tickVan(s,.05);assert.equal(s.z,1000);assert.equal(s.earned,0);}
  assert.equal(s.status,'lost');assert.equal(s.lives,0);assert.equal(vanAction(s,'fly'),false);
 });
 test('the entire course can be completed with lane dodges, jumping and held flight',()=>{
@@ -31,8 +31,8 @@ test('the entire course can be completed with lane dodges, jumping and held flig
   if(s.lane>target)vanAction(s,'left');if(s.lane<target)vanAction(s,'right');
   tickVan(s,.05,{fly:o?.type==='gap'&&distance<180});
  }
- assert.equal(s.status,'won');assert.equal(s.lives,3);assert.equal(s.earned,45);
- tickVan(s,.05);assert.equal(s.earned,45);
+ assert.equal(s.status,'won');assert.equal(s.lives,3);assert.equal(s.earned,1);
+ tickVan(s,.05);assert.equal(s.earned,1);
 });
 test('van intro and course render without changing simulation state',()=>{
  const ctx=new Proxy({},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
@@ -49,7 +49,10 @@ test('van engine pauses, freezes hidden tabs, restarts, and settles only once',(
  globalThis.document={hidden:false,createElement:()=>new Element(),addEventListener(){}};globalThis.window={addEventListener(){}};
  globalThis.requestAnimationFrame=fn=>(frame=fn,1);globalThis.cancelAnimationFrame=()=>{};
  try{
-  const engine=createVanAdventure({canvas,controls,consumeBoost:id=>{assert.equal(id,'snack');used++;return true;},onHud:v=>{hud=v.text;snackSeconds=v.ravenSnack.seconds;},onFinish:()=>finished++});assert.equal(engine.activateSnack(),false);engine.start();controls.children[1].children[5].onclick();
+  const engine=createVanAdventure({canvas,controls,consumeBoost:id=>{assert.equal(id,'snack');used++;return true;},onHud:v=>{hud=v.text;snackSeconds=v.ravenSnack.seconds;},onFinish:()=>finished++});assert.equal(engine.activateSnack(),false);
+  assert.equal(engine.getRecordId(),'family-van-easy');controls.children[2].children[1].onclick();assert.equal(engine.getRecordId(),'family-van-medium');
+  controls.children[2].children[0].onclick();engine.start();controls.children[2].children[3].onclick();assert.equal(engine.getRecordId(),'family-van-easy');assert.equal(controls.children[2].children[3].disabled,true);
+  controls.children[1].children[5].onclick();
   assert.equal(engine.activateSnack(),true);assert.equal(engine.activateSnack(),false);assert.equal(used,1);assert.equal(snackSeconds,15);
   handlers.keydown({key:'ArrowUp',preventDefault(){}});frame(100);frame(150);
   engine.pause(true);const paused=hud,pausedSnack=snackSeconds;assert.equal(engine.activateSnack(),false);frame(200);frame(250);assert.equal(hud,paused);assert.equal(snackSeconds,pausedSnack);
@@ -119,7 +122,7 @@ test('Raven endings delay settlement, freeze on pause and hidden tabs, and prese
  globalThis.requestAnimationFrame=fn=>(frame=fn,1);globalThis.cancelAnimationFrame=()=>{};
  let engine;const advance=n=>{for(let i=0;i<n;i++){frame(now);now+=50;}};
  try{
-  engine=createVanAdventure({canvas,controls,onHud:value=>hud=value.text,onFinish:(coins,value)=>{assert.equal(coins,45);finished++;result=value;}});
+  engine=createVanAdventure({canvas,controls,onHud:value=>hud=value.text,onFinish:(coins,value)=>{assert.equal(coins,1);finished++;result=value;}});
   engine.start();controls.children[1].children[5].onclick();
   for(let i=0;i<800&&!hud.includes('celebrating');i++)advance(1);
   assert.equal(hud.includes('celebrating'),true);assert.equal(finished,0);assert.equal(controls.children[1].children[5].textContent,'Skip ending');
@@ -130,4 +133,56 @@ test('Raven endings delay settlement, freeze on pause and hidden tabs, and prese
   for(let i=0;i<800&&!hud.includes('celebrating');i++)advance(1);
   controls.children[1].children[5].onclick();assert.equal(finished,2);engine.destroy();assert.equal(finished,2);
  }finally{engine?.destroy();VAN_OBSTACLES.splice(0,VAN_OBSTACLES.length,...obstacles);Object.assign(globalThis,original);}
+});
+
+test('Raven levels get longer, faster and denser with exact lap rewards',()=>{
+ let previous={finish:0,speed:0,density:0};
+ for(const [id,coins] of [['easy',1],['medium',2],['hard',5],['expert',10]]){
+  const s=createVanState(id),density=s.obstacles.length/s.config.finish;
+  assert.ok(s.config.finish>previous.finish);assert.ok(s.config.speed>previous.speed);assert.ok(density>previous.density);
+  previous={...s.config,density};s.status='playing';s.z=s.config.finish-1;s.speed=s.config.speed;
+  tickVan(s,.05);assert.equal(s.status,'won');assert.equal(s.earned,coins);
+  tickVan(s,.05);assert.equal(s.earned,coins);
+ }
+});
+test('ice retains sideways momentum and eventually settles into the selected lane',()=>{
+ const ice=createVanState('medium'),dry=createVanState('easy');
+ for(const s of [ice,dry]){s.status='playing';vanAction(s,'right');for(let i=0;i<8;i++)tickVan(s,.05,{down:true});}
+ assert.ok(ice.x<dry.x);assert.ok(ice.slide>0);
+ vanAction(ice,'left');const before=ice.x;tickVan(ice,.05,{down:true});assert.ok(ice.x>before);
+ for(let i=0;i<160;i++)tickVan(ice,.05,{down:true});assert.ok(Math.abs(ice.x-vanRoadCenter(0))<1);
+});
+test('lava warns before impact, hurts in its marked area, and respects Snack Attack',()=>{
+ for(const protectedBySnack of [false,true]){
+  const s=createVanState('hard');s.status='playing';const o=s.obstacles.find(o=>o.type==='lava');
+  s.z=o.z-400;tickVan(s,.05,{down:true});assert.ok(o.age>0&&o.age<1.2);assert.equal(s.lives,3);
+  s.z=o.z;s.x=vanRoadCenter(o.z)+o.x;s.lane=o.x/90;s.speed=0;
+  tickVan(s,.05,{down:true});assert.equal(s.lives,3);
+  o.age=1.2;if(protectedBySnack)s.snack=15;
+  tickVan(s,.05,{down:true});assert.equal(s.lives,protectedBySnack?3:2);
+ }
+ const s=createVanState('expert');s.status='playing';const o=s.obstacles.find(o=>o.type==='lava');o.age=1.3;
+ s.z=o.z;s.lane=o.x>=0?-1:1;s.x=vanRoadCenter(o.z)+s.lane*90;tickVan(s,.05,{down:true});assert.equal(s.lives,3);
+});
+test('all Raven levels can be completed with visible obstacle cues and without boosts',()=>{
+ for(const level of ['easy','medium','hard','expert']){
+  const s=createVanState(level);s.status='playing';let steps=0;
+  while(s.status==='playing'&&steps++<4000){
+   const o=s.obstacles.find(o=>o.z+(o.length||35)>s.z-10),distance=o?o.z-s.z:999;
+   if(o?.type==='jump'&&distance<s.config.speed*.42&&distance>0)vanAction(s,'jump');
+   const lateral=s.obstacles.find(h=>['crate','cones','lava'].includes(h.type)&&h.z+45>s.z&&h.z-s.z<500);
+   const target=lateral?(lateral.x>=0?-1:1):s.lane;
+   if(s.lane>target)vanAction(s,'left');if(s.lane<target)vanAction(s,'right');
+   tickVan(s,.05,{fly:o?.type==='gap'&&distance<180});
+  }
+  assert.equal(s.status,'won',level);assert.equal(s.lives,3,level);
+ }
+});
+test('all level scenery and lava phases render without changing state',()=>{
+ const ctx=new Proxy({},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
+ for(const level of ['medium','hard','expert'])for(const age of [undefined,.6,1.5,5]){
+  const s=createVanState(level);s.status='playing';s.z=700;
+  for(const o of s.obstacles)if(o.type==='lava')o.age=age;
+  const before=JSON.stringify(s);drawVanScene(ctx,s,900,650);assert.equal(JSON.stringify(s),before);
+ }
 });
