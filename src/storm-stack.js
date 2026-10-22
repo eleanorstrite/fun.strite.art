@@ -10,7 +10,7 @@ function nextPiece(s){
   const kind=s.bag.pop();return {kind,cells:SHAPES[kind].map(p=>[...p]),x:3,y:0};
 }
 export function createStormState(random=Math.random){
-  const s={board:Array.from({length:STORM_ROWS},()=>Array(STORM_WIDTH).fill(0)),random,bag:[],piece:null,next:null,status:'ready',remaining:STORM_SECONDS,fall:0,height:0,locked:0,clip:0,won:false,hazard:null};
+  const s={board:Array.from({length:STORM_ROWS},()=>Array(STORM_WIDTH).fill(0)),random,bag:[],piece:null,next:null,status:'ready',remaining:STORM_SECONDS,fall:0,height:0,locked:0,tumbling:[],balanceNotice:0,clip:0,won:false,hazard:null};
   s.piece=nextPiece(s);s.next=nextPiece(s);return s;
 }
 function endStorm(s,won,emit){s.won=won;s.status='ending';s.clip=0;if(!won){s.hazard=STORM_HAZARDS[Math.min(3,Math.floor(s.random()*4))];emit('bell');}else emit('win');}
@@ -21,12 +21,29 @@ export function stormRotate(s){
   const cells=rotated.map(([x,y])=>[x-minX,y-minY]);
   for(const dx of [0,-1,1,-2,2])if(stormFits(s,cells,p.x+dx,p.y)){p.cells=cells;p.x+=dx;return true;}return false;
 }
+// A piece balances only when its center of mass rests over its supporting cells.
+export function stormBalance(s,p){
+  const cells=p.cells.map(([x,y])=>[p.x+x,p.y+y]),own=new Set(cells.map(([x,y])=>`${x},${y}`));
+  const supports=cells.filter(([x,y])=>!own.has(`${x},${y+1}`)&&(y===STORM_ROWS-1||s.board[y+1]?.[x]));
+  const center=cells.reduce((sum,[x])=>sum+x+.5,0)/cells.length;
+  if(!supports.length)return {stable:false,direction:1,pivotX:center,pivotY:p.y+p.cells.length};
+  const left=Math.min(...supports.map(([x])=>x)),right=Math.max(...supports.map(([x])=>x+1));
+  const stable=center>=left+.08&&center<=right-.08,direction=center<(left+right)/2?-1:1;
+  const edge=supports.find(([x])=>direction<0?x===left:x+1===right);
+  return {stable,direction,pivotX:direction<0?left:right,pivotY:edge[1]+1};
+}
 function dropRow(s,emit){
   const p=s.piece;
   if(stormFits(s,p.cells,p.x,p.y+1)){p.y++;return;}
-  for(const [dx,dy] of p.cells)s.board[p.y+dy][p.x+dx]=p.kind+1;
-  s.locked++;s.height=STORM_ROWS-s.board.findIndex(row=>row.some(Boolean));emit('bounce');
-  if(s.height>=STORM_TARGET){endStorm(s,true,emit);return;}
+  const balance=stormBalance(s,p);
+  if(balance.stable){
+    for(const [dx,dy] of p.cells)s.board[p.y+dy][p.x+dx]=p.kind+1;
+    s.locked++;const top=s.board.findIndex(row=>row.some(Boolean));s.height=top<0?0:STORM_ROWS-top;emit('bounce');
+    if(s.height>=STORM_TARGET){endStorm(s,true,emit);return;}
+  }else{
+    s.tumbling.push({...balance,kind:p.kind,cells:p.cells.map(([x,y])=>[p.x+x,p.y+y]),age:0});
+    s.balanceNotice=2;emit('whoosh');
+  }
   s.piece=s.next;s.next=nextPiece(s);
   if(!stormFits(s,s.piece.cells,s.piece.x,s.piece.y))endStorm(s,false,emit);
 }
@@ -42,6 +59,9 @@ export function tickStorm(s,dt,fast=false,emit=()=>{}){
     if(s.clip>=(s.won?7:9))s.status='finished';return;
   }
   if(s.status!=='playing')return;
+  s.balanceNotice=Math.max(0,s.balanceNotice-dt);
+  for(const piece of s.tumbling)piece.age+=dt;
+  s.tumbling=s.tumbling.filter(piece=>piece.age<3.2);
   s.remaining=Math.max(0,s.remaining-dt);
   if(s.remaining<=1e-7){s.remaining=0;endStorm(s,false,emit);return;}
   s.fall+=dt;const interval=fast?.032:.48;
@@ -115,15 +135,21 @@ export function drawStorm(c,s,width,height,reduced=false){
   rect(c,ox-8,oy-8,256,592,'#8ba5b8',9);rect(c,ox,oy,240,576,'#12243b');
   for(let y=0;y<24;y++)for(let x=0;x<10;x++){c.strokeStyle='#9bd2dc12';c.lineWidth=.5;c.strokeRect(ox+x*cell,oy+y*cell,cell,cell);if(s.board[y][x])block(c,ox+x*cell,oy+y*cell,cell,COLORS[s.board[y][x]-1]);}
   if(s.piece){let gy=s.piece.y;while(stormFits(s,s.piece.cells,s.piece.x,gy+1))gy++;
-    c.globalAlpha=.22;for(const [x,y] of s.piece.cells)block(c,ox+(s.piece.x+x)*cell,oy+(gy+y)*cell,cell,COLORS[s.piece.kind]);c.globalAlpha=1;
+    const balanced=stormBalance(s,{...s.piece,y:gy}).stable;
+    c.globalAlpha=.3;for(const [x,y] of s.piece.cells)block(c,ox+(s.piece.x+x)*cell,oy+(gy+y)*cell,cell,balanced?COLORS[s.piece.kind]:'#f28559');c.globalAlpha=1;
     for(const [x,y] of s.piece.cells)block(c,ox+(s.piece.x+x)*cell,oy+(s.piece.y+y)*cell,cell,COLORS[s.piece.kind]);
+  }
+  for(const piece of s.tumbling){
+    const t=piece.age,fall=Math.max(0,t-.4),angle=piece.direction*(reduced?Math.min(.4,t):Math.min(.65,t*t*2)+fall*2.2);
+    c.save();c.translate(ox+piece.pivotX*cell+piece.direction*150*fall*fall,oy+piece.pivotY*cell+280*fall*fall);c.rotate(angle);
+    for(const [x,y] of piece.cells)block(c,(x-piece.pivotX)*cell,(y-piece.pivotY)*cell,cell,COLORS[piece.kind]);c.restore();
   }
   const targetY=oy+(24-STORM_TARGET)*cell;c.strokeStyle='#ffe296';c.lineWidth=3;c.setLineDash([8,6]);c.beginPath();c.moveTo(ox-12,targetY);c.lineTo(ox+250,targetY);c.stroke();c.setLineDash([]);label(c,'GOAL',68,targetY+6,15,'#ffe296');
   label(c,Math.ceil(s.remaining)+'s',470,156,40,s.remaining<=10?'#ffb39b':'#ffe296');label(c,'TIME LEFT',470,182,13);rect(c,404,199,132,7,'#15283f',3);rect(c,404,199,132*s.remaining/STORM_SECONDS,7,'#8cd4ca',3);
   label(c,s.height+' / '+STORM_TARGET,470,254,28);label(c,'STACK HEIGHT',470,279,12);label(c,'NEXT',470,340,15);
   for(const [x,y] of s.next.cells)block(c,420+x*23,363+y*23,23,COLORS[s.next.kind]);
-  hazard(c,'Tornado',470,520,80,0);label(c,'Beat the bell!',470,577,15,'#c2dce2');
-  label(c,'← → Move   ↑ Rotate   Hold ↓ Fast drop',300,735,17);label(c,'Rows stay — build up to the gold line.',300,761,14,'#c2dce2');c.restore();
+  hazard(c,'Tornado',470,520,80,0);label(c,s.balanceNotice>0?'Oops! Too wobbly!':'Keep it balanced!',470,577,15,s.balanceNotice>0?'#ffbd89':'#c2dce2');
+  label(c,'← → Move   ↑ Rotate   Hold ↓ Fast drop',300,735,17);label(c,'Orange landing preview = tipping risk.',300,761,14,'#c2dce2');c.restore();
 }
 export function drawStormPreview(canvas){const c=canvas.getContext('2d');if(!c)return;const s=createStormState(()=>.45);for(let y=12;y<24;y++)for(let x=0;x<10;x++)if(y>21||x>=3&&x<=6&&y>14||x===4)s.board[y][x]=1+(x+y)%7;s.height=12;drawStorm(c,s,canvas.width,canvas.height);}
 export function createStormStack({canvas,onHud,onFinish,controls=document.querySelector('#storm-controls')}){
@@ -147,7 +173,7 @@ export function createStormStack({canvas,onHud,onFinish,controls=document.queryS
       b.addEventListener('keyup',()=>held.delete('button'),options);b.addEventListener('blur',clear,options);
     }else b.onclick=()=>{act(name);canvas.focus({preventScroll:true});};
   }
-  const tip=document.createElement('p');tip.textContent='Reach 18 blocks high in 30 seconds. Stack pieces rather than clearing rows. Finish a round for 5 coins, or win for 25 coins.';controls.append(tip);
+  const tip=document.createElement('p');tip.textContent='Reach 18 blocks high in 30 seconds. Balance each piece over its supports or it tips offscreen! An orange landing preview warns of a risky placement. Rows stay in place. Finish a round for 5 coins, or win for 25 coins.';controls.append(tip);
   const skip=document.createElement('button');skip.type='button';skip.className='button outline';skip.textContent='Skip ending';controls.append(skip);skip.hidden=true;
   function finish(){if(!active)return;active=false;clear();audio.stop();const completed=s.status==='finished';onFinish(completed?(s.won?25:5):0,{title:completed?(s.won?'You beat the storm!':'The hazards win this round!'):'Stack saved.',detail:s.height+' / 18 blocks high'+(s.hazard?' · '+s.hazard:''),score:s.height});}
   skip.onclick=()=>{if(active&&!paused&&!document.hidden&&s.status==='ending'){s.status='finished';finish();}};

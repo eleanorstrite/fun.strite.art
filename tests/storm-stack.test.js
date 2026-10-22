@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createStormState,stormFits,stormMove,stormRotate,tickStorm,drawStorm,STORM_HAZARDS,createStormStack} from '../src/storm-stack.js';
+import {createStormState,stormFits,stormMove,stormRotate,tickStorm,drawStorm,STORM_HAZARDS,createStormStack,stormBalance} from '../src/storm-stack.js';
 function ready(random=()=>.42){const s=createStormState(random);s.status='playing';return s;}
 function advance(s,seconds,fast=false,emit=()=>{}){for(let i=0;i<Math.round(seconds*100);i++)tickStorm(s,.01,fast,emit);}
 test('pieces stay inside walls, rotate legally, and cannot overlap settled blocks',()=>{
@@ -49,4 +49,26 @@ test('engine pause and hidden tabs freeze time, controls release, rewards settle
   frames(710);assert.equal(finishes.length,1);assert.ok([5,25].includes(finishes[0]));engine.destroy();assert.equal(finishes.length,1);
   engine=createStormStack({canvas,controls,onHud(){},onFinish:coins=>finishes.push(coins)});engine.start();engine.destroy();assert.equal(finishes.at(-1),0);
  }finally{engine?.destroy();Object.assign(globalThis,original);}
+});
+
+
+test('pieces balance over supports, but overhanging pieces tip in either direction',()=>{
+ const s=ready();s.board[23][4]=1;
+ const horizontal={kind:0,cells:[[0,0],[1,0],[2,0],[3,0]],x:4,y:22};
+ assert.equal(stormBalance(s,horizontal).stable,false);assert.equal(stormBalance(s,horizontal).direction,1);
+ assert.equal(stormBalance(s,{...horizontal,x:1}).direction,-1);
+ assert.equal(stormBalance(s,{kind:0,cells:[[0,0],[0,1],[0,2],[0,3]],x:4,y:19}).stable,true);
+ s.board[23][7]=1;assert.equal(stormBalance(s,horizontal).stable,true);
+});
+test('an unbalanced goal-height piece falls off instead of winning or adding collision cells',()=>{
+ const s=ready(),events=[];s.board[7][4]=2;s.height=17;
+ s.piece={kind:0,cells:[[0,0],[1,0],[2,0],[3,0]],x:4,y:6};
+ tickStorm(s,.04,true,e=>events.push(e));assert.equal(s.status,'playing');assert.equal(s.height,17);assert.equal(s.locked,0);assert.equal(s.tumbling.length,1);assert.equal(s.tumbling[0].direction,1);assert.ok(s.board[6].every(v=>v===0));assert.ok(events.includes('whoosh'));assert.ok(!events.includes('win'));
+ s.piece.x=0;advance(s,3.3);assert.equal(s.tumbling.length,0);
+});
+test('tipping animation pauses with the game and rendering does not change physics',()=>{
+ const s=ready();s.board[23][3]=1;s.piece={kind:0,cells:[[0,0],[1,0],[2,0],[3,0]],x:3,y:22};tickStorm(s,.04,true);
+ const c=new Proxy({createLinearGradient:()=>({addColorStop(){}})},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
+ for(const age of [0,.3,.8,2]){s.tumbling[0].age=age;const before=JSON.stringify(s);drawStorm(c,s,600,780);drawStorm(c,s,300,390,true);assert.equal(JSON.stringify(s),before);}
+ s.status='ready';const age=s.tumbling[0].age;tickStorm(s,.1);assert.equal(s.tumbling[0].age,age);
 });
