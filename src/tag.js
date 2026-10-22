@@ -241,13 +241,13 @@ export function createTagGame({canvas,onHud,onFinish,controls=document.querySele
     for(const [field,label,options] of [['animal','Character',TAG_ANIMALS],['outfit','Outfit',TAG_OUTFITS],['hat','Hat',TAG_HATS],['accessory','Accessory',TAG_ACCESSORIES]])select(group,label,options,settings.players[i][field],value=>settings.players[i][field]=value);
     select(group,'Color',{},settings.players[i].color,value=>settings.players[i].color=value,'color');form.append(group);
   }
-  const tip=document.createElement('p');tip.textContent='Phone: swipe left/right and keep your finger down to run. Swipe up diagonally to jump and steer in the air. Release to slow down. In multiplayer, P1 uses the left half and P2 the right half. Touch jumps are gentler. P1: A / D to run, W to jump. P2: ← / → to run, ↑ to jump. Against the computer you can use either set. Keep moving in midair; pink trampolines launch you high! Whoever is tagged at 60 seconds loses. There is a short shield after each tag. Finish a round for 5 shared coins.';
+  const tip=document.createElement('p');tip.textContent='Phone: swipe left/right to keep running. Swipe up diagonally to jump and run, or swipe up to jump. Tap the game to stop. In multiplayer, P1 uses the left half and P2 the right half. Touch jumps are gentler. P1: A / D to run, W to jump. P2: ← / → to run, ↑ to jump. Against the computer you can use either set. Keep moving in midair; pink trampolines launch you high! Whoever is tagged at 60 seconds loses. There is a short shield after each tag. Finish a round for 5 shared coins.';
   const pads=document.createElement('div');pads.className='tag-pads';const padGroups=[];
   for(let i=0;i<2;i++){
     const group=document.createElement('div');group.setAttribute('aria-label','Player '+(i+1)+' touch controls');const label=document.createElement('strong');label.textContent='P'+(i+1);group.append(label);padGroups.push(group);
     for(const [action,label] of [['left','←'],['jump','↑ Jump'],['right','→']]){
       const b=document.createElement('button');b.type='button';b.className='button outline';b.textContent=label;b.setAttribute('aria-label','Player '+(i+1)+' '+action);
-      b.addEventListener('pointerdown',e=>{if(!active||paused||document.hidden)return;e.preventDefault();b.setPointerCapture?.(e.pointerId);touchAssist[i]=true;touch[i].add(action);},events);
+      b.addEventListener('pointerdown',e=>{if(!active||paused||document.hidden)return;e.preventDefault();b.setPointerCapture?.(e.pointerId);gestures.stop(i);touchAssist[i]=true;touch[i].add(action);},events);
       for(const name of ['pointerup','pointercancel','lostpointercapture','blur'])b.addEventListener(name,()=>touch[i].delete(action),events);
       b.addEventListener('keydown',e=>{if([' ','Enter'].includes(e.key)){e.preventDefault();touch[i].add(action);}},events);
       b.addEventListener('keyup',()=>touch[i].delete(action),events);group.append(b);
@@ -257,7 +257,7 @@ export function createTagGame({canvas,onHud,onFinish,controls=document.querySele
   controls.replaceChildren(tip,pads,form);
   function sync(){form.disabled=active;for(const [id,b] of modeButtons){b.disabled=active;b.setAttribute('aria-pressed',String(settings.mode===id));}padGroups[1].hidden=settings.mode!=='local';}
   const allowed=['KeyA','KeyD','KeyW','ArrowLeft','ArrowRight','ArrowUp'];
-  canvas.addEventListener('keydown',e=>{if(allowed.includes(e.code)){e.preventDefault();if(active&&!paused){keys.add(e.code);touchAssist[settings.mode==='computer'||e.code.startsWith('Key')?0:1]=false;}}},events);
+  canvas.addEventListener('keydown',e=>{if(allowed.includes(e.code)){e.preventDefault();if(active&&!paused){keys.add(e.code);const player=settings.mode==='computer'||e.code.startsWith('Key')?0:1;gestures.stop(player);touchAssist[player]=false;}}},events);
   globalThis.window?.addEventListener('keyup',e=>keys.delete(e.code),events);
   canvas.addEventListener('blur',clear,events);
   globalThis.window?.addEventListener('blur',clear,events);
