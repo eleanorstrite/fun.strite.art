@@ -31,6 +31,7 @@ export const airRecordId=difficulty=>difficulty==='sloth'?'hoop-flight':'hoop-fl
 export const PLANE_DEFAULTS={color:'#ed6e40',style:'sport',difficulty:'sloth',background:'valley',hat:'none',scarf:'none',accessoryColor:'#d34c65'};
 export const KNIGHT_DEFAULTS = { armor: 'silver', helmet: 'plume', cape: true, shield: false, dragon: 'classic' };
 export const UPGRADES = [
+  {id:'snack',name:'Snack Attack',group:'gameplay',category:'THE RAVEN ONLY',icon:'🍿',cost:1000,description:'One use in The Raven: clear every obstacle, including water gaps, for 50 seconds. Activate the snack button above the course. Buy again for another use.'},
   ...ICE_SHOP_ITEMS,
   ...Object.entries(PLANE_UNLOCKS).map(([style,id])=>({id,name:PLANE_STYLES[style],group:'appearance',category:'HOOP FLIGHT AIRPLANE',icon:'✈',cost:200,description:'For Hoop Flight only. Permanently unlock this airplane design in the plane customizer. Cosmetic: all planes fly the same.'})),
   ...Object.values(AIR_BACKGROUNDS).filter(scene=>scene.upgrade).map(scene=>({id:scene.upgrade,name:scene.name,group:'appearance',category:'HOOP FLIGHT BACKGROUND',icon:'🌄',cost:200,description:'For Hoop Flight only — separate from home-screen and Flappy Animals backgrounds. Permanently unlock in the plane customizer.'})),
@@ -49,7 +50,7 @@ export const UPGRADES = [
   { id:'ember-dragons',name:'Ember dragons',group:'appearance',category:'DRAGON STYLE',icon:'♨',cost:200,description:'Dress the dragons in fiery colors. Choose in the customizer. Appearance only.' },
   { id:'ice-dragons',name:'Ice dragons',group:'appearance',category:'DRAGON STYLE',icon:'❄',cost:200,description:'Give the dragons icy blue scales. Choose in the customizer. Appearance only.' },
 ];
-export function freshSave() { return { version: 1, mazeLevel:0, coins: 0, character: { name: 'Pip', color: COLORS[0], style: 'antenna', ...KNIGHT_DEFAULTS, robot:{...ROBOT_DEFAULTS}, flight:{...FLIGHT_DEFAULTS},plane:{...PLANE_DEFAULTS} }, upgrades: [], boosts: {boots:0,magnet:0,eliminator:0}, stats: {} }; }
+export function freshSave() { return { version: 1, mazeLevel:0, coins: 0, character: { name: 'Pip', color: COLORS[0], style: 'antenna', ...KNIGHT_DEFAULTS, robot:{...ROBOT_DEFAULTS}, flight:{...FLIGHT_DEFAULTS},plane:{...PLANE_DEFAULTS} }, upgrades: [], boosts: {boots:0,magnet:0,eliminator:0,snack:0}, stats: {} }; }
 export function validateSave(data) {
   const mazeLevel=data?.mazeLevel??0;
   if(!Number.isInteger(mazeLevel)||mazeLevel<0||mazeLevel>3)throw Error('Invalid maze level.');
@@ -79,6 +80,8 @@ export function validateSave(data) {
   const boosts = data.boosts === undefined
     ? {boots:Number(data.upgrades.includes('boots')),magnet:Number(data.upgrades.includes('magnet'))}
     : data.boosts;
+  const snack=boosts?.snack===undefined?0:boosts.snack;
+  if(!validInt(snack))throw new Error('Invalid Snack Attack inventory.');
   const eliminator=boosts?.eliminator===undefined?0:boosts.eliminator;
   if(!validInt(eliminator) || !boosts || Array.isArray(boosts) || !validInt(boosts.boots) || !validInt(boosts.magnet) || boosts.boots+boosts.magnet+eliminator>3)throw new Error('Your boost bag can hold up to three boosts.');
   const stats = {};
@@ -87,7 +90,7 @@ export function validateSave(data) {
     if(stat.bestTimeMs!==undefined&&(!validInt(stat.bestTimeMs)||stat.bestTimeMs===0))throw Error('Invalid best race time.');
     Object.defineProperty(stats, id, { value: { plays: stat.plays, best: stat.best,...(stat.bestTimeMs===undefined?{}:{bestTimeMs:stat.bestTimeMs}) }, enumerable: true, writable: true, configurable: true });
   }
-  return { version: 1, mazeLevel, coins: Math.min(1000000000,data.coins+(data.upgrades.includes('garden')?60:0)+(data.upgrades.includes('flight-sunset')?200:0)), character: { name: data.character.name.trim(), color: data.character.color, style: data.character.style, ...look, flight, plane:{color:plane.color,style:plane.style,difficulty:planeDifficulty,background:planeBackground,hat,scarf,accessoryColor}, robot:{outfit:robot.outfit,hat:robot.hat,color:robot.color,glasses:robot.glasses,headphones:robot.headphones,backpack:robot.backpack} }, upgrades: [...new Set(data.upgrades.filter(id=>!['garden','flight-sunset','boots','magnet','eliminator'].includes(id)))], boosts:{boots:boosts.boots,magnet:boosts.magnet,eliminator}, stats };
+  return { version: 1, mazeLevel, coins: Math.min(1000000000,data.coins+(data.upgrades.includes('garden')?60:0)+(data.upgrades.includes('flight-sunset')?200:0)), character: { name: data.character.name.trim(), color: data.character.color, style: data.character.style, ...look, flight, plane:{color:plane.color,style:plane.style,difficulty:planeDifficulty,background:planeBackground,hat,scarf,accessoryColor}, robot:{outfit:robot.outfit,hat:robot.hat,color:robot.color,glasses:robot.glasses,headphones:robot.headphones,backpack:robot.backpack} }, upgrades: [...new Set(data.upgrades.filter(id=>!['garden','flight-sunset','boots','magnet','eliminator','snack'].includes(id)))], boosts:{boots:boosts.boots,magnet:boosts.magnet,eliminator,snack}, stats };
 }
 export function createSystem(storage, onStorageError = () => {}) {
   let state = freshSave();
@@ -110,14 +113,14 @@ export function createSystem(storage, onStorageError = () => {}) {
     buy(id) {
       const item = UPGRADES.find(u => u.id === id);
       if (!item || state.upgrades.includes(id)) throw new Error('This upgrade is already yours.');
-      if(item.group==='gameplay' && state.boosts.boots+state.boosts.magnet+state.boosts.eliminator>=3)throw new Error('Boost bag full! Use a boost before buying more.');
+      if(item.group==='gameplay' && id!=='snack' && state.boosts.boots+state.boosts.magnet+state.boosts.eliminator>=3)throw new Error('Boost bag full! Use a boost before buying more.');
       if (state.coins < item.cost) throw new Error('Play an adventure to earn more coins.');
       state.coins -= item.cost;
       if(item.group==='gameplay')state.boosts[id]++;else state.upgrades.push(id);
       persist();
     },
     consumeBoost(id) {
-      if(!['boots','magnet','eliminator'].includes(id) || state.boosts[id]<1)return false;
+      if(!['boots','magnet','eliminator','snack'].includes(id) || state.boosts[id]<1)return false;
       state.boosts[id]--;persist();return true;
     },
     modifiers() { return { speed: 1, pickupRadius: 1 }; },

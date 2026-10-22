@@ -11,35 +11,35 @@ export const VAN_OBSTACLES=[
 ];
 const clampVan=(n,a,b)=>Math.max(a,Math.min(b,n));
 export const vanRoadCenter=z=>340+Math.sin(z/650)*62+Math.sin(z/290)*24;
-export function createVanState(){return {status:'ready',intro:0,z:0,x:vanRoadCenter(0),speed:0,time:0,lives:3,jump:0,fly:0,dodge:0,jumpCooldown:0,flyCooldown:0,dodgeCooldown:0,dodgeDir:1,steer:1,invincible:0,checkpoint:0,earned:0,message:'All aboard!'};}
+export function createVanState(){return {status:'ready',intro:0,z:0,x:vanRoadCenter(0),speed:0,time:0,lives:3,lane:0,snack:0,jump:0,fly:0,dodge:0,jumpCooldown:0,flyCooldown:0,dodgeCooldown:0,dodgeDir:1,steer:1,invincible:0,checkpoint:0,earned:0,message:'All aboard!'};}
 export function vanAction(s,action){
   if(s.status!=='playing')return false;
   if(action==='jump'&&!s.jumpCooldown&&!s.fly){s.jump=.95;s.jumpCooldown=1.4;return true;}
-  if(action==='fly'&&!s.flyCooldown){s.fly=3.4;s.flyCooldown=7;s.jump=0;return true;}
-  if(action==='dodge'&&!s.dodgeCooldown){s.dodge=.25;s.dodgeCooldown=1.1;s.dodgeDir=s.steer;return true;}
+  if(['left','right'].includes(action)&&!s.dodgeCooldown){const lane=clampVan(s.lane+(action==='left'?-1:1),-1,1);if(lane===s.lane)return false;s.lane=lane;s.dodge=.25;s.dodgeCooldown=.3;return true;}
   return false;
 }
 export function tickVan(s,seconds,keys={},emit=()=>{}){
   const dt=clampVan(seconds,0,.05);
-  if(s.status==='intro'){s.intro+=dt;if(s.intro>=7){s.status='playing';s.message='Hold ↑ to drive. Follow the road!';}return;}
+  if(s.status==='intro'){s.intro+=dt;if(s.intro>=7){s.status='playing';s.message='The Raven drives itself. Dodge, jump, and beat your best time!';}return;}
   if(s.status!=='playing')return;
   s.time+=dt;
-  for(const name of ['jump','fly','dodge','jumpCooldown','flyCooldown','dodgeCooldown','invincible'])s[name]=Math.max(0,s[name]-dt);
-  const steer=(keys.right?1:0)-(keys.left?1:0);if(steer)s.steer=steer;
-  s.speed=clampVan(s.speed+((keys.up?180:0)-(keys.down?300:0)-(!keys.up&&!keys.down?100:0))*dt,0,230);
-  s.x+=steer*170*dt+(s.dodge>0?s.dodgeDir*410*dt:0);
-  const previous=s.z;s.z=Math.min(VAN_FINISH,s.z+s.speed*dt);s.x=clampVan(s.x,90,590);
+  for(const name of ['jump','dodge','jumpCooldown','dodgeCooldown','invincible','snack'])s[name]=Math.max(0,s[name]-dt);
+  s.fly=keys.fly?1:0;if(s.fly)s.jump=0;
+  s.speed=clampVan(s.speed+(keys.down?-300:180)*dt,0,230);
+  const previous=s.z;s.z=Math.min(VAN_FINISH,s.z+s.speed*dt);
+  const target=vanRoadCenter(s.z)+s.lane*90;
+  s.x+=clampVan(target-s.x,-450*dt,450*dt);
   const flying=s.fly>0,jumping=s.jump>0&&Math.sin((1-s.jump/.95)*Math.PI)>.25;
   if(Math.abs(s.x-vanRoadCenter(s.z))>145&&!flying){s.speed=Math.min(s.speed,75);s.message='Grass slows you down — steer back onto the road.';}
   const obstacle=VAN_OBSTACLES.find(o=>{
     if(s.z<o.z-38||previous>o.z+(o.length||35))return false;
-    if(flying)return false;
+    if(flying||s.snack>0)return false;
     if(o.type==='gap')return true;
     if(o.type==='jump')return !jumping;
     return !jumping&&s.dodge<=0&&Math.abs(s.x-(vanRoadCenter(o.z)+o.x))<46;
   });
   if(obstacle&&s.invincible<=0){
-    s.lives--;s.speed=0;s.fly=0;s.jump=0;s.dodge=0;s.z=s.checkpoint*1000;s.x=vanRoadCenter(s.z);s.invincible=2;
+    s.lives--;s.speed=0;s.fly=0;s.jump=0;s.dodge=0;s.z=s.checkpoint*1000;s.x=vanRoadCenter(s.z);s.lane=0;s.invincible=2;
     s.message=obstacle.type==='gap'?'Use Fly to cross the broken road!':'Bump! Try steering, jumping, or dodging.';emit('crash');
     if(s.lives<=0)s.status='lost';return;
   }
@@ -73,17 +73,18 @@ export function drawFamilyVan(c,x,y,scale=1,side=false,door=false){
 function drawVanPassenger(c,x,y,index,walk){
   c.save();c.translate(x,y);
   if(index===3){
-    vanOval(c,0,-15,22,12,'#b98048');vanOval(c,18,-27,12,13,'#c99960');vanOval(c,11,-29,6,12,'#71492d');
-    c.fillStyle='#68462c';for(const xx of [-15,-4,9,19])c.fillRect(xx,-10,5,13+Math.sin(walk+xx)*2);
-    c.strokeStyle='#b98048';c.lineWidth=6;c.beginPath();c.moveTo(-19,-19);c.lineTo(-30,-32+Math.sin(walk)*4);c.stroke();vanOval(c,24,-29,2,2,'#1c252a');
+    vanOval(c,0,-15,22,12,'#20252b');vanOval(c,18,-27,12,13,'#343b43');vanOval(c,11,-29,6,12,'#14191e');
+    c.fillStyle='#252b31';for(const xx of [-15,-4,9,19])c.fillRect(xx,-10,5,13+Math.sin(walk+xx)*2);
+    c.strokeStyle='#20252b';c.lineWidth=6;c.beginPath();c.moveTo(-19,-19);c.lineTo(-30,-32+Math.sin(walk)*4);c.stroke();vanOval(c,24,-29,2.5,2.5,'#f0d7a4');
   }else{
     const small=index===2,head=small?-44:-66;
     c.strokeStyle='#34435b';c.lineWidth=7;c.beginPath();c.moveTo(-8,-22);c.lineTo(-9+Math.sin(walk)*6,0);c.moveTo(8,-22);c.lineTo(9-Math.sin(walk)*6,0);c.stroke();
-    vanRound(c,-17,head+15,34,small?28:43,9,['#9866a9','#4b9d99','#eea642'][index]);
+    if(index!==0){vanOval(c,-15,head+6,8,22,'#573f35');vanOval(c,15,head+6,8,22,'#573f35');}
+    vanRound(c,-17,head+15,34,small?28:43,9,['#9866a9','#4b9d99','#4b9d99'][index]);
     vanOval(c,0,head,16,19,'#efbc91');
     vanOval(c,0,head-13,17,9,index===0?'#d5d7d8':'#573f35');
     if(index===0){vanOval(c,12,head-21,9,9,'#e4e4e0');c.strokeStyle='#584e62';c.lineWidth=2;c.strokeRect(-12,head-3,10,7);c.strokeRect(2,head-3,10,7);}
-    else{vanOval(c,-5,head,1.5,2,'#26313a');vanOval(c,5,head,1.5,2,'#26313a');}
+    else{vanRound(c,10,head-17,10,5,2,'#edb771');vanOval(c,-5,head,1.5,2,'#26313a');vanOval(c,5,head,1.5,2,'#26313a');}
     c.strokeStyle='#a36e59';c.lineWidth=2;c.beginPath();c.arc(0,head+6,5,0,Math.PI);c.stroke();
     c.strokeStyle='#efbc91';c.lineWidth=6;c.beginPath();c.moveTo(-16,head+24);c.lineTo(-23,head+42);c.moveTo(16,head+24);c.lineTo(23,head+42);c.stroke();
   }
@@ -98,13 +99,13 @@ export function drawVanScene(c,s,width,height){
     vanRound(c,148,225,65,120,5,'#6d8791');vanRound(c,92,160,52,48,5,'#b2d4df');vanRound(c,227,160,52,48,5,'#b2d4df');
     c.fillStyle='#a5aaa4';c.fillRect(0,385,900,265);c.fillStyle='#d8d7c5';c.fillRect(0,381,900,12);
     drawFamilyVan(c,600,376,1.25,true,s.intro<6.3);
-    const names=['Grandma','Mom','Kid','Dog'];
+    const names=['Grandma','Mom','Girl','Molly'];
     for(let i=0;i<4;i++){
       const p=clampVan((s.intro-i*1.35)/1.2,0,1);if(p>=1)continue;
       const startX=430-i*95,x=startX+(570-startX)*p,y=470-55*p;
       drawVanPassenger(c,x,y,i,s.intro*10);c.fillStyle='#263d4a';c.textAlign='center';c.font='16px sans-serif';c.fillText(names[i],x,y+25);
     }
-    c.textAlign='center';c.fillStyle='#263d4a';c.font='bold 32px sans-serif';c.fillText('FAMILY VAN ADVENTURE',450,555);c.font='19px sans-serif';c.fillText('Grandma, Mom, the kid, and the dog — all aboard!',450,590);
+    c.textAlign='center';c.fillStyle='#263d4a';c.font='bold 32px sans-serif';c.fillText('THE RAVEN',450,555);c.font='19px sans-serif';c.fillText('Grandma, Mom, her girl, and Molly — all aboard The Raven!',450,590);
     c.restore();return;
   }
   c.fillStyle='#8cae83';c.fillRect(0,0,900,650);
@@ -117,7 +118,7 @@ export function drawVanScene(c,s,width,height){
     if(Math.floor(z/40)%2===0){c.fillStyle='#d6d6b5';c.fillRect(cx-3,y-30,6,24);}
     if(Math.floor(z/40)%3===0)for(const side of [-1,1]){const tx=cx+side*210;vanOval(c,tx+5,y+7,25,12,'#34594933');vanOval(c,tx,y,23,26,'#477c5d');vanOval(c,tx-6,y-8,14,17,'#63966a');}
   }
-  for(const o of VAN_OBSTACLES){
+  for(const o of s.snack>0?[]:VAN_OBSTACLES){
     const y=screenY(o.z),x=vanRoadCenter(o.z)+o.x;if(y< -250||y>740)continue;
     if(o.type==='gap'){
       c.fillStyle='#234b61';c.fillRect(vanRoadCenter(o.z)-162,y-o.length,324,o.length);c.strokeStyle='#88ced1';c.lineWidth=3;
@@ -127,7 +128,7 @@ export function drawVanScene(c,s,width,height){
     }else if(o.type==='crate'){
       vanRound(c,x-29,y-27,58,54,5,'#ad7447');c.strokeStyle='#e4b874';c.lineWidth=5;c.strokeRect(x-23,y-21,46,42);c.beginPath();c.moveTo(x-22,y-20);c.lineTo(x+22,y+20);c.stroke();
     }else for(const dx of [-19,19]){c.fillStyle='#e98649';c.beginPath();c.moveTo(x+dx,y-24);c.lineTo(x+dx+16,y+17);c.lineTo(x+dx-16,y+17);c.fill();c.fillStyle='#fff1cb';c.fillRect(x+dx-8,y-2,16,6);}
-    if(o.type==='gap'||o.type==='jump'){vanRound(c,x-85,y+65,170,33,8,'#fff3ce');c.fillStyle='#304956';c.textAlign='center';c.font='bold 17px sans-serif';c.fillText(o.type==='gap'?'FLY · F':'JUMP · SPACE',x,y+87);}
+    if(o.type==='gap'||o.type==='jump'){vanRound(c,x-85,y+65,170,33,8,'#fff3ce');c.fillStyle='#304956';c.textAlign='center';c.font='bold 17px sans-serif';c.fillText(o.type==='gap'?'HOLD SPACE · FLY':'JUMP · ↑',x,y+87);}
   }
   const finishY=screenY(VAN_FINISH);if(finishY> -30&&finishY<650){for(let i=0;i<12;i++){c.fillStyle=i%2?'#fff4d5':'#1e3545';c.fillRect(vanRoadCenter(VAN_FINISH)-144+i*24,finishY,24,28);}c.fillStyle='#fff';c.font='bold 25px sans-serif';c.textAlign='center';c.fillText('FINISH',vanRoadCenter(VAN_FINISH),finishY-12);}
   const heightUp=s.fly>0?45:s.jump>0?Math.sin((1-s.jump/.95)*Math.PI)*36:0;
@@ -138,46 +139,53 @@ export function drawVanScene(c,s,width,height){
   vanRound(c,710,16,174,618,18,'#203e4c');c.fillStyle='#f5ecd4';c.textAlign='center';c.font='bold 18px sans-serif';c.fillText('COURSE MAP',797,47);
   const mapY=z=>570-z/VAN_FINISH*470,mapX=z=>797+(vanRoadCenter(z)-340)*.35;
   c.strokeStyle='#738d8d';c.lineWidth=26;c.lineCap='round';c.beginPath();for(let z=0;z<=VAN_FINISH;z+=80){if(z===0)c.moveTo(mapX(z),mapY(z));else c.lineTo(mapX(z),mapY(z));}c.stroke();
-  for(const o of VAN_OBSTACLES){c.fillStyle=o.type==='gap'?'#79c9e5':o.type==='jump'?'#f4c565':'#ed906a';c.fillRect(mapX(o.z)-9,mapY(o.z)-3,18,6);}
+  for(const o of s.snack>0?[]:VAN_OBSTACLES){c.fillStyle=o.type==='gap'?'#79c9e5':o.type==='jump'?'#f4c565':'#ed906a';c.fillRect(mapX(o.z)-9,mapY(o.z)-3,18,6);}
   vanOval(c,mapX(s.z)+(s.x-vanRoadCenter(s.z))*.12,mapY(s.z),7,7,'#fff3b7');c.fillStyle='#fff3b7';c.font='13px sans-serif';c.fillText('FINISH',797,81);c.fillText(Math.floor(s.z/VAN_FINISH*100)+'% complete',797,605);
-  vanRound(c,15,12,675,68,12,'#203e4cee');c.textAlign='left';c.fillStyle='#fff0cc';c.font='bold 20px sans-serif';c.fillText('FAMILY VAN ADVENTURE',30,40);c.font='16px sans-serif';c.fillText('♥'.repeat(s.lives)+'   '+s.time.toFixed(1)+'s   ·   '+s.earned+' coins   ·   '+Math.round(s.speed/3)+' km/h',30,65);
-  const upcoming=VAN_OBSTACLES.find(o=>o.z>s.z-20&&o.z-s.z<450);
+  vanRound(c,15,12,675,68,12,'#203e4cee');c.textAlign='left';c.fillStyle='#fff0cc';c.font='bold 20px sans-serif';c.fillText('THE RAVEN',30,40);c.font='16px sans-serif';c.fillText('♥'.repeat(s.lives)+'   '+s.time.toFixed(1)+'s   ·   '+s.earned+' coins   ·   '+Math.round(s.speed/3)+' km/h',30,65);
+  const upcoming=s.snack>0?null:VAN_OBSTACLES.find(o=>o.z>s.z-20&&o.z-s.z<450);
   c.fillStyle='#203e4c';c.fillRect(0,610,700,40);c.fillStyle='#fff3d7';c.textAlign='center';c.font='16px sans-serif';c.fillText(upcoming?.type==='gap'?'Broken road ahead! Press Fly before the edge.':upcoming?.type==='jump'?'Barrier ahead! Jump close to the striped bar.':s.message,350,635);
   if(s.status==='won'||s.status==='lost'){vanRound(c,90,210,540,170,22,'#fff3d9');c.fillStyle='#284653';c.font='bold 30px sans-serif';c.fillText(s.status==='won'?'Everyone made it!':'Time for another road trip!',360,265);c.font='20px sans-serif';c.fillText(s.status==='won'?'A family adventure to remember.':'Use the minimap and try again.',360,305);c.fillText(s.earned+' coins earned',360,345);}
   c.restore();
 }
 export function drawVanPreview(canvas){const c=canvas.getContext('2d');if(c)drawVanScene(c,createVanState(),canvas.width,canvas.height);}
-export function createVanAdventure({canvas,onHud,onFinish,controls=document.querySelector('#van-controls')}){
+export function createVanAdventure({canvas,onHud,onFinish,consumeBoost=()=>false,bestTimeMs=null,controls=document.querySelector('#van-controls')}){
   const c=canvas.getContext('2d');if(!c)throw Error('Canvas is unavailable.');
   const audio=createMazeAudio(),controller=new AbortController(),options={signal:controller.signal};
   let s=createVanState(),active=false,paused=false,destroyed=false,last=0,frame;const keys={};
   const clear=()=>{for(const k of Object.keys(keys))delete keys[k];};
-  const keyMap={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',w:'up',s:'down',a:'left',d:'right'};
-  function action(name){if(!active||paused||document.hidden)return;if(vanAction(s,name))audio.play(name==='fly'?'jet':name==='jump'?'bounce':'whoosh');canvas.focus({preventScroll:true});}
-  canvas.addEventListener('keydown',e=>{const key=e.key.length===1?e.key.toLowerCase():e.key;if(keyMap[key]){e.preventDefault();if(active&&!paused)keys[keyMap[key]]=true;}else if([' ','x','f'].includes(key)){e.preventDefault();if(!e.repeat)action({' ':'jump',x:'dodge',f:'fly'}[key]);}},options);
-  globalThis.window?.addEventListener('keyup',e=>{delete keys[keyMap[e.key]||keyMap[e.key.toLowerCase()]];},options);
+  function action(name){if(!active||paused||document.hidden)return;if(vanAction(s,name))audio.play(name==='jump'?'bounce':'whoosh');}
+  function hold(name,value){if(!value){delete keys[name];return;}if(active&&!paused&&!document.hidden&&s.status==='playing'){keys[name]=true;if(name==='fly')audio.play('jet');}}
+  canvas.addEventListener('keydown',e=>{
+    if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].includes(e.key))return;e.preventDefault();
+    if(e.key===' '){if(!e.repeat)hold('fly',true);}else if(e.key==='ArrowDown')hold('down',true);
+    else if(!e.repeat)action({ArrowLeft:'left',ArrowRight:'right',ArrowUp:'jump'}[e.key]);
+  },options);
+  globalThis.window?.addEventListener('keyup',e=>{if(e.key===' ')hold('fly',false);if(e.key==='ArrowDown')hold('down',false);},options);
   canvas.addEventListener('blur',clear,options);
   document.addEventListener?.('visibilitychange',()=>{last=0;clear();if(document.hidden)audio.stop();},options);
   const buttons={};controls.replaceChildren();
-  const tip=document.createElement('p');tip.textContent='Hold ↑ to drive, ↓ to brake, ← → to steer. Space = Jump · X = Dodge toward your last steering direction · F = Fly.';controls.append(tip);
+  const tip=document.createElement('p');tip.textContent='Automatic driving · ← → Dodge · ↑ Jump · Hold Space to fly, release to land · ↓ Brake. Beat your best time!';controls.append(tip);
   const row=document.createElement('div');row.className='van-buttons';controls.append(row);
-  for(const [name,label] of [['up','↑ Drive'],['left','← Left'],['down','↓ Brake'],['right','Right →'],['jump','Jump · Space'],['dodge','Dodge · X'],['fly','Fly · F'],['skip','Skip intro']]){
+  for(const [name,label] of [['left','← Dodge'],['right','Dodge →'],['jump','↑ Jump'],['fly','Hold to fly · Space'],['down','↓ Brake'],['skip','Skip intro']]){
     const b=document.createElement('button');b.type='button';b.className='button outline';b.textContent=label;buttons[name]=b;row.append(b);
-    if(['up','left','down','right'].includes(name)){
-      b.addEventListener('pointerdown',e=>{e.preventDefault();if(!active||paused||s.status!=='playing')return;b.setPointerCapture?.(e.pointerId);keys[name]=true;},options);
-      for(const event of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(event,()=>delete keys[name],options);
-      b.addEventListener('keydown',e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();keys[name]=true;}},options);b.addEventListener('keyup',()=>delete keys[name],options);b.addEventListener('blur',()=>delete keys[name],options);
-    }else b.onclick=()=>{if(name==='skip'){if(active&&!paused&&s.status==='intro'){s.intro=7;s.status='playing';canvas.focus();}}else action(name);};
+    if(['fly','down'].includes(name)){
+      b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture?.(e.pointerId);hold(name,true);},options);
+      for(const event of ['pointerup','pointercancel','lostpointercapture','blur'])b.addEventListener(event,()=>hold(name,false),options);
+      b.addEventListener('keydown',e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();if(!e.repeat)hold(name,true);}},options);
+      b.addEventListener('keyup',()=>hold(name,false),options);
+    }else b.onclick=()=>{if(name==='skip'){if(active&&!paused&&s.status==='intro'){s.intro=7;s.status='playing';canvas.focus();}}else{action(name);canvas.focus({preventScroll:true});}};
   }
   function hud(){
     for(const [name,b] of Object.entries(buttons)){
       b.hidden=name==='skip'&&s.status!=='intro';b.disabled=!active||paused||(name==='skip'?s.status!=='intro':s.status!=='playing');
-      if(['jump','fly','dodge'].includes(name)){const timer=s[name+'Cooldown'];b.disabled=b.disabled||timer>0;b.textContent=name[0].toUpperCase()+name.slice(1)+(timer>0?' · '+timer.toFixed(1)+'s':' · '+{jump:'Space',fly:'F',dodge:'X'}[name]);}
+      if(['jump','left','right'].includes(name)){const timer=s[name==='jump'?'jumpCooldown':'dodgeCooldown'];b.disabled=b.disabled||timer>0||(name==='jump'&&s.fly>0);}
+      if(name==='fly')b.setAttribute('aria-pressed',String(Boolean(keys.fly)));
+
     }
-    onHud({text:s.status==='intro'?'All aboard! Watch the family get into the van.':s.message+' · '+s.earned+' coins'});
+    onHud({ravenSnack:{seconds:s.snack,canUse:active&&!paused&&!document.hidden&&s.status==='playing'},text:s.status==='intro'?'All aboard! Watch the family get into The Raven.':s.message+' · '+s.earned+' coins · Best: '+(bestTimeMs?(bestTimeMs/1000).toFixed(2)+'s':'—')});
   }
-  function finish(){if(!active)return;active=false;clear();onFinish(s.earned,{title:s.status==='won'?'Family road trip complete!':s.status==='lost'?'The van needs a rest.':'Road trip saved.',detail:s.time.toFixed(1)+' seconds · '+Math.floor(s.z/VAN_FINISH*100)+'% of the course',...(s.status==='won'?{timeMs:Math.round(s.time*1000)}:{})});}
+  function finish(){if(!active)return;active=false;clear();if(s.status==='won')bestTimeMs=Math.min(bestTimeMs||Infinity,Math.round(s.time*1000));onFinish(s.earned,{title:s.status==='won'?'The Raven finished!':s.status==='lost'?'The van needs a rest.':'Road trip saved.',detail:s.time.toFixed(1)+' seconds · '+Math.floor(s.z/VAN_FINISH*100)+'% of the course',...(s.status==='won'?{timeMs:Math.round(s.time*1000)}:{})});}
   function tick(now){if(destroyed)return;const dt=last?Math.min((now-last)/1000,.05):0;last=now;if(active&&!paused&&!document.hidden){tickVan(s,dt,keys,cue=>audio.play(cue));if(s.status==='won'||s.status==='lost')finish();}hud();drawVanScene(c,s,canvas.width,canvas.height);frame=requestAnimationFrame(tick);}
   hud();frame=requestAnimationFrame(tick);
-  return {start(){clear();audio.stop();audio.unlock();s=createVanState();s.status='intro';active=true;paused=false;last=0;canvas.focus();hud();},pause(value){paused=value;last=0;clear();if(value)audio.stop();else audio.unlock();hud();},setMuted:value=>audio.setMuted(value),destroy(){if(destroyed)return;destroyed=true;clear();finish();controller.abort();cancelAnimationFrame(frame);audio.destroy();controls.replaceChildren();}};
+  return {activateSnack(){if(!active||paused||document.hidden||s.status!=='playing'||s.snack>0||!consumeBoost('snack'))return false;s.snack=50;s.message='Snack Attack! Clear road for 50 seconds!';audio.play('sword');hud();canvas.focus({preventScroll:true});return true;},start(){clear();audio.stop();audio.unlock();s=createVanState();s.status='intro';active=true;paused=false;last=0;canvas.focus();hud();},pause(value){paused=value;last=0;clear();if(value)audio.stop();else audio.unlock();hud();},setMuted:value=>audio.setMuted(value),destroy(){if(destroyed)return;destroyed=true;clear();finish();controller.abort();cancelAnimationFrame(frame);audio.destroy();controls.replaceChildren();}};
 }
