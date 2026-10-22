@@ -149,3 +149,24 @@ test('a heavy syrup drip can fall off a cup once, without becoming a stream',()=
   for(let i=0;i<100;i++)tickIceChocolate(recipe,.1);
   assert.equal(recipe.saucePuddles[0].volume,.06);
 });
+
+test('syrup squeezed beside the scoop falls to the floor on both sides and stops after release',()=>{
+  for(const x of [-150,150,58]){
+    const r=createIceRecipe();r.toppings=['sauce'];
+    pourIceChocolate(r,x,12,.12);
+    assert.equal(r.sauceDrops.length,0);assert.equal(r.sauceFalling.length,1);
+    const start=r.sauceFalling[0].y;tickIceChocolate(r,.1);
+    assert.equal(r.sauceFalling[0].y>start,true);
+    for(let i=0;i<30;i++)tickIceChocolate(r,.1);
+    assert.equal(r.sauceFalling.length,0);
+    assert.equal(r.saucePuddles.length,1);
+    assert.equal(r.saucePuddles[0].x,Math.round(x/4)*4);
+    assert.equal(r.saucePuddles[0].volume,.12);
+    const settled=JSON.stringify(r);tickIceChocolate(r,1);assert.equal(JSON.stringify(r),settled);
+  }
+});
+test('a pour above the scoop lands on it instead of falling through it',()=>{
+  const r=createIceRecipe();r.toppings=['sauce'];pourIceChocolate(r,50,-75,.12);
+  for(let i=0;i<30;i++)tickIceChocolate(r,.1);
+  assert.equal(r.sauceDrops.length,1);assert.equal(r.sauceFalling.length,0);assert.equal(r.saucePuddles.length,0);
+});

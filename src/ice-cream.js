@@ -5,8 +5,17 @@ import { ICE_CONES, ICE_FLAVORS, ICE_TOPPINGS, ICE_UNLOCKS, iceIngredientUnlocke
 export const ICE_CLIP_SECONDS=7.5;
 export function createIceRecipe(){return {cone:'waffle',flavor:'vanilla',toppings:[],sauceDrops:[]};}
 export function pourIceChocolate(recipe,x,y,seconds){
-  if(!recipe.toppings.includes('sauce')||seconds<=0)return;
-  if((x/66)**2+((y+30)/58)**2>1)return;
+  if(!recipe.toppings.includes('sauce')||!Number.isFinite(seconds)||seconds<=0||!Number.isFinite(x)||!Number.isFinite(y))return;
+  if(Math.abs(x)>240||y< -90||y>162)return;
+  if((x/66)**2+((y+30)/58)**2>1){
+    recipe.sauceFalling??=[];
+    const top=Math.abs(x)<66?-30-58*Math.sqrt(1-(x/66)**2):null;
+    const landing=top!==null&&y<top?top+.25:null;
+    const nearby=recipe.sauceFalling.find(p=>p.direct&&Math.abs(p.x-x)<3&&Math.abs(p.y-y)<5);
+    if(nearby)nearby.volume+=seconds;
+    else recipe.sauceFalling.push({x,y,vy:18,volume:seconds,direct:true,landing});
+    return;
+  }
   recipe.sauceDrops??=[];
   const gx=Math.round(x/4)*4,gy=Math.round(y/4)*4;
   let drop=recipe.sauceDrops.find(p=>p.x===gx&&p.y===gy);
@@ -49,14 +58,16 @@ export function tickIceChocolate(recipe,seconds){
     }
     for(const drop of recipe.sauceFalling){
       drop.vy+=dt*240;drop.y+=drop.vy*dt;
-      if(drop.y>=162){
+      if(drop.landing!=null&&drop.y>=drop.landing){
+        pourIceChocolate(recipe,drop.x,drop.landing,drop.volume);drop.landed=true;
+      }else if(drop.y>=162){
         const x=Math.round(drop.x/4)*4;
         let puddle=recipe.saucePuddles.find(p=>p.x===x);
         if(!puddle){puddle={x,volume:0};recipe.saucePuddles.push(puddle);}
         puddle.volume=Math.min(30,puddle.volume+drop.volume);
       }
     }
-    recipe.sauceFalling=recipe.sauceFalling.filter(drop=>drop.y<162);
+    recipe.sauceFalling=recipe.sauceFalling.filter(drop=>drop.y<162&&!drop.landed);
   }
 }
 function drawChocolateSpill(ctx,recipe,showFalling=true){
@@ -295,7 +306,7 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
   canvas.addEventListener?.('pointermove',e=>{
     if(e.pointerId!==pointer||!drag||!canPour())return;
     e.preventDefault();const p=canvasPoint(e);
-    const x=iceClamp(drag.bx+(p.x-drag.x)/1.15,-58,58),y=iceClamp(drag.by+(p.y-drag.y)/1.15,-75,12);
+    const x=iceClamp(drag.bx+(p.x-drag.x)/1.15,-240,240),y=iceClamp(drag.by+(p.y-drag.y)/1.15,-75,12);
     const steps=Math.max(1,Math.ceil(Math.hypot(x-bottle.x,y-bottle.y)/3));
     for(let i=1;i<=steps;i++)pourIceChocolate(recipe,bottle.x+(x-bottle.x)*i/steps,bottle.y+(y-bottle.y)*i/steps,.015);
     bottle={x,y};
@@ -305,7 +316,7 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
     if(!canPour()||!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].includes(e.key))return;
     e.preventDefault();
     if(e.key===' '){if(!squeezing)pourIceChocolate(recipe,bottle.x,bottle.y,.12);squeezing=true;}
-    else{bottle.x=iceClamp(bottle.x+(e.key==='ArrowLeft'?-4:e.key==='ArrowRight'?4:0),-58,58);bottle.y=iceClamp(bottle.y+(e.key==='ArrowUp'?-4:e.key==='ArrowDown'?4:0),-75,12);}
+    else{bottle.x=iceClamp(bottle.x+(e.key==='ArrowLeft'?-4:e.key==='ArrowRight'?4:0),-240,240);bottle.y=iceClamp(bottle.y+(e.key==='ArrowUp'?-4:e.key==='ArrowDown'?4:0),-75,12);}
   },events);
   globalThis.window?.addEventListener('keyup',e=>{if(e.key===' ')stopPour();},events);
   const steps=['Cone','Ice cream','Toppings'];
@@ -316,7 +327,7 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
   const back=document.createElement('button'),next=document.createElement('button');
   back.type=next.type='button';back.className='button outline';next.className='button dark';back.textContent='← Back';
   navigation.append(back,next);
-  const sauceHelp=document.createElement('p');sauceHelp.textContent='Chocolate bottle: tap to squeeze, hold for more, and drag to spread it around. Thick syrup makes up to two slow drips, then sets in place. With a keyboard, focus the canvas, move with arrow keys, and hold Space to pour. Tap Chocolate drizzle again to remove it.';
+  const sauceHelp=document.createElement('p');sauceHelp.textContent='Chocolate bottle: tap to squeeze, hold for more, and drag to spread it around. Thick syrup makes up to two slow drips, then sets in place. Squeeze beside the ice cream to make a puddle on the floor. With a keyboard, focus the canvas, move with arrow keys, and hold Space to pour. Tap Chocolate drizzle again to remove it.';
   controls.replaceChildren(tabs,heading,choices,navigation,sauceHelp);
   const stepButtons=steps.map((label,index)=>{
     const button=document.createElement('button');button.type='button';button.className='button outline';button.textContent=(index+1)+'. '+label;
