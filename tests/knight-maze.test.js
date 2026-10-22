@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MAZE, KNIGHT_LEVELS, PORTAL_ROW, activateMazeBoost, createMazeState, neighbors, tickMaze, SWORD_SECONDS, createKnightMaze, drawKnight, calculateMazeReward, drawMaze3D, projectMazePoint, MAZE_WALL_HEIGHT, mazeInputDirection } from '../src/knight-maze.js';
+import { MAZE, KNIGHT_LEVELS, PORTAL_ROW, activateMazeBoost, createMazeState, neighbors, tickMaze, SWORD_SECONDS, createKnightMaze, drawKnight, calculateMazeReward, drawMaze3D, projectMazePoint, MAZE_WALL_HEIGHT, mazeInputDirection, chooseDragonTurn } from '../src/knight-maze.js';
 function safeState(){const state=createMazeState();state.player.dir='up';state.dragons.forEach(d=>d.respawn=999);return state;}
 function elapse(state,seconds){for(let i=0;i<Math.round(seconds*100);i++)tickMaze(state,.01);}
 test('every gem and sword is reachable in a rectangular maze',()=>{
@@ -298,4 +298,26 @@ test('3D keyboard steers the knight without turning the camera',()=>{
     for(let now=1150;now<=1750;now+=50)frame(now);
     assert.equal(heading,'FACING WEST');
   }finally{engine?.destroy();Object.assign(globalThis,original);}
+});
+
+
+test('dragons chase most junctions but take a staggered detour once in four',()=>{
+  const maze=['#####','#...#','#...#','#...#','#####'];
+  const distances=new Map([['2,1',0],['3,2',2],['1,2',4],['2,3',6]]);
+  for(let index=0;index<4;index++){
+    const dragon={x:2,y:2,dir:'up',index},turns=[];
+    for(let i=0;i<4;i++)turns.push(chooseDragonTurn(dragon,maze,distances).dir);
+    assert.equal(turns.filter(d=>d==='up').length,3);
+    assert.equal(turns.filter(d=>d==='right').length,1);
+    assert.equal(turns[3-index],'right');
+    assert.equal(chooseDragonTurn(dragon,maze,distances,true).dir,'left');
+  }
+});
+test('less relentless dragons still escape dead ends and stay slower than the knight',()=>{
+  const dragon={x:1,y:1,dir:'left',index:0};
+  assert.equal(chooseDragonTurn(dragon,['#####','#...#','#####'],new Map()).dir,'right');
+  const s=createMazeState();s.player.dir='up';s.grace=99;
+  s.dragons.forEach((d,i)=>Object.assign(d,{x:7+i,y:9,to:null,dir:'right',respawn:0}));
+  const start=s.dragons.map(d=>({...d}));tickMaze(s,.1);
+  s.dragons.forEach((d,i)=>{const travel=Math.hypot(d.x-start[i].x,d.y-start[i].y);assert.ok(travel>0&&travel<.3);});
 });

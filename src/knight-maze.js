@@ -66,6 +66,20 @@ function distancesFrom(player,maze) {
   for(let i=0;i<queue.length;i++){const p=queue[i];for(const n of neighbors(p.x,p.y,maze)){const k=key(n.x,n.y);if(!map.has(k)){map.set(k,map.get(key(p.x,p.y))+1);queue.push(n);}}}
   return map;
 }
+// Dragons still hunt, but occasionally take a less direct route at a junction.
+export function chooseDragonTurn(dragon,maze,distances,frightened=false){
+  const choices=neighbors(dragon.x,dragon.y,maze),reverse={left:'right',right:'left',up:'down',down:'up'}[dragon.dir];
+  const forward=choices.filter(n=>n.dir!==reverse),options=forward.length?forward:choices;
+  options.sort((a,b)=>{
+    const da=distances.get(key(a.x,a.y))??100,db=distances.get(key(b.x,b.y))??100;
+    return (frightened?db-da:da-db)||((Object.keys(DIRECTIONS).indexOf(a.dir)+dragon.index)%4-(Object.keys(DIRECTIONS).indexOf(b.dir)+dragon.index)%4);
+  });
+  if(!frightened&&options.length>1){
+    dragon.decisions=(dragon.decisions??dragon.index)+1;
+    if(dragon.decisions%4===0)return options[1];
+  }
+  return options[0];
+}
 export function calculateMazeReward(totalGems,remainingGems,kills) {
   const collected=totalGems>0?Math.max(0,Math.min(1,(totalGems-remainingGems)/totalGems)):0;
   return Math.min(40,Math.floor(collected*30)+Math.min(10,Math.max(0,kills)*2));
@@ -110,11 +124,7 @@ export function tickMaze(s, dt, direction, emit = () => {}) {
       // Freeze position, direction, destination and respawn time until the boost ends.
       if(dragonsHidden)continue;
       if(dragon.respawn>0){dragon.respawn=Math.max(0,dragon.respawn-step);continue;}
-      advance(dragon,(s.sword>0?2.3:2.85+dragon.index*.12)*step,a=>{
-        const choices=neighbors(a.x,a.y,s.maze), reverse={left:'right',right:'left',up:'down',down:'up'}[a.dir];
-        const forward=choices.filter(n=>n.dir!==reverse), options=forward.length?forward:choices;
-        return options.sort((a,b)=>{const da=distances.get(key(a.x,a.y))??100,db=distances.get(key(b.x,b.y))??100;return (s.sword>0?db-da:da-db)||((Object.keys(DIRECTIONS).indexOf(a.dir)+dragon.index)%4-(Object.keys(DIRECTIONS).indexOf(b.dir)+dragon.index)%4);})[0];
-      });
+      advance(dragon,(s.sword>0?2.3:2.65+dragon.index*.1)*step,a=>chooseDragonTurn(a,s.maze,distances,s.sword>0));
       if(Math.hypot(dragon.x-s.player.x,dragon.y-s.player.y)<.65) {
         if(s.sword>0){s.kills++;updateReward(s);emit('dragon');Object.assign(dragon,actor(dragon.home),{respawn:8});}
         else if(s.grace<=0){s.lives--;s.status='dying';s.deathPause=DEATH_PAUSE_SECONDS;s.wanted=null;emit('eaten');break;}
