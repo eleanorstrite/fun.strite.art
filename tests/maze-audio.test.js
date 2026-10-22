@@ -71,7 +71,7 @@ test('mouth samples have distinct audible textures and bounded volume at browser
     const samples=makeIceMouthSound(cue,rate);
     let energy=0,peak=0;for(const value of samples){assert.equal(Number.isFinite(value),true);energy+=value*value;peak=Math.max(peak,Math.abs(value));}
     assert.equal(Math.sqrt(energy/samples.length)>.04,true);assert.equal(peak<1,true);
-    assert.equal(samples[0],0);assert.equal(Math.abs(samples.at(-1))<.02,true);
+    assert.equal(Math.abs(samples[0]),0);assert.equal(Math.abs(samples.at(-1))<.02,true);
   }
 });
 test('textured mouth audio uses cached buffers and stops on mute or destruction',()=>{

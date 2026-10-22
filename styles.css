@@ -76,3 +76,5 @@ html[data-background="aurora"]{--home-scene:url('./assets/backgrounds/aurora.svg
 #pumpkin-controls{padding:20px;margin:16px 0;background:#f5e7cf;border:2px solid #bc8b55;border-radius:18px}#pumpkin-controls[hidden]{display:none}.pumpkin-buttons{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}.pumpkin-buttons button{min-height:48px}#pumpkin-controls [aria-pressed=true]{background:#5d4566;color:white}
 
 .maze-view-controls{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}.maze-view-controls[hidden]{display:none}.maze-view-controls [aria-pressed=true]{background:#263f50;color:#fff0cc}
+
+#van-controls{padding:16px;margin:16px 0;background:#edf3e8;border:2px solid #b3c7b0;border-radius:18px}#van-controls[hidden]{display:none}.van-buttons{display:flex;gap:10px;flex-wrap:wrap}.van-buttons button{min-height:52px;min-width:100px;touch-action:none;user-select:none}
