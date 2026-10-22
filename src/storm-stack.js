@@ -9,11 +9,11 @@ function nextPiece(s){
   if(!s.bag.length){s.bag=[0,1,2,3,4,5,6];for(let i=6;i>0;i--){const j=Math.floor(s.random()*(i+1));[s.bag[i],s.bag[j]]=[s.bag[j],s.bag[i]];}}
   const kind=s.bag.pop();return {kind,cells:SHAPES[kind].map(p=>[...p]),x:3,y:0};
 }
-export function createStormState(random=Math.random){
-  const s={board:Array.from({length:STORM_ROWS},()=>Array(STORM_WIDTH).fill(0)),random,bag:[],piece:null,next:null,status:'ready',remaining:STORM_SECONDS,fall:0,height:0,locked:0,tumbling:[],balanceNotice:0,clip:0,won:false,hazard:null};
+export function createStormState(random=Math.random,roundHazard=STORM_HAZARDS[Math.min(3,Math.floor(random()*4))]){
+  const s={board:Array.from({length:STORM_ROWS},()=>Array(STORM_WIDTH).fill(0)),random,bag:[],piece:null,next:null,status:'ready',remaining:STORM_SECONDS,fall:0,height:0,locked:0,tumbling:[],balanceNotice:0,clip:0,won:false,hazard:null,roundHazard:STORM_HAZARDS.includes(roundHazard)?roundHazard:STORM_HAZARDS[0]};
   s.piece=nextPiece(s);s.next=nextPiece(s);return s;
 }
-function endStorm(s,won,emit){s.won=won;s.status='ending';s.clip=0;if(!won){s.hazard=STORM_HAZARDS[Math.min(3,Math.floor(s.random()*4))];emit('bell');}else emit('win');}
+function endStorm(s,won,emit){s.won=won;s.status='ending';s.clip=0;if(!won){s.hazard=s.roundHazard;emit('bell');}else emit('win');}
 export function stormMove(s,dx){if(s.status!=='playing')return false;const p=s.piece;if(!stormFits(s,p.cells,p.x+dx,p.y))return false;p.x+=dx;return true;}
 export function stormRotate(s){
   if(s.status!=='playing'||s.piece.kind===1)return false;
@@ -148,14 +148,15 @@ export function drawStorm(c,s,width,height,reduced=false){
   label(c,Math.ceil(s.remaining)+'s',470,156,40,s.remaining<=10?'#ffb39b':'#ffe296');label(c,'TIME LEFT',470,182,13);rect(c,404,199,132,7,'#15283f',3);rect(c,404,199,132*s.remaining/STORM_SECONDS,7,'#8cd4ca',3);
   label(c,s.height+' / '+STORM_TARGET,470,254,28);label(c,'STACK HEIGHT',470,279,12);label(c,'NEXT',470,340,15);
   for(const [x,y] of s.next.cells)block(c,420+x*23,363+y*23,23,COLORS[s.next.kind]);
-  hazard(c,'Tornado',470,520,80,0);label(c,s.balanceNotice>0?'Oops! Too wobbly!':'Keep it balanced!',470,577,15,s.balanceNotice>0?'#ffbd89':'#c2dce2');
+  hazard(c,s.roundHazard,470,520,80,0);label(c,s.roundHazard,470,552,14,'#ffe296');label(c,s.balanceNotice>0?'Oops! Too wobbly!':'Keep it balanced!',470,577,15,s.balanceNotice>0?'#ffbd89':'#c2dce2');
   label(c,'← → Move   ↑ Rotate   Hold ↓ Fast drop',300,735,17);label(c,'Orange landing preview = tipping risk.',300,761,14,'#c2dce2');c.restore();
 }
 export function drawStormPreview(canvas){const c=canvas.getContext('2d');if(!c)return;const s=createStormState(()=>.45);for(let y=12;y<24;y++)for(let x=0;x<10;x++)if(y>21||x>=3&&x<=6&&y>14||x===4)s.board[y][x]=1+(x+y)%7;s.height=12;drawStorm(c,s,canvas.width,canvas.height);}
 export function createStormStack({canvas,onHud,onFinish,controls=document.querySelector('#storm-controls')}){
   const c=canvas.getContext('2d');if(!c)throw Error('Canvas is unavailable.');
   const audio=createMazeAudio(),controller=new AbortController(),options={signal:controller.signal};
-  let s=createStormState(),active=false,paused=false,destroyed=false,last=0,frame;const held=new Set();
+  let hazardIndex=0;try{const saved=Number(localStorage.getItem('sidequest.storm.next-hazard'));if(Number.isInteger(saved)&&saved>=0&&saved<4)hazardIndex=saved;}catch{}
+  let s=createStormState(Math.random,STORM_HAZARDS[hazardIndex]),active=false,paused=false,destroyed=false,last=0,frame;const held=new Set();
   const reduced=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false;
   const clear=()=>held.clear(),canPlay=()=>active&&!paused&&!document.hidden&&s.status==='playing';
   const act=name=>{if(!canPlay())return;audio.unlock();if(name==='left')stormMove(s,-1);if(name==='right')stormMove(s,1);if(name==='rotate')stormRotate(s);};
@@ -180,5 +181,5 @@ export function createStormStack({canvas,onHud,onFinish,controls=document.queryS
   const cue=name=>{if(name==='sayWin')audio.sayWin();else if(name==='sayLose')audio.sayLose();else audio.play(name);};
   function tick(now){if(destroyed)return;const dt=last?Math.min(.1,(now-last)/1000):0;last=now;if(active&&!paused&&!document.hidden){tickStorm(s,dt,held.size>0,cue);if(s.status!=='playing')clear();if(s.status==='finished')finish();}for(const b of buttons)b.disabled=!canPlay();skip.hidden=s.status!=='ending';skip.disabled=paused;drawStorm(c,s,canvas.width,canvas.height,reduced);onHud({text:s.status==='ending'?'Watch the storm showdown!':`${Math.ceil(s.remaining)} seconds · ${s.height} / 18 blocks high`});frame=requestAnimationFrame(tick);}
   frame=requestAnimationFrame(tick);
-  return {start(){audio.stop();audio.unlock();clear();s=createStormState();s.status='playing';active=true;paused=false;last=0;canvas.focus();},pause(value){paused=value;last=0;clear();if(value)audio.stop();},setMuted:value=>audio.setMuted(value),destroy(){if(destroyed)return;destroyed=true;finish();controller.abort();cancelAnimationFrame(frame);audio.destroy();controls.replaceChildren();}};
+  return {start(){audio.stop();audio.unlock();clear();s=createStormState(Math.random,STORM_HAZARDS[hazardIndex]);hazardIndex=(hazardIndex+1)%STORM_HAZARDS.length;try{localStorage.setItem('sidequest.storm.next-hazard',String(hazardIndex));}catch{}s.status='playing';active=true;paused=false;last=0;canvas.focus();},pause(value){paused=value;last=0;clear();if(value)audio.stop();},setMuted:value=>audio.setMuted(value),destroy(){if(destroyed)return;destroyed=true;finish();controller.abort();cancelAnimationFrame(frame);audio.destroy();controls.replaceChildren();}};
 }

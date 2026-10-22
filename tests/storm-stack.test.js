@@ -35,12 +35,13 @@ test('game and all disaster / superhero scenes render without changing state',()
  }
 });
 test('engine pause and hidden tabs freeze time, controls release, rewards settle once',()=>{
- const names=['document','window','requestAnimationFrame','cancelAnimationFrame'];const original=Object.fromEntries(names.map(k=>[k,globalThis[k]]));
+ const names=['document','window','requestAnimationFrame','cancelAnimationFrame','localStorage'];const original=Object.fromEntries(names.map(k=>[k,globalThis[k]]));
  class Element{children=[];listeners={};append(...nodes){this.children.push(...nodes);}replaceChildren(...nodes){this.children=nodes;}addEventListener(k,v){this.listeners[k]=v;}}
  const controls=new Element(),handlers={},globalHandlers={};let frame,now=100,hud='',finishes=[];
  const ctx=new Proxy({createLinearGradient:()=>({addColorStop(){}})},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
  const canvas={width:600,height:780,getContext:()=>ctx,addEventListener:(k,v)=>handlers[k]=v,focus(){}};
  globalThis.document={hidden:false,createElement:()=>new Element(),addEventListener:(k,v)=>globalHandlers[k]=v};globalThis.window={addEventListener:(k,v)=>globalHandlers[k]=v};globalThis.requestAnimationFrame=fn=>(frame=fn,1);globalThis.cancelAnimationFrame=()=>{};
+ const hazardSaves=[];globalThis.localStorage={getItem:()=>hazardSaves.at(-1)??null,setItem:(key,value)=>hazardSaves.push(value)};
  let engine;const frames=n=>{for(let i=0;i<n;i++){frame(now);now+=100;}};
  try{
   engine=createStormStack({canvas,controls,onHud:v=>hud=v.text,onFinish:coins=>finishes.push(coins)});engine.start();frames(3);engine.pause(true);const before=hud;frames(30);assert.equal(hud,before);
@@ -48,6 +49,8 @@ test('engine pause and hidden tabs freeze time, controls release, rewards settle
   handlers.keydown({key:'ArrowDown',preventDefault(){}});handlers.blur();frames(3);
   frames(710);assert.equal(finishes.length,1);assert.ok([5,25].includes(finishes[0]));engine.destroy();assert.equal(finishes.length,1);
   engine=createStormStack({canvas,controls,onHud(){},onFinish:coins=>finishes.push(coins)});engine.start();engine.destroy();assert.equal(finishes.at(-1),0);
+  for(let i=0;i<2;i++){engine=createStormStack({canvas,controls,onHud(){},onFinish(){}});engine.start();engine.destroy();}
+  assert.deepEqual(hazardSaves,['1','2','3','0']);
  }finally{engine?.destroy();Object.assign(globalThis,original);}
 });
 
@@ -71,4 +74,12 @@ test('tipping animation pauses with the game and rendering does not change physi
  const c=new Proxy({createLinearGradient:()=>({addColorStop(){}})},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
  for(const age of [0,.3,.8,2]){s.tumbling[0].age=age;const before=JSON.stringify(s);drawStorm(c,s,600,780);drawStorm(c,s,300,390,true);assert.equal(JSON.stringify(s),before);}
  s.status='ready';const age=s.tumbling[0].age;tickStorm(s,.1);assert.equal(s.tumbling[0].age,age);
+});
+
+
+test('the displayed round hazard is the one that destroys the tower',()=>{
+ for(const hazard of STORM_HAZARDS){
+  const s=createStormState(()=>.4,hazard);s.status='playing';s.remaining=.01;
+  assert.equal(s.roundHazard,hazard);tickStorm(s,.01);assert.equal(s.hazard,hazard);
+ }
 });
