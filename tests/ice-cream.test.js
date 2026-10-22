@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createIceRecipe, createIceCream, drawIceScene, scatterIceChips, iceBiteCount, pourIceChocolate, tickIceChocolate, iceCleanup, iceEndingSounds } from '../src/ice-cream.js';
+import { createIceRecipe, createIceCream, drawIceScene, drawIceDessert, scatterIceChips, iceBiteCount, pourIceChocolate, tickIceChocolate, iceCleanup, iceEndingSounds } from '../src/ice-cream.js';
 import { ICE_CONES, ICE_FLAVORS, ICE_TOPPINGS, ICE_SHOP_ITEMS, iceIngredientUnlocked } from '../src/ice-settings.js';
 import { createSystem } from '../src/system.js';
 
@@ -226,3 +226,15 @@ test('ending sounds match four bites and only slurp during chocolate cleanup',()
   r.funny=false;assert.deepEqual(iceEndingSounds(r,0,10),[]);
   r.funny=true;const cues=iceEndingSounds(r,0,10);assert.equal(cues.filter(c=>c==='iceChew').length,4);assert.equal(cues.filter(c=>c==='iceSlurp').length,6);
  });
+
+test('dragon bites leave the cup intact and the empty cup remains after eating',()=>{
+ const recipe={...createIceRecipe(),cone:'cup',funny:false};
+ for(const bites of [0,1,2,3,4]){
+  let clips=0,stripes=0,scoops=0;
+  const ctx=new Proxy({clip(){clips++;},fillRect(x,y,w,h){if(w===12&&h===55){assert.equal(clips,0);stripes++;}},ellipse(){if(this.fillStyle===ICE_FLAVORS.vanilla.color)scoops++;}},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
+  drawIceDessert(ctx,recipe,0,0,1,bites);assert.equal(stripes,5);assert.equal(scoops>0,bites<4);
+ }
+ let stripes=0;
+ const ctx=new Proxy({fillRect(x,y,w,h){if(w===12&&h===55)stripes++;}},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
+ drawIceScene(ctx,recipe,900,620,7);assert.equal(stripes,5);
+});

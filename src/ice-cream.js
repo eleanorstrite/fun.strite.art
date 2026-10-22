@@ -121,6 +121,7 @@ export function scatterIceChips(count=22,seed=9137){
 }
 const ICE_CHIP_POINTS=scatterIceChips();
 export const ICE_BITES=[{x:29,y:-65,r:60},{x:-32,y:-40,r:65},{x:12,y:30,r:73},{x:0,y:113,r:66}];
+const ICE_CUP_BITES=[{x:29,y:-65,r:60},{x:-32,y:-40,r:65},{x:12,y:-18,r:55},{x:0,y:-12,r:73}];
 export function iceBiteCount(time){return ICE_BITES.filter((_,i)=>time>=2.1+i*.95).length;}
 function iceOval(ctx,x,y,rx,ry,color){
   ctx.fillStyle=color;ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2);ctx.fill();
@@ -128,12 +129,19 @@ function iceOval(ctx,x,y,rx,ry,color){
 function iceShape(ctx,points,color){
   ctx.fillStyle=color;ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();ctx.fill();
 }
+function drawIceCup(ctx){
+  iceShape(ctx,[[-63,5],[63,5],[47,100],[-47,100]],'#8fcfd3');
+  for(let i=0;i<5;i++){ctx.fillStyle=['#ef90ad','#f3c871','#b3d8af'][i%3];ctx.fillRect(-42+i*18,25,12,55);}
+  iceOval(ctx,0,6,64,12,'#e7fcf3');iceOval(ctx,0,6,55,7,'#659ba5');
+}
 export function drawIceDessert(ctx,recipe,x,y,scale=1,bites=0){
   ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);
+  // The reusable cup is drawn outside the edible layer's bite mask.
+  if(recipe.cone==='cup'){drawIceCup(ctx);if(bites>=4){ctx.restore();return;}}
   // Intersect the dessert with the outside of each bite; the remaining portion
   // keeps its original size and position, with visible scalloped bite edges.
   if(bites>0){ctx.beginPath();ctx.rect(-200,-82,400,282);ctx.clip();}
-  for(const bite of ICE_BITES.slice(0,bites)){
+  for(const bite of (recipe.cone==='cup'?ICE_CUP_BITES:ICE_BITES).slice(0,bites)){
     ctx.beginPath();ctx.rect(-200,-200,400,400);
     ctx.moveTo(bite.x+bite.r,bite.y);ctx.arc(bite.x,bite.y,bite.r,0,Math.PI*2);
     ctx.clip('evenodd');
@@ -158,11 +166,7 @@ export function drawIceDessert(ctx,recipe,x,y,scale=1,bites=0){
     iceOval(ctx,0,39,37,8,'#d7b97b');iceOval(ctx,0,36,37,5,'#f3dfa9');
     iceOval(ctx,0,5,52,10,'#e6ca8b');iceOval(ctx,0,3,49,8,'#f9e9bd');
     iceOval(ctx,0,3,41,5,'#c8a460');iceOval(ctx,0,1,42,3,'#e2c581');
-  }else if(recipe.cone==='cup'){
-    iceShape(ctx,[[-63,5],[63,5],[47,100],[-47,100]],coneColor);
-    for(let i=0;i<5;i++){ctx.fillStyle=['#ef90ad','#f3c871','#b3d8af'][i%3];ctx.fillRect(-42+i*18,25,12,55);}
-    iceOval(ctx,0,6,64,12,'#e7fcf3');iceOval(ctx,0,6,55,7,'#659ba5');
-  }else{
+  }else if(recipe.cone!=='cup'){
     iceShape(ctx,[[-57,5],[57,5],[0,150]],coneColor);
     ctx.save();ctx.beginPath();ctx.moveTo(-55,6);ctx.lineTo(55,6);ctx.lineTo(0,148);ctx.closePath();ctx.clip();
     ctx.strokeStyle=recipe.cone==='chocolate'?'#ae7d57':'#b87a41';ctx.lineWidth=2;
@@ -331,8 +335,9 @@ export function drawIceScene(ctx,recipe,width,height,clipTime=null,reducedMotion
   }else{
     const t=clipTime,cleanup=iceCleanup(recipe,t);
     const arrive=iceClamp(t/1.4,0,1),bites=iceBiteCount(t);
+    const biteTargets=recipe.cone==='cup'?ICE_CUP_BITES:ICE_BITES;
     const biteIndex=Math.min(3,Math.max(0,Math.floor((t-1.5)/.95)));
-    const phase=iceClamp((t-1.5-biteIndex*.95)/.95,0,1),target=ICE_BITES[biteIndex];
+    const phase=iceClamp((t-1.5-biteIndex*.95)/.95,0,1),target=biteTargets[biteIndex];
     const lunge=t>=1.5&&t<5.35?(reducedMotion ? .65 :Math.sin(phase*Math.PI)):0;
     const mouth=lunge>.3&&phase<.65?.9:lunge>.15?.15:0;
     ctx.save();ctx.translate(450,307);ctx.scale(1.15,1.15);drawChocolateSpill(ctx,{...recipe,saucePuddles:cleanup.puddles},false);ctx.restore();
@@ -345,9 +350,12 @@ export function drawIceScene(ctx,recipe,width,height,clipTime=null,reducedMotion
       ctx.quadraticCurveTo(lickX-10,478,lickX-20*reach,450+43*reach);ctx.stroke();
       ctx.fillStyle='#533e4a';ctx.font='23px sans-serif';ctx.fillText('Slurp! Cleaning up every last drop…',450,565);
     }
-    if(bites<4)drawIceDessert(ctx,recipe,420,314,1,bites);
+    if(bites<4||recipe.cone==='cup'){
+      const setDown=recipe.cone==='cup'&&bites===4?79*iceClamp((t-4.95)/.55,0,1):0;
+      drawIceDessert(ctx,recipe,420,314+setDown,1,bites);
+    }
     if(!reducedMotion&&bites>0&&t<5.5){
-      const bite=ICE_BITES[bites-1],elapsed=t-(2.1+(bites-1)*.95);
+      const bite=biteTargets[bites-1],elapsed=t-(2.1+(bites-1)*.95);
       if(elapsed<.35)for(let i=0;i<5;i++)iceOval(ctx,420+bite.x+(i-2)*9,314+bite.y+elapsed*95+i*4,3,3,ICE_FLAVORS[recipe.flavor].color);
     }
     if(t>=cleanup.thanks){
