@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createIceRecipe, createIceCream, drawIceScene, scatterIceChips, iceBiteCount, pourIceChocolate } from '../src/ice-cream.js';
+import { createIceRecipe, createIceCream, drawIceScene, scatterIceChips, iceBiteCount, pourIceChocolate, tickIceChocolate } from '../src/ice-cream.js';
 import { ICE_CONES, ICE_FLAVORS, ICE_TOPPINGS, ICE_SHOP_ITEMS, iceIngredientUnlocked } from '../src/ice-settings.js';
 import { createSystem } from '../src/system.js';
 
@@ -47,8 +47,11 @@ test('ice cream buttons preserve choices, toggle toppings, pause the ending, fin
     handlers.pointermove({...pointer,clientX:246});advance(2);
     assert.equal(drops.some(drop=>drop.x>20),true);
     handlers.pointerup(pointer);const released=drops.at(-1).rx;advance(4);
-    assert.equal(drops.at(-1).rx,released);
-    handlers.pointerdown({...pointer,clientX:246});handlers.pointercancel();advance(3);assert.equal(drops.at(-1).rx>=released,true);
+    assert.equal(drops.at(-1).rx<released,true);
+    handlers.pointerdown({...pointer,clientX:246});handlers.pointercancel();advance(1);
+    const cancelled=drops.at(-1).rx;advance(3);assert.equal(drops.at(-1).rx<cancelled,true);
+    engine.pause(true);advance(1);const pausedSize=drops.at(-1).rx;advance(4);assert.equal(drops.at(-1).rx,pausedSize);
+    engine.pause(false);globalThis.document.hidden=true;advance(4);assert.equal(drops.at(-1).rx,pausedSize);globalThis.document.hidden=false;
     back.onclick();assert.equal(choices.children[3].attributes['aria-pressed'],'true');
     tabs.children[0].onclick();assert.equal(choices.children[2].attributes['aria-pressed'],'true');
     tabs.children[2].onclick();next.onclick();assert.equal(next.disabled,true);
@@ -104,4 +107,32 @@ test('chocolate pours accumulate at the bottle location and remain bounded on th
   pourIceChocolate(recipe,400,400,1);assert.equal(recipe.sauceDrops.length,2);
   for(let i=0;i<100;i++)pourIceChocolate(recipe,-20,-40,1);
   assert.equal(recipe.sauceDrops[0].amount,3);
+});
+
+test('chocolate runs down every cone, falls under gravity, and pools on the ground',()=>{
+  for(const cone of Object.keys(ICE_CONES)){
+    const recipe=createIceRecipe();recipe.cone=cone;recipe.toppings=['sauce'];
+    pourIceChocolate(recipe,35,-40,2);
+    tickIceChocolate(recipe,.1);
+    assert.equal(recipe.sauceDrops[0].amount<2,true);
+    assert.equal(recipe.sauceDrops[0].flowY>-40,true);
+    let falling=false;
+    for(let i=0;i<200;i++){
+      tickIceChocolate(recipe,.05);
+      for(const drop of recipe.sauceFalling){falling=true;assert.equal(drop.vy>=12,true);assert.equal(drop.y<162,true);}
+    }
+    assert.equal(falling,true);
+    assert.equal(recipe.saucePuddles.length>0,true);
+    assert.equal(recipe.saucePuddles[0].volume>0,true);
+    if(cone!=='cup')assert.equal(recipe.saucePuddles[0].x,0);
+    const snapshot=JSON.stringify(recipe);tickIceChocolate(recipe,0);assert.equal(JSON.stringify(recipe),snapshot);
+    recipe.toppings=[];const removed=JSON.stringify(recipe);tickIceChocolate(recipe,1);assert.equal(JSON.stringify(recipe),removed);
+  }
+});
+test('chocolate simulation is stable across frame rates and bounded during long pours',()=>{
+  function simulate(dt){const r=createIceRecipe();r.toppings=['sauce'];pourIceChocolate(r,-30,-30,3);for(let i=0;i<Math.round(10/dt);i++)tickIceChocolate(r,dt);return r;}
+  const a=simulate(1/60),b=simulate(.1);
+  assert.equal(Math.abs(a.saucePuddles[0].volume-b.saucePuddles[0].volume)<.07,true);
+  for(let i=0;i<600;i++){pourIceChocolate(a,-30,-30,.1);tickIceChocolate(a,.1);}
+  assert.equal(a.sauceFalling.length<=120,true);assert.equal(a.saucePuddles[0].volume<=30,true);
 });

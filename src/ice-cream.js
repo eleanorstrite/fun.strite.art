@@ -13,6 +13,54 @@ export function pourIceChocolate(recipe,x,y,seconds){
   if(!drop){drop={x:gx,y:gy,amount:0};recipe.sauceDrops.push(drop);}
   drop.amount=Math.min(3,drop.amount+seconds);
 }
+// Chocolate clings to the dessert, follows its taper, then falls under gravity.
+function chocolateSurfaceX(recipe,x,y){
+  if(y<=20)return x;
+  const width=recipe.cone==='cup'?63-16*Math.min(1,(y-5)/95):57*Math.max(0,(150-y)/145);
+  const shoulder=recipe.cone==='cup'?63-16*15/95:57*130/145;
+  return x*width/shoulder;
+}
+export function tickIceChocolate(recipe,seconds){
+  if(!recipe.toppings.includes('sauce')||!Number.isFinite(seconds)||seconds<=0)return;
+  recipe.sauceFalling??=[];recipe.saucePuddles??=[];
+  // Small steps keep gravity and surface flow stable at different frame rates.
+  for(let remaining=Math.min(seconds,1);remaining>0;){
+    const dt=Math.min(remaining,1/60);remaining-=dt;
+    const end=recipe.cone==='cup'?100:150;
+    for(const drop of recipe.sauceDrops||[]){
+      const drained=Math.min(Math.max(0,drop.amount-.02),dt*.28);
+      drop.amount-=drained;drop.flowVolume=(drop.flowVolume||0)+drained;
+      if(drop.flowVolume<=0)continue;
+      drop.flowY=Math.min(end,(drop.flowY??drop.y)+dt*(38+Math.min(2,drop.flowVolume)*30));
+      if(drop.flowY>=end&&drop.flowVolume>=.06&&recipe.sauceFalling.length<120){
+        recipe.sauceFalling.push({x:chocolateSurfaceX(recipe,drop.x,end),y:end,vy:12,volume:.06});
+        drop.flowVolume-=.06;
+      }
+    }
+    for(const drop of recipe.sauceFalling){
+      drop.vy+=dt*240;drop.y+=drop.vy*dt;
+      if(drop.y>=162){
+        const x=Math.round(drop.x/4)*4;
+        let puddle=recipe.saucePuddles.find(p=>p.x===x);
+        if(!puddle){puddle={x,volume:0};recipe.saucePuddles.push(puddle);}
+        puddle.volume=Math.min(30,puddle.volume+drop.volume);
+      }
+    }
+    recipe.sauceFalling=recipe.sauceFalling.filter(drop=>drop.y<162);
+  }
+}
+function drawChocolateSpill(ctx,recipe,showFalling=true){
+  if(!recipe.toppings.includes('sauce'))return;
+  for(const p of recipe.saucePuddles||[]){
+    const radius=4+Math.sqrt(p.volume)*15;
+    iceOval(ctx,p.x,162,radius,3+radius*.13,'#533025');
+    iceOval(ctx,p.x-2,160,radius*.65,1.5,'#a46b48');
+  }
+  for(const p of showFalling?recipe.sauceFalling||[]:[]){
+    iceOval(ctx,p.x,p.y,3,4+Math.min(4,p.vy/30),'#633c32');
+    iceOval(ctx,p.x-1,p.y-1,.8,2,'#b5825b');
+  }
+}
 export function drawChocolateBottle(ctx,bottle,pouring=false){
   ctx.save();ctx.translate(450+bottle.x*1.15,307+bottle.y*1.15-85);
   if(pouring){
@@ -100,6 +148,15 @@ export function drawIceDessert(ctx,recipe,x,y,scale=1,bites=0){
       iceOval(ctx,drop.x-1,drop.y-1,radius*.45,1,'#996b4d');
     }
     ctx.restore();
+    ctx.lineCap='round';
+    for(const drop of recipe.sauceDrops||[]){
+      if(drop.flowY===undefined)continue;
+      ctx.beginPath();ctx.moveTo(drop.x,drop.y);
+      for(let y=drop.y;y<drop.flowY;y+=3)ctx.lineTo(chocolateSurfaceX(recipe,drop.x,y),y);
+      ctx.lineTo(chocolateSurfaceX(recipe,drop.x,drop.flowY),drop.flowY);
+      ctx.strokeStyle='#633c32';ctx.lineWidth=3+Math.min(5,(drop.amount+(drop.flowVolume||0))*4);ctx.stroke();
+      ctx.strokeStyle='#a46b4866';ctx.lineWidth=1;ctx.stroke();
+    }
   }
   if(recipe.toppings.includes('sprinkles'))for(let i=0;i<35;i++){
     ctx.save();ctx.translate(-52+(i*29)%105,-72+(i*17)%78);ctx.rotate(i);
@@ -176,6 +233,7 @@ export function drawIceScene(ctx,recipe,width,height,clipTime=null,reducedMotion
   ctx.fillText(clipTime===null?'THE LITTLE DRAGON ICE CREAM PARLOR':'A treat for your dragon!',450,111);
   if(clipTime===null){
     iceOval(ctx,450,493,145,20,'#a67c6244');
+    ctx.save();ctx.translate(450,307);ctx.scale(1.15,1.15);drawChocolateSpill(ctx,recipe);ctx.restore();
     drawIceDessert(ctx,recipe,450,307,1.15);
     ctx.font='20px sans-serif';ctx.fillStyle='#fff6e8';ctx.fillText(ICE_FLAVORS[recipe.flavor].name+' · '+ICE_CONES[recipe.cone],450,566);
   }else{
@@ -185,6 +243,7 @@ export function drawIceScene(ctx,recipe,width,height,clipTime=null,reducedMotion
     const phase=iceClamp((t-1.5-biteIndex*.95)/.95,0,1),target=ICE_BITES[biteIndex];
     const lunge=t>=1.5&&t<5.35?(reducedMotion ? .65 :Math.sin(phase*Math.PI)):0;
     const mouth=lunge>.3&&phase<.65?.9:lunge>.15?.15:0;
+    ctx.save();ctx.translate(420,331);drawChocolateSpill(ctx,recipe,false);ctx.restore();
     drawIceDragon(ctx,900-arrive*330,277,reducedMotion?0:t,mouth,(420+target.x-516)*lunge,(314+target.y-333)*lunge);
     if(bites<4)drawIceDessert(ctx,recipe,420,314,1,bites);
     if(!reducedMotion&&bites>0&&t<5.5){
@@ -247,7 +306,7 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
   const back=document.createElement('button'),next=document.createElement('button');
   back.type=next.type='button';back.className='button outline';next.className='button dark';back.textContent='← Back';
   navigation.append(back,next);
-  const sauceHelp=document.createElement('p');sauceHelp.textContent='Chocolate bottle: tap to squeeze, hold for more, and drag to spread it around. With a keyboard, focus the canvas, move with arrow keys, and hold Space to pour. Tap Chocolate drizzle again to remove it.';
+  const sauceHelp=document.createElement('p');sauceHelp.textContent='Chocolate bottle: tap to squeeze, hold for more, and drag to spread it around. Watch it run down the cone and drip onto the ground. With a keyboard, focus the canvas, move with arrow keys, and hold Space to pour. Tap Chocolate drizzle again to remove it.';
   controls.replaceChildren(tabs,heading,choices,navigation,sauceHelp);
   const stepButtons=steps.map((label,index)=>{
     const button=document.createElement('button');button.type='button';button.className='button outline';button.textContent=(index+1)+'. '+label;
@@ -272,7 +331,7 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
         if(step===0)recipe.cone=id;else if(step===1)recipe.flavor=id;
         else recipe.toppings=recipe.toppings.includes(id)?recipe.toppings.filter(item=>item!==id):[...recipe.toppings,id];
         if(step===2&&id==='sauce'){
-          recipe.sauceDrops=[];bottle={x:0,y:-30};
+          recipe.sauceDrops=[];recipe.sauceFalling=[];recipe.saucePuddles=[];bottle={x:0,y:-30};
         }
         audio.play('gem');renderControls();
         if(step===2&&id==='sauce'&&recipe.toppings.includes('sauce'))canvas.scrollIntoView?.({block:'center',behavior:reduced?'auto':'smooth'});
@@ -304,6 +363,7 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
       if(clip>=ICE_CLIP_SECONDS)finish();
     }
     if(canPour()&&squeezing)pourIceChocolate(recipe,bottle.x,bottle.y,dt);
+    if(active&&!paused&&!document.hidden&&clip===null)tickIceChocolate(recipe,dt);
     drawIceScene(ctx,recipe,canvas.width,canvas.height,clip,reduced);
     if(active&&step===2&&clip===null&&recipe.toppings.includes('sauce')){
       ctx.save();ctx.scale(canvas.width/900,canvas.height/620);drawChocolateBottle(ctx,bottle,squeezing&&!paused);ctx.restore();
