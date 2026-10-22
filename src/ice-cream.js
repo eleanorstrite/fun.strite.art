@@ -3,26 +3,30 @@ import { createMazeAudio } from './maze-audio.js';
 import { ICE_CONES, ICE_FLAVORS, ICE_TOPPINGS, ICE_UNLOCKS, iceIngredientUnlocked } from './ice-settings.js';
 
 export const ICE_CLIP_SECONDS=7.5;
-export function createIceRecipe(){return {cone:'waffle',flavor:'vanilla',toppings:[],sauceDrops:[]};}
-export function pourIceChocolate(recipe,x,y,seconds){
-  if(!recipe.toppings.includes('sauce')||!Number.isFinite(seconds)||seconds<=0||!Number.isFinite(x)||!Number.isFinite(y))return;
+const syrupKind=p=>p.kind||'sauce';
+const hasSyrup=r=>r.toppings.some(t=>t==='sauce'||t==='caramel');
+const syrupColor=p=>syrupKind(p)==='caramel'?'#c38532':'#633c32';
+const syrupShine=p=>syrupKind(p)==='caramel'?'#f6ce78':'#a46b48';
+export function createIceRecipe(){return {funny:true,cone:'waffle',flavor:'vanilla',toppings:[],sauceDrops:[]};}
+export function pourIceChocolate(recipe,x,y,seconds,kind="sauce"){
+  if(!['sauce','caramel'].includes(kind)||!recipe.toppings.includes(kind)||!Number.isFinite(seconds)||seconds<=0||!Number.isFinite(x)||!Number.isFinite(y))return;
   if(Math.abs(x)>240||y< -90||y>162)return;
   if((x/66)**2+((y+30)/58)**2>1){
     recipe.sauceFalling??=[];
     const top=Math.abs(x)<66?-30-58*Math.sqrt(1-(x/66)**2):null;
     const landing=top!==null&&y<top?top+.25:null;
-    const nearby=recipe.sauceFalling.find(p=>p.direct&&Math.abs(p.x-x)<3&&Math.abs(p.y-y)<5);
+    const nearby=recipe.sauceFalling.find(p=>syrupKind(p)===kind&&p.direct&&Math.abs(p.x-x)<3&&Math.abs(p.y-y)<5);
     if(nearby)nearby.volume+=seconds;
-    else recipe.sauceFalling.push({x,y,vy:18,volume:seconds,direct:true,landing});
+    else recipe.sauceFalling.push({kind,x,y,vy:18,volume:seconds,direct:true,landing});
     return;
   }
   recipe.sauceDrops??=[];
   const gx=Math.round(x/4)*4,gy=Math.round(y/4)*4;
-  let drop=recipe.sauceDrops.find(p=>p.x===gx&&p.y===gy);
-  if(!drop){drop={x:gx,y:gy,amount:0};recipe.sauceDrops.push(drop);}
+  let drop=recipe.sauceDrops.find(p=>syrupKind(p)===kind&&p.x===gx&&p.y===gy);
+  if(!drop){drop={kind,x:gx,y:gy,amount:0};recipe.sauceDrops.push(drop);}
   drop.amount=Math.min(3,drop.amount+seconds);
 }
-// Chocolate clings to the dessert, follows its taper, then falls under gravity.
+// Both syrups cling to the dessert, follow its taper, then fall under gravity.
 function chocolateSurfaceX(recipe,x,y){
   if(y<=20)return x;
   const width=recipe.cone==='cup'?63-16*Math.min(1,(y-5)/95):57*Math.max(0,(150-y)/145);
@@ -30,7 +34,7 @@ function chocolateSurfaceX(recipe,x,y){
   return x*width/shoulder;
 }
 export function tickIceChocolate(recipe,seconds){
-  if(!recipe.toppings.includes('sauce')||!Number.isFinite(seconds)||seconds<=0)return;
+  if(!hasSyrup(recipe)||!Number.isFinite(seconds)||seconds<=0)return;
   recipe.sauceFalling??=[];recipe.saucePuddles??=[];
   // Small steps keep gravity and surface flow stable at different frame rates.
   for(let remaining=Math.min(seconds,1);remaining>0;){
@@ -38,7 +42,7 @@ export function tickIceChocolate(recipe,seconds){
     const end=recipe.cone==='cup'?100:150;
     for(const drop of recipe.sauceDrops||[]){
       // New syrup stays mostly on the scoop. Existing trails never restart,
-      // even when more chocolate is poured onto the same spot.
+      // even when more syrup is poured onto the same spot.
       drop.age=Math.min(6,(drop.age||0)+dt);
       if(drop.age>=6)continue;
       if(drop.flowY===undefined){
@@ -52,18 +56,18 @@ export function tickIceChocolate(recipe,seconds){
       drop.amount-=drained;drop.flowVolume=(drop.flowVolume||0)+drained;
       drop.flowY=Math.min(end,drop.flowY+dt*speed);
       if(drop.flowY>=end&&!drop.detached&&drop.flowVolume>=.06){
-        recipe.sauceFalling.push({x:chocolateSurfaceX(recipe,drop.x,end),y:end,vy:4,volume:.06});
+        recipe.sauceFalling.push({kind:syrupKind(drop),x:chocolateSurfaceX(recipe,drop.x,end),y:end,vy:4,volume:.06});
         drop.flowVolume-=.06;drop.detached=true;
       }
     }
     for(const drop of recipe.sauceFalling){
       drop.vy+=dt*240;drop.y+=drop.vy*dt;
       if(drop.landing!=null&&drop.y>=drop.landing){
-        pourIceChocolate(recipe,drop.x,drop.landing,drop.volume);drop.landed=true;
+        pourIceChocolate(recipe,drop.x,drop.landing,drop.volume,syrupKind(drop));drop.landed=true;
       }else if(drop.y>=162){
         const x=Math.round(drop.x/4)*4;
-        let puddle=recipe.saucePuddles.find(p=>p.x===x);
-        if(!puddle){puddle={x,volume:0};recipe.saucePuddles.push(puddle);}
+        let puddle=recipe.saucePuddles.find(p=>p.x===x&&syrupKind(p)===syrupKind(drop));
+        if(!puddle){puddle={kind:syrupKind(drop),x,volume:0};recipe.saucePuddles.push(puddle);}
         puddle.volume=Math.min(30,puddle.volume+drop.volume);
       }
     }
@@ -71,28 +75,29 @@ export function tickIceChocolate(recipe,seconds){
   }
 }
 function drawChocolateSpill(ctx,recipe,showFalling=true){
-  if(!recipe.toppings.includes('sauce'))return;
+  if(!hasSyrup(recipe))return;
   for(const p of recipe.saucePuddles||[]){
     const radius=4+Math.sqrt(p.volume)*15;
-    iceOval(ctx,p.x,162,radius,3+radius*.13,'#533025');
-    iceOval(ctx,p.x-2,160,radius*.65,1.5,'#a46b48');
+    iceOval(ctx,p.x,162,radius,3+radius*.13,syrupColor(p));
+    iceOval(ctx,p.x-2,160,radius*.65,1.5,syrupShine(p));
   }
   for(const p of showFalling?recipe.sauceFalling||[]:[]){
-    iceOval(ctx,p.x,p.y,3,4+Math.min(4,p.vy/30),'#633c32');
-    iceOval(ctx,p.x-1,p.y-1,.8,2,'#b5825b');
+    iceOval(ctx,p.x,p.y,3,4+Math.min(4,p.vy/30),syrupColor(p));
+    iceOval(ctx,p.x-1,p.y-1,.8,2,syrupShine(p));
   }
 }
-export function drawChocolateBottle(ctx,bottle,pouring=false){
+export function drawChocolateBottle(ctx,bottle,pouring=false,kind="sauce"){
+  const caramel=kind==='caramel';
   ctx.save();ctx.translate(450+bottle.x*1.15,307+bottle.y*1.15-85);
   if(pouring){
-    ctx.strokeStyle='#633c32';ctx.lineWidth=5;ctx.lineCap='round';
+    ctx.strokeStyle=syrupColor({kind});ctx.lineWidth=5;ctx.lineCap='round';
     ctx.beginPath();ctx.moveTo(0,35);ctx.lineTo(0,85);ctx.stroke();
   }
-  ctx.fillStyle='#7d4a32';ctx.strokeStyle='#422e2b';ctx.lineWidth=2;
+  ctx.fillStyle=caramel?'#d6a04c':'#7d4a32';ctx.strokeStyle='#422e2b';ctx.lineWidth=2;
   ctx.beginPath();ctx.roundRect(-22,-42,44,62,12);ctx.fill();ctx.stroke();
-  ctx.fillStyle='#b67b51';ctx.beginPath();ctx.roundRect(-16,-35,6,42,3);ctx.fill();
+  ctx.fillStyle=caramel?'#f5d38b':'#b67b51';ctx.beginPath();ctx.roundRect(-16,-35,6,42,3);ctx.fill();
   ctx.fillStyle='#f6dfad';ctx.fillRect(-21,-20,42,22);
-  ctx.fillStyle='#633c32';ctx.textAlign='center';ctx.font='bold 9px sans-serif';ctx.fillText('CHOCO',0,-6);
+  ctx.fillStyle='#633c32';ctx.textAlign='center';ctx.font='bold 9px sans-serif';ctx.fillText(caramel?'CARAMEL':'CHOCO',0,-6);
   iceShape(ctx,[[-13,20],[13,20],[4,35],[-4,35]],'#efbc6b');
   ctx.restore();
 }
@@ -140,7 +145,17 @@ export function drawIceDessert(ctx,recipe,x,y,scale=1,bites=0){
     for(let i=-140;i<150;i+=19){
       ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i+130,150);ctx.moveTo(i,0);ctx.lineTo(i-130,150);ctx.stroke();
     }
+    if(recipe.cone==='waffle'){
+      for(let y=12;y<146;y+=18)for(let x=-64;x<65;x+=18){
+        const xx=x+(Math.floor(y/18)%2)*9;
+        iceShape(ctx,[[xx,y-7],[xx+7,y],[xx,y+7],[xx-7,y]],'#ad6c32');
+        iceShape(ctx,[[xx,y-4],[xx+4,y],[xx,y+4],[xx-4,y]],'#c88a43');
+        ctx.strokeStyle='#f2c77e';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(xx-8,y);ctx.lineTo(xx,y-8);ctx.lineTo(xx+8,y);ctx.stroke();
+      }
+      ctx.strokeStyle='#8f592c66';ctx.lineWidth=9;ctx.beginPath();ctx.moveTo(50,10);ctx.lineTo(0,150);ctx.stroke();
+    }
     ctx.restore();iceOval(ctx,0,6,57,9,'#f3d29d');
+    if(recipe.cone==='waffle'){iceOval(ctx,0,5,53,5,'#ae7039');iceOval(ctx,0,3,54,3,'#edbd73');}
   }
   if(recipe.cone==='pretzel'||recipe.cone==='cookie'){
     ctx.fillStyle=recipe.cone==='pretzel'?'#fff0ca':'#6f4837';
@@ -155,18 +170,26 @@ export function drawIceDessert(ctx,recipe,x,y,scale=1,bites=0){
     ctx.restore();
   }
   iceOval(ctx,-22,-57,24,10,'#ffffff44');
-  if(recipe.flavor==='mint'||recipe.flavor==='cookies'||recipe.toppings.includes('chips')){
+  if(recipe.flavor==='mint'||recipe.toppings.includes('chips')){
     for(const chip of ICE_CHIP_POINTS){
       ctx.save();ctx.translate(chip.x,chip.y);ctx.rotate(chip.angle);
       iceShape(ctx,[[-chip.size,2],[0,-chip.size],[chip.size,1],[1,chip.size]],'#69463e');ctx.restore();
     }
   }
-  if(recipe.toppings.includes('sauce')){
+  if(recipe.flavor==='cookies'){
+    for(const chip of ICE_CHIP_POINTS.filter((_,i)=>i%4===0)){
+      ctx.save();ctx.translate(chip.x,chip.y);ctx.rotate(chip.angle);
+      iceOval(ctx,0,2,10,8,'#221f25');iceOval(ctx,0,0,10,7,'#fff5df');iceOval(ctx,0,-3,10,7,'#302831');
+      ctx.strokeStyle='#64525c';ctx.lineWidth=1;ctx.beginPath();ctx.ellipse(0,-3,7,4,0,0,Math.PI*2);ctx.stroke();
+      ctx.fillStyle='#b4a3a7';ctx.font='bold 4px sans-serif';ctx.textAlign='center';ctx.fillText('OREO',0,-2);ctx.restore();
+    }
+  }
+  if(hasSyrup(recipe)){
     ctx.save();ctx.beginPath();ctx.ellipse(0,-30,69,61,0,0,Math.PI*2);ctx.clip();
     for(const drop of recipe.sauceDrops||[]){
       const radius=3+Math.sqrt(drop.amount)*7;
-      iceOval(ctx,drop.x,drop.y,radius,radius*.7,'#633c32');
-      iceOval(ctx,drop.x-1,drop.y-1,radius*.45,1,'#996b4d');
+      iceOval(ctx,drop.x,drop.y,radius,radius*.7,syrupColor(drop));
+      iceOval(ctx,drop.x-1,drop.y-1,radius*.45,1,syrupShine(drop));
     }
     ctx.restore();
     ctx.lineCap='round';
@@ -175,21 +198,17 @@ export function drawIceDessert(ctx,recipe,x,y,scale=1,bites=0){
       ctx.beginPath();ctx.moveTo(drop.x,drop.y);
       for(let y=drop.y;y<drop.flowY;y+=3)ctx.lineTo(chocolateSurfaceX(recipe,drop.x,y),y);
       ctx.lineTo(chocolateSurfaceX(recipe,drop.x,drop.flowY),drop.flowY);
-      ctx.strokeStyle='#633c32';ctx.lineWidth=3+Math.min(5,(drop.amount+(drop.flowVolume||0))*4);ctx.stroke();
-      ctx.strokeStyle='#a46b4866';ctx.lineWidth=1;ctx.stroke();
+      ctx.strokeStyle=syrupColor(drop);ctx.lineWidth=3+Math.min(5,(drop.amount+(drop.flowVolume||0))*4);ctx.stroke();
+      ctx.strokeStyle=syrupShine(drop);ctx.lineWidth=1;ctx.stroke();
     }
   }
   if(recipe.toppings.includes('sprinkles'))for(let i=0;i<35;i++){
     ctx.save();ctx.translate(-52+(i*29)%105,-72+(i*17)%78);ctx.rotate(i);
-    ctx.fillStyle=['#df5283','#f5ce4d','#65b8c5','#fff7e1','#9c70c8'][i%5];ctx.fillRect(-3,-1,7,3);ctx.restore();
+    ctx.fillStyle=['#df5283','#f5ce4d','#65b8c5','#fff7e1','#9c70c8'][i%5];ctx.fillRect(-3,-1,recipe.funny?11:7,recipe.funny?4:3);ctx.restore();
   }
   if(recipe.toppings.includes('stars'))for(let i=0;i<7;i++){
     const x=-44+(i*29)%90,y=-63+(i*23)%60;
     iceShape(ctx,Array.from({length:10},(_,j)=>[x+Math.cos(j*Math.PI/5-Math.PI/2)*(j%2?3:8),y+Math.sin(j*Math.PI/5-Math.PI/2)*(j%2?3:8)]),'#ffe18b');
-  }
-  if(recipe.toppings.includes('caramel')){
-    ctx.strokeStyle='#bc792e';ctx.lineWidth=6;ctx.lineCap='round';ctx.beginPath();
-    ctx.moveTo(-47,-42);ctx.bezierCurveTo(-22,-80,-20,0,1,-40);ctx.bezierCurveTo(25,-78,24,0,46,-26);ctx.stroke();
   }
   if(recipe.toppings.includes('marshmallows'))for(const [x,y] of [[-37,-41],[5,-63],[35,-30],[-7,-12]]){
     ctx.fillStyle='#fff8ef';ctx.beginPath();ctx.roundRect(x-7,y-6,14,13,4);ctx.fill();iceOval(ctx,x,y-5,7,3,'#ffe5ee');
@@ -197,12 +216,20 @@ export function drawIceDessert(ctx,recipe,x,y,scale=1,bites=0){
   if(recipe.toppings.includes('berries'))for(const [x,y,i] of [[-42,-27,0],[-18,-64,1],[23,-47,0],[37,-15,1]]){
     iceOval(ctx,x,y,8,8,i?'#686ba6':'#cf5479');iceOval(ctx,x-2,y-3,2,2,'#ffffff88');
   }
+  if(recipe.funny){
+    for(const [x,y,r] of [[-20,-37,12],[17,-42,15]]){iceOval(ctx,x,y,r,r*1.15,'#fffef5');iceOval(ctx,x+3,y+2,4,6,'#342b3d');}
+    ctx.strokeStyle='#713e52';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,-21,14,0,Math.PI);ctx.stroke();iceOval(ctx,6,-9,7,5,'#f28ba4');
+    if(recipe.toppings.includes('marshmallows')||recipe.toppings.includes('berries')||recipe.toppings.includes('stars')){
+      for(const [x,y] of [[-40,-58],[35,-23]]){iceOval(ctx,x,y,4,5,'#fffef5');iceOval(ctx,x+7,y-1,4,5,'#fffef5');iceOval(ctx,x+1,y+1,1.5,2,'#352b3d');iceOval(ctx,x+8,y,1.5,2,'#352b3d');}
+    }
+  }
   if(recipe.toppings.includes('cream')){
     iceOval(ctx,0,-87,28,12,'#fffaf0');iceOval(ctx,2,-101,20,11,'#fffaf0');iceOval(ctx,5,-113,11,9,'#fffaf0');
   }
   if(recipe.toppings.includes('cherry')){
     const cy=recipe.toppings.includes('cream')?-126:-94;
     iceOval(ctx,3,cy,11,10,'#d44c65');iceOval(ctx,0,cy-3,3,2,'#ffbdba');
+    if(recipe.funny){for(const x of [-1,7]){iceOval(ctx,x,cy-1,4,5,'#fffaf0');iceOval(ctx,x+1,cy,1.5,2,'#342b3d');}}
     ctx.strokeStyle='#53754b';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(4,cy-7);ctx.quadraticCurveTo(1,cy-26,15,cy-25);ctx.stroke();
   }
   ctx.restore();
@@ -243,7 +270,7 @@ function drawIceDragon(ctx,x,y,time,mouth,headX=0,headY=0){
   ctx.restore();
 }
 export function iceCleanup(recipe,time){
-  const puddles=recipe.toppings.includes('sauce')?(recipe.saucePuddles||[]):[];
+  const puddles=hasSyrup(recipe)?(recipe.saucePuddles||[]):[];
   if(!puddles.length)return {puddles:[],licking:false,x:0,thanks:5.5,end:ICE_CLIP_SECONDS};
   const min=Math.min(...puddles.map(p=>p.x))-15,max=Math.max(...puddles.map(p=>p.x))+15;
   const progress=iceClamp((time-5.5)/3,0,1),x=min+(max-min)*progress;
@@ -253,6 +280,7 @@ export function iceCleanup(recipe,time){
 // Timeline crossings keep sound in step with bites and tongue strokes, including
 // after a pause; no independent timers can keep playing while the game is paused.
 export function iceEndingSounds(recipe,from,to){
+  if(recipe.funny===false)return [];
   const cues=[];
   for(let i=0;i<4;i++){const at=2.1+i*.95;if(from<at&&to>=at)cues.push('iceChew');}
   if(iceCleanup(recipe,to).end>ICE_CLIP_SECONDS){
@@ -316,9 +344,10 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
   const audio=createMazeAudio(),controller=new AbortController();
   const reduced=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false;
   let recipe=createIceRecipe(),step=0,active=false,paused=false,clip=null,spoken=false,destroyed=false,last=0,frame;
+  let funny=true,userMuted=false;
   let activeTopping=null,bottle={x:0,y:-30},squeezing=false,pointer=null,drag=null;
   const stopPour=()=>{squeezing=false;pointer=null;drag=null;};
-  const canPour=()=>active&&!paused&&clip===null&&step===2&&activeTopping==='sauce'&&recipe.toppings.includes('sauce')&&!document.hidden;
+  const canPour=()=>active&&!paused&&clip===null&&step===2&&['sauce','caramel'].includes(activeTopping)&&recipe.toppings.includes(activeTopping)&&!document.hidden;
   const canvasPoint=e=>{const rect=canvas.getBoundingClientRect();return {x:(e.clientX-rect.left)*900/rect.width,y:(e.clientY-rect.top)*620/rect.height};};
   const events={signal:controller.signal};
   canvas.addEventListener?.('pointerdown',e=>{
@@ -327,21 +356,21 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
     if(Math.abs(p.x-bx)>32||p.y<by-50||p.y>by+40)return;
     e.preventDefault();canvas.focus();audio.unlock();canvas.setPointerCapture?.(e.pointerId);
     pointer=e.pointerId;drag={...p,bx:bottle.x,by:bottle.y};squeezing=true;
-    pourIceChocolate(recipe,bottle.x,bottle.y,.12);
+    pourIceChocolate(recipe,bottle.x,bottle.y,.12,activeTopping);
   },events);
   canvas.addEventListener?.('pointermove',e=>{
     if(e.pointerId!==pointer||!drag||!canPour())return;
     e.preventDefault();const p=canvasPoint(e);
     const x=iceClamp(drag.bx+(p.x-drag.x)/1.15,-240,240),y=iceClamp(drag.by+(p.y-drag.y)/1.15,-75,12);
     const steps=Math.max(1,Math.ceil(Math.hypot(x-bottle.x,y-bottle.y)/3));
-    for(let i=1;i<=steps;i++)pourIceChocolate(recipe,bottle.x+(x-bottle.x)*i/steps,bottle.y+(y-bottle.y)*i/steps,.015);
+    for(let i=1;i<=steps;i++)pourIceChocolate(recipe,bottle.x+(x-bottle.x)*i/steps,bottle.y+(y-bottle.y)*i/steps,.015,activeTopping);
     bottle={x,y};
   },events);
   for(const event of ['pointerup','pointercancel','lostpointercapture','blur'])canvas.addEventListener?.(event,stopPour,events);
   canvas.addEventListener?.('keydown',e=>{
     if(!canPour()||!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].includes(e.key))return;
     e.preventDefault();
-    if(e.key===' '){if(!squeezing)pourIceChocolate(recipe,bottle.x,bottle.y,.12);squeezing=true;}
+    if(e.key===' '){if(!squeezing)pourIceChocolate(recipe,bottle.x,bottle.y,.12,activeTopping);squeezing=true;}
     else{bottle.x=iceClamp(bottle.x+(e.key==='ArrowLeft'?-4:e.key==='ArrowRight'?4:0),-240,240);bottle.y=iceClamp(bottle.y+(e.key==='ArrowUp'?-4:e.key==='ArrowDown'?4:0),-75,12);}
   },events);
   globalThis.window?.addEventListener('keyup',e=>{if(e.key===' ')stopPour();},events);
@@ -353,15 +382,18 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
   const back=document.createElement('button'),next=document.createElement('button');
   back.type=next.type='button';back.className='button outline';next.className='button dark';back.textContent='← Back';
   navigation.append(back,next);
-  const sauceHelp=document.createElement('p');sauceHelp.textContent='Chocolate bottle: tap to squeeze, hold for more, and drag to spread it around. Thick syrup makes up to two slow drips, then sets in place. Squeeze beside the ice cream to make a puddle on the floor. With a keyboard, focus the canvas, move with arrow keys, and hold Space to pour. Choose another topping to put the bottle away. Choose Chocolate drizzle to bring it back; tap it again while the bottle is out to remove the syrup.';
-  controls.replaceChildren(tabs,heading,choices,navigation,sauceHelp);
+  const sauceHelp=document.createElement('p');sauceHelp.textContent='Syrup bottle: tap to squeeze, hold for more, and drag to spread it around. Thick syrup makes up to two slow drips, then sets in place. Squeeze beside the ice cream to make a puddle on the floor. With a keyboard, focus the canvas, move with arrow keys, and hold Space to pour. Choose another topping to put the bottle away. Choose the same drizzle to bring it back; tap it again while the bottle is out to remove the syrup.';
+  const modeButton=document.createElement('button');modeButton.type='button';modeButton.className='button outline';
+  modeButton.onclick=()=>{funny=!funny;recipe.funny=funny;audio.stop();audio.setMuted(userMuted||!funny);renderControls();};
+  controls.replaceChildren(tabs,heading,choices,navigation,sauceHelp,modeButton);
   const stepButtons=steps.map((label,index)=>{
     const button=document.createElement('button');button.type='button';button.className='button outline';button.textContent=(index+1)+'. '+label;
     button.onclick=()=>{if(active&&!paused&&clip===null){step=index;renderControls();heading.focus({preventScroll:true});}};
     tabs.append(button);return button;
   });
   function renderControls(){
-    stopPour();sauceHelp.hidden=!(step===2&&activeTopping==='sauce'&&recipe.toppings.includes('sauce')&&clip===null);
+    modeButton.textContent=funny?'Funny mode · switch to Normal':'Normal mode · switch to Funny';modeButton.setAttribute('aria-pressed',String(funny));
+    stopPour();sauceHelp.hidden=!(step===2&&['sauce','caramel'].includes(activeTopping)&&recipe.toppings.includes(activeTopping)&&clip===null);
     const locked=!active||paused||clip!==null;
     stepButtons.forEach((button,index)=>{button.disabled=locked;button.setAttribute('aria-pressed',String(index===step));});
     heading.textContent=clip!==null?'Your dragon is enjoying its ice cream!':step===0?'Choose your cone':step===1?'Choose your ice cream':'Choose your toppings — mix as many as you like';
@@ -375,17 +407,17 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
       button.setAttribute('aria-pressed',String(selected));
       button.onclick=()=>{
         if(!active||paused||clip!==null||!iceIngredientUnlocked(kind,id,getUpgrades()))return;
-        if(step===2&&id==='sauce'&&activeTopping!=='sauce'&&recipe.toppings.includes('sauce')){
-          activeTopping='sauce';renderControls();return;
+        if(step===2&&['sauce','caramel'].includes(id)&&activeTopping!==id&&recipe.toppings.includes(id)){
+          activeTopping=id;renderControls();return;
         }
         if(step===2)activeTopping=id;
         if(step===0)recipe.cone=id;else if(step===1)recipe.flavor=id;
         else recipe.toppings=recipe.toppings.includes(id)?recipe.toppings.filter(item=>item!==id):[...recipe.toppings,id];
-        if(step===2&&id==='sauce'){
-          recipe.sauceDrops=[];recipe.sauceFalling=[];recipe.saucePuddles=[];bottle={x:0,y:-30};
+        if(step===2&&['sauce','caramel'].includes(id)){
+          for(const key of ['sauceDrops','sauceFalling','saucePuddles'])recipe[key]=(recipe[key]||[]).filter(p=>syrupKind(p)!==id);bottle={x:0,y:-30};
         }
         audio.play('gem');renderControls();
-        if(step===2&&id==='sauce'&&recipe.toppings.includes('sauce'))canvas.scrollIntoView?.({block:'center',behavior:reduced?'auto':'smooth'});
+        if(step===2&&['sauce','caramel'].includes(id)&&recipe.toppings.includes(id))canvas.scrollIntoView?.({block:'center',behavior:reduced?'auto':'smooth'});
         choices.children[Object.keys(options).indexOf(id)]?.focus({preventScroll:true});
       };
       choices.append(button);
@@ -401,8 +433,8 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
       // Finish any airborne drops before the dragon begins its cleanup.
       for(const drop of recipe.sauceFalling||[]){
         recipe.saucePuddles??=[];
-        const x=Math.round(drop.x/4)*4;let puddle=recipe.saucePuddles.find(p=>p.x===x);
-        if(!puddle){puddle={x,volume:0};recipe.saucePuddles.push(puddle);}puddle.volume=Math.min(30,puddle.volume+drop.volume);
+        const x=Math.round(drop.x/4)*4;let puddle=recipe.saucePuddles.find(p=>p.x===x&&syrupKind(p)===syrupKind(drop));
+        if(!puddle){puddle={kind:syrupKind(drop),x,volume:0};recipe.saucePuddles.push(puddle);}puddle.volume=Math.min(30,puddle.volume+drop.volume);
       }
       recipe.sauceFalling=[];clip=0;spoken=false;audio.play('win');
     }
@@ -419,23 +451,23 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
       const cleanup=iceCleanup(recipe,clip),previousClip=clip;
       clip=Math.min(cleanup.end,clip+dt);
       for(const cue of iceEndingSounds(recipe,previousClip,clip))audio.play(cue);
-      if(clip>=cleanup.thanks&&!spoken){spoken=true;audio.say('Yum! Thank you!',1.1);}
+      if(clip>=cleanup.thanks&&!spoken){spoken=true;if(funny)audio.say('Yum! Thank you!',1.1);}
       if(clip>=cleanup.end)finish();
     }
-    if(canPour()&&squeezing)pourIceChocolate(recipe,bottle.x,bottle.y,dt);
+    if(canPour()&&squeezing)pourIceChocolate(recipe,bottle.x,bottle.y,dt,activeTopping);
     if(active&&!paused&&!document.hidden&&clip===null)tickIceChocolate(recipe,dt);
     drawIceScene(ctx,recipe,canvas.width,canvas.height,clip,reduced);
-    if(active&&step===2&&activeTopping==='sauce'&&clip===null&&recipe.toppings.includes('sauce')){
-      ctx.save();ctx.scale(canvas.width/900,canvas.height/620);drawChocolateBottle(ctx,bottle,squeezing&&!paused);ctx.restore();
+    if(active&&step===2&&['sauce','caramel'].includes(activeTopping)&&clip===null&&recipe.toppings.includes(activeTopping)){
+      ctx.save();ctx.scale(canvas.width/900,canvas.height/620);drawChocolateBottle(ctx,bottle,squeezing&&!paused,activeTopping);ctx.restore();
     }
     frame=requestAnimationFrame(tick);
   }
   document.addEventListener?.('visibilitychange',()=>{last=0;stopPour();if(document.hidden)audio.stop();},{signal:controller.signal});
   renderControls();frame=requestAnimationFrame(tick);
   return {
-    start(){stopPour();activeTopping=null;bottle={x:0,y:-30};audio.stop();audio.unlock();recipe=createIceRecipe();step=0;clip=null;spoken=false;active=true;paused=false;last=0;renderControls();stepButtons[0].focus({preventScroll:true});},
+    start(){stopPour();activeTopping=null;bottle={x:0,y:-30};audio.stop();audio.unlock();recipe=createIceRecipe();recipe.funny=funny;audio.setMuted(userMuted||!funny);step=0;clip=null;spoken=false;active=true;paused=false;last=0;renderControls();stepButtons[0].focus({preventScroll:true});},
     pause(value){paused=value;last=0;if(value)audio.stop();renderControls();},
-    setMuted:value=>audio.setMuted(value),
+    setMuted:value=>{userMuted=value;audio.setMuted(userMuted||!funny);},
     destroy(){if(destroyed)return;destroyed=true;active=false;stopPour();controller.abort();audio.destroy();cancelAnimationFrame(frame);controls.replaceChildren();}
   };
 }

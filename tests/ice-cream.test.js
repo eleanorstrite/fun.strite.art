@@ -8,7 +8,7 @@ test('every ice cream ingredient and both animation modes render without changin
   const ctx=new Proxy({createLinearGradient:()=>({addColorStop(){}})},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
   for(const cone of Object.keys(ICE_CONES))for(const flavor of Object.keys(ICE_FLAVORS)){
     const recipe={cone,flavor,toppings:Object.keys(ICE_TOPPINGS)},before=JSON.stringify(recipe);
-    for(const t of [null,0,1.8,2.7,3.5,6])for(const reduced of [true,false])drawIceScene(ctx,recipe,450,310,t,reduced);
+    for(const funny of [true,false])for(const t of [null,0,1.8,2.7,3.5,6])for(const reduced of [true,false])drawIceScene(ctx,{...recipe,funny},450,310,t,reduced);
     assert.equal(JSON.stringify(recipe),before);
   }
   const a=createIceRecipe(),b=createIceRecipe();a.toppings.push('cherry');assert.equal(b.toppings.length,0);
@@ -22,17 +22,17 @@ test('ice cream buttons preserve choices, toggle toppings, pause the ending, fin
     setAttribute(name,value){this.attributes[name]=value;}
     focus(){}
   }
-  let frame,finishes=0,now=100,bottles=0;
+  let frame,finishes=0,now=100,bottles=0,caramelBottles=0;
   const wallet=createSystem({getItem:()=>null,setItem(){}});let session=wallet.beginSession('ice-cream');
   const handlers={},drops=[];
-  const ctx=new Proxy({fillText(text){if(text==='CHOCO')bottles++;},ellipse(x,y,rx,ry){if(this.fillStyle==='#633c32')drops.push({x,y,rx});}},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
+  const ctx=new Proxy({fillText(text){if(text==='CHOCO')bottles++;if(text==='CARAMEL')caramelBottles++;},ellipse(x,y,rx,ry){if(this.fillStyle==='#633c32')drops.push({x,y,rx});}},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
   const controls=new IceElement(),canvas={width:900,height:620,getContext:()=>ctx,addEventListener:(name,fn)=>handlers[name]=fn,focus(){},setPointerCapture(){},getBoundingClientRect:()=>({left:0,top:0,width:450,height:310})};
   globalThis.document={hidden:false,createElement:()=>new IceElement(),addEventListener(){}};
   globalThis.requestAnimationFrame=fn=>(frame=fn,1);globalThis.cancelAnimationFrame=()=>{};
   let engine;
   const advance=n=>{for(let i=0;i<n;i++){frame(now);now+=100;}};
   try{
-    engine=createIceCream({canvas,controls,onHud(){},onFinish:(coins,result)=>{assert.equal(coins,5);session.finish(coins);assert.equal(result.title,'Your dragon loved it!');finishes++;}});
+    engine=createIceCream({canvas,controls,getUpgrades:()=>['ice-topping-caramel'],onHud(){},onFinish:(coins,result)=>{assert.equal(coins,5);session.finish(coins);assert.equal(result.title,'Your dragon loved it!');finishes++;}});
     const [tabs,,choices,navigation]=controls.children,[back,next]=navigation.children;
     assert.equal(next.disabled,true);engine.start();
     assert.equal(choices.children[4].disabled,true);choices.children[4].onclick();assert.equal(choices.children[4].attributes['aria-pressed'],'false');
@@ -55,6 +55,14 @@ test('ice cream buttons preserve choices, toggle toppings, pause the ending, fin
     const shown=bottles;choices.children[0].onclick();advance(2);assert.equal(bottles,shown);
     assert.equal(choices.children[2].attributes['aria-pressed'],'true');
     choices.children[2].onclick();advance(1);assert.equal(bottles>shown,true);
+    assert.equal(choices.children[2].attributes['aria-pressed'],'true');
+    const mode=controls.children[5];mode.onclick();assert.equal(mode.attributes['aria-pressed'],'false');assert.ok(mode.textContent.includes('Normal'));
+    mode.onclick();assert.equal(mode.attributes['aria-pressed'],'true');
+    choices.children[7].onclick();advance(2);assert.ok(caramelBottles>0);
+    handlers.pointerdown(pointer);advance(3);handlers.pointerup(pointer);
+    const caramelShown=caramelBottles;choices.children[0].onclick();advance(2);assert.equal(caramelBottles,caramelShown);
+    choices.children[7].onclick();advance(1);assert.ok(caramelBottles>caramelShown);
+    choices.children[7].onclick();assert.equal(choices.children[7].attributes['aria-pressed'],'false');
     assert.equal(choices.children[2].attributes['aria-pressed'],'true');
     back.onclick();assert.equal(choices.children[3].attributes['aria-pressed'],'true');
     tabs.children[0].onclick();assert.equal(choices.children[2].attributes['aria-pressed'],'true');
@@ -199,3 +207,22 @@ test('ending sounds match four bites and only slurp during chocolate cleanup',()
   const framed=[];for(let i=0;i<108;i++)framed.push(...iceEndingSounds(messy,i/10,(i+1)/10));
   assert.deepEqual(framed,iceEndingSounds(messy,0,10.8));
 });
+
+ test('caramel syrup lands on scoops and floors, sets, and gets cleaned up with chocolate',()=>{
+  const r=createIceRecipe();r.toppings=['caramel','sauce'];
+  for(const kind of ['caramel','sauce']){
+    pourIceChocolate(r,-30,-30,2,kind);pourIceChocolate(r,140,-30,.3,kind);pourIceChocolate(r,50,-75,.2,kind);
+  }
+  for(let i=0;i<80;i++)tickIceChocolate(r,.1);
+  assert.equal(r.sauceFalling.length,0);
+  assert.deepEqual(new Set(r.saucePuddles.map(p=>p.kind)),new Set(['caramel','sauce']));
+  assert.ok(r.sauceDrops.some(p=>p.kind==='caramel'&&p.x===52));
+  const positions=r.sauceDrops.map(p=>p.flowY);for(let i=0;i<30;i++)tickIceChocolate(r,.1);
+  assert.deepEqual(r.sauceDrops.map(p=>p.flowY),positions);
+  assert.ok(iceCleanup(r,6).licking);assert.equal(iceCleanup(r,9).puddles.length,0);
+ });
+ test('Normal mode suppresses bite and licking cues, Funny mode restores them',()=>{
+  const r=createIceRecipe();r.toppings=['caramel'];r.saucePuddles=[{kind:'caramel',x:100,volume:1}];
+  r.funny=false;assert.deepEqual(iceEndingSounds(r,0,10),[]);
+  r.funny=true;const cues=iceEndingSounds(r,0,10);assert.equal(cues.filter(c=>c==='iceChew').length,4);assert.equal(cues.filter(c=>c==='iceSlurp').length,6);
+ });
