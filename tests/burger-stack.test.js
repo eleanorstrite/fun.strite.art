@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {createBurgerState,dropBurger,landBurger,tickBurger,drawBurgerScene,drawBurgerEnding,BURGER_INGREDIENTS,createBurgerStack} from '../src/burger-stack.js';
+import {createBurgerState,dropBurger,landBurger,tickBurger,drawBurgerScene,drawBurgerEnding,BURGER_INGREDIENTS,BURGER_BACKGROUNDS,createBurgerStack} from '../src/burger-stack.js';
 const ready=()=>({...createBurgerState(),status:'playing'});
 test('burger drops trim each edge and preserve the exact surviving width for the next piece',()=>{
  const s=ready();s.moving.x=220;dropBurger(s);landBurger(s);
@@ -23,13 +23,13 @@ test('a miss leads to the ending and animation cues fire only once',()=>{
  const previous=JSON.stringify(s);tickBurger(s,.05);assert.equal(JSON.stringify(s),previous);
 });
 test('layers stay bounded while sliding and camera follows tall stacks',()=>{
- const s=ready();for(let i=0;i<1000;i++){tickBurger(s,.05);assert.ok(s.moving.x>=30&&s.moving.x+s.moving.width<=560);}
+ const s=ready();const start=s.moving.x;tickBurger(s,.05);assert.equal(s.moving.x-start,11.5);for(let i=0;i<1000;i++){tickBurger(s,.05);assert.ok(s.moving.x>=30&&s.moving.x+s.moving.width<=560);}
  for(let i=0;i<30;i++){s.moving.x=s.layers.at(-1).x;landBurger(s);}for(let i=0;i<50;i++)tickBurger(s,.05);assert.ok(s.camera>500);
 });
 test('all ingredients, cutoffs and ending stages render without mutating the game',()=>{
  const c=new Proxy({},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)}),s=ready();
  for(let i=0;i<10;i++){s.moving.x=s.layers.at(-1).x+3;landBurger(s);}
- const before=JSON.stringify(s);for(const reduced of [false,true]){drawBurgerScene(c,s,620,720,20,reduced);for(const t of [0,1.5,3,4,5.6,7.5])drawBurgerEnding(c,t,620,720,12,20,reduced);}assert.equal(JSON.stringify(s),before);
+ const before=JSON.stringify(s);for(const reduced of [false,true]){for(const background of Object.keys(BURGER_BACKGROUNDS))drawBurgerScene(c,{...s,background},620,720,20,reduced);for(const t of [0,1.5,3,4,5.6,7.5])drawBurgerEnding(c,t,620,720,12,20,reduced);}assert.equal(JSON.stringify(s),before);
 });
 test('burger engine accepts drops, pauses, skips endings and settles once on close',()=>{
  const names=['document','requestAnimationFrame','cancelAnimationFrame'],original=Object.fromEntries(names.map(k=>[k,globalThis[k]]));

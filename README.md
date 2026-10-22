@@ -118,6 +118,6 @@ Three original platform layouts include one-way landing platforms and high-bounc
 
 ## Stack the Hamburger
 
-Click/tap the arena, press Space or Enter, or use Drop layer to drop each sliding ingredient. Cheese, lettuce, tomato, patty, and bun repeat above a bun base. Only the exact horizontal overlap survives; cutoffs fall away and the next piece inherits the remaining width. A complete miss starts a skippable animated ending: a pedestrian eats the hamburger, slips on a puddle, and tosses it into a trash bin.
+Click/tap the arena, press Space or Enter, or use Drop layer to drop each sliding ingredient. Layers start at 230 pixels per second, accelerate up to 440, and hover 28 pixels above their landing position. Choose House Kitchen (default), Burger Diner, Garden Picnic, or Classic Sky beneath the game; the choice saves locally under `sidequest.burger.background.v1`. The tower rests on a plate. Cheese, lettuce, tomato, patty, and bun repeat above a bun base. Only the exact horizontal overlap survives; cutoffs fall away and the next piece inherits the remaining width. A complete miss starts a skippable animated ending: a pedestrian eats the hamburger, slips on a puddle, and tosses it into a trash bin.
 
 The layer count and personal best appear above the tower. Best scores use the shared save's optional `stats[gameId].bestScore`, independently of coins or race times, and transfer with save export/import. Each layer pays 1 coin, capped at 40 per game. Completion or closing settles the session once; pausing and hidden tabs freeze motion and the ending.

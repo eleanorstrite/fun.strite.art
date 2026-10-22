@@ -1,8 +1,10 @@
 import { createMazeAudio } from './maze-audio.js';
 
+export const BURGER_BACKGROUNDS={kitchen:'House kitchen',diner:'Burger diner',picnic:'Garden picnic',classic:'Classic sky'};
+export const BURGER_HOVER=28;
 export const BURGER_INGREDIENTS=['cheese','lettuce','tomato','patty','bun'];
 const burgerClamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-export function createBurgerState(){return {status:'ready',score:0,time:0,clip:0,drop:0,camera:0,dir:1,moving:{x:35,width:220,kind:'cheese'},layers:[{x:190,width:220,kind:'bun'}],scraps:[],missTime:0};}
+export function createBurgerState(background='kitchen'){return {background:Object.hasOwn(BURGER_BACKGROUNDS,background)?background:'kitchen',status:'ready',score:0,time:0,clip:0,drop:0,camera:0,dir:1,moving:{x:35,width:220,kind:'cheese'},layers:[{x:190,width:220,kind:'bun'}],scraps:[],missTime:0};}
 export function dropBurger(s){if(s.status!=='playing')return false;s.status='dropping';s.drop=0;return true;}
 export function landBurger(s,emit=()=>{}){
   const top=s.layers.at(-1),piece=s.moving,left=Math.max(top.x,piece.x),right=Math.min(top.x+top.width,piece.x+piece.width),width=right-left;
@@ -20,7 +22,7 @@ export function tickBurger(s,seconds,emit=()=>{}){
   const target=Math.max(0,s.layers.length-10)*25;s.camera+=(target-s.camera)*Math.min(1,dt*8);
   if(s.status==='playing'){
     const min=30,max=560-s.moving.width;
-    s.moving.x+=s.dir*Math.min(285,115+s.score*5)*dt;
+    s.moving.x+=s.dir*Math.min(440,230+s.score*8)*dt;
     if(s.moving.x>max){s.moving.x=max-(s.moving.x-max);s.dir=-1;}else if(s.moving.x<min){s.moving.x=min+(min-s.moving.x);s.dir=1;}
   }else if(s.status==='dropping'){s.drop=Math.min(1,s.drop+dt/.24);if(s.drop>=1)landBurger(s,emit);}
   else if(s.status==='missed'){s.missTime+=dt;if(s.missTime>=.65){s.status='ending';s.clip=0;s.scraps=[];}}
@@ -80,27 +82,70 @@ export function drawBurgerEnding(c,time,width,height,score,best,reduced=false){
   c.textAlign='center';c.fillStyle='#344e5d';c.font='bold 34px sans-serif';c.fillText(time<3?'One very tall snack…':'Oops! There goes lunch!',450,85);
   c.font='bold 25px sans-serif';c.fillText(score+' layers stacked · Best '+Math.max(score,best),450,577);c.restore();
 }
+function drawBurgerBackdrop(c,background){
+  if(background==='classic'){
+    c.fillStyle=burgerGradient(c,0,720,['#176d83','#5c9e9f','#b0c6a0']);c.fillRect(0,0,620,720);
+    for(let i=0;i<14;i++){c.fillStyle='#ffffff22';c.fillRect((i*97)%620,(i*131)%720,3,3);}return;
+  }
+  const kitchen=background==='kitchen',diner=background==='diner';
+  c.fillStyle=burgerGradient(c,0,720,kitchen?['#f5e6ce','#d7c7ae']:diner?['#f5d9cc','#f8eddb']:['#a8d9dc','#e5edbd']);c.fillRect(0,0,620,720);
+  if(kitchen){
+    // A home kitchen with a garden window, crockery, and wooden cupboards.
+    burgerRound(c,355,190,210,235,8,'#b99b79');burgerRound(c,365,200,190,215,4,'#bee0e4');
+    burgerOval(c,510,239,25,25,'#fff0bd');burgerOval(c,450,403,130,70,'#8ab397');burgerOval(c,560,425,110,78,'#6d9d81');
+    c.fillStyle='#fff5df';c.fillRect(456,200,8,215);c.fillRect(365,300,190,8);c.fillRect(348,415,224,12);
+    for(const x of [32,180]){
+      burgerRound(c,x,210,129,160,5,'#b89974');burgerRound(c,x+6,216,117,146,3,'#d5b58d');
+      c.strokeStyle='#ac8962';c.lineWidth=2;c.strokeRect(x+15,225,99,126);burgerRound(c,x+102,277,5,26,2,'#795d47');
+    }
+    c.fillStyle='#b5936b';c.fillRect(28,449,277,12);
+    for(let i=0;i<3;i++){burgerOval(c,75+i*56,439,21,8,'#fff7e7');burgerRound(c,55+i*56,411,40,27,5,['#829c9b','#d78c78','#d3ad61'][i]);}
+    burgerRound(c,471,465,49,45,5,'#c88d67');c.strokeStyle='#638b62';c.lineWidth=4;c.beginPath();c.moveTo(495,468);c.lineTo(495,426);c.stroke();burgerOval(c,482,437,16,6,'#79a076');burgerOval(c,510,447,18,7,'#638f6b');
+  }else if(diner){
+    for(let y=180;y<520;y+=40)for(let x=0;x<620;x+=40){c.fillStyle=(x/40+y/40)%2?'#fff4e2':'#d9b9a8';c.fillRect(x,y,39,39);}
+    burgerRound(c,65,200,490,78,16,'#b95454');c.fillStyle='#fff0c8';c.textAlign='center';c.font='bold 28px sans-serif';c.fillText('THE STACK SHACK',310,248);
+    burgerRound(c,35,355,550,170,24,'#bd6561');for(let x=65;x<580;x+=55){c.strokeStyle='#de9083';c.lineWidth=3;c.beginPath();c.moveTo(x,370);c.lineTo(x,505);c.stroke();}
+    for(const x of [92,528]){c.strokeStyle='#665651';c.lineWidth=4;c.beginPath();c.moveTo(x,175);c.lineTo(x,310);c.stroke();burgerPoly(c,[[x-35,343],[x+35,343],[x+18,309],[x-18,309]],'#e6b55f');burgerOval(c,x,344,32,5,'#ffe6a1');}
+  }else{
+    burgerOval(c,510,228,43,43,'#fff1ba');for(let i=0;i<4;i++)burgerOval(c,i*220,510,210,100+i%2*40,['#a7c78e','#89b181'][i%2]);
+    c.fillStyle='#efe6c8';for(let x=10;x<620;x+=38){burgerRound(c,x,423,18,102,4,'#efe6c8');}c.fillRect(0,446,620,9);c.fillRect(0,489,620,9);
+    for(let i=0;i<9;i++){const x=25+i*72;c.strokeStyle='#648c5e';c.lineWidth=3;c.beginPath();c.moveTo(x,530);c.lineTo(x,489-i%3*14);c.stroke();burgerOval(c,x,489-i%3*14,7,7,i%2?'#eeb981':'#dc8ca2');burgerOval(c,x,489-i%3*14,2,2,'#fff0b4');}
+  }
+  c.fillStyle=burgerGradient(c,530,720,diner?['#e8ded0','#bfb4a5']:['#d4a578','#a97652']);c.fillRect(0,530,620,190);c.fillStyle='#f0cda3';c.fillRect(0,530,620,9);
+  if(!diner){c.strokeStyle='#8f62462c';c.lineWidth=2;for(let y=558;y<720;y+=34){c.beginPath();c.moveTo(0,y);c.bezierCurveTo(150,y-9,330,y+9,620,y-3);c.stroke();}}
+  if(background==='picnic'){c.save();c.beginPath();c.rect(35,548,125,150);c.clip();for(let y=548;y<710;y+=18)for(let x=35;x<165;x+=18){c.fillStyle=(x+y)%36?'#d7756b':'#f7e4d2';c.fillRect(x,y,18,18);}c.restore();}
+}
+function drawBurgerPlate(c,camera){
+  const y=614+camera;if(y>780)return;
+  burgerOval(c,330,y+24,205,39,'#483f352c');burgerOval(c,330,y+9,202,48,'#a5b9bc');
+  burgerOval(c,330,y,202,48,'#f5f6e9');burgerOval(c,330,y,177,36,'#bed5d7');burgerOval(c,330,y+2,168,31,'#e8f0e7');
+  c.strokeStyle='#ffffffaa';c.lineWidth=3;c.beginPath();c.ellipse(330,y,192,43,0,0,Math.PI*2);c.stroke();
+}
 export function drawBurgerScene(c,s,width,height,best=0,reduced=false){
   if(s.status==='ending'||s.status==='finished'){drawBurgerEnding(c,s.clip,width,height,s.score,best,reduced);return;}
   c.save();c.scale(width/620,height/720);
-  c.fillStyle=burgerGradient(c,0,720,['#176d83','#5c9e9f','#b0c6a0']);c.fillRect(0,0,620,720);
-  for(let i=0;i<14;i++){const x=(i*97)%620,y=(i*131)%720;c.fillStyle='#ffffff22';c.fillRect(x,y,3,3);}
+  drawBurgerBackdrop(c,s.background);
+  burgerRound(c,112,18,396,147,22,'#234653de');
   c.textAlign='center';c.fillStyle='#fff4d4';c.font='bold 21px sans-serif';c.fillText('STACK THE HAMBURGER',310,48);c.font='64px sans-serif';c.fillText(String(s.score),310,121);c.font='16px sans-serif';c.fillText('Best: '+Math.max(best,s.score)+' layers',310,152);
-  burgerOval(c,322,651,205,35,'#25575b44');
+  drawBurgerPlate(c,s.camera);
   for(let i=Math.max(0,s.layers.length-16);i<s.layers.length;i++){const y=600-i*25+s.camera;if(y<720)drawBurgerLayer(c,s.layers[i],y);}
   for(const piece of s.scraps){c.save();c.translate(piece.x+piece.width/2,piece.y);c.rotate(reduced?0:piece.angle);drawBurgerLayer(c,{...piece,x:-piece.width/2},0);c.restore();}
-  if(['playing','dropping','ready'].includes(s.status)){const y=600-s.layers.length*25+s.camera-(s.status==='dropping'?90*(1-s.drop)**2:90);drawBurgerLayer(c,s.moving,y);}
+  if(['playing','dropping','ready'].includes(s.status)){const y=600-s.layers.length*25+s.camera-(s.status==='dropping'?BURGER_HOVER*(1-s.drop)**2:BURGER_HOVER);drawBurgerLayer(c,s.moving,y);}
   burgerRound(c,85,666,450,34,17,'#1b566b99');c.fillStyle='#fff4dc';c.font='16px sans-serif';c.fillText(s.status==='missed'?'Missed! Watch what happens to lunch…':'Click / tap / Space to drop the next layer',310,689);c.restore();
 }
 export function drawBurgerPreview(canvas){const c=canvas.getContext('2d');if(!c)return;const s=createBurgerState();for(let i=0;i<7;i++)s.layers.push({x:190+i*5,width:220-i*9,kind:BURGER_INGREDIENTS[i%5]});s.score=7;drawBurgerScene(c,s,canvas.width,canvas.height,7,true);}
 export function createBurgerStack({canvas,onHud,onFinish,bestScore=0,controls=document.querySelector('#burger-controls')}){
   const c=canvas.getContext('2d');if(!c)throw Error('Canvas is unavailable.');
   const audio=createMazeAudio(),controller=new AbortController(),events={signal:controller.signal};
-  let s=createBurgerState(),active=false,paused=false,destroyed=false,last=0,frame;
+  let background='kitchen';try{const saved=localStorage.getItem('sidequest.burger.background.v1');if(Object.hasOwn(BURGER_BACKGROUNDS,saved))background=saved;}catch{}
+  let s=createBurgerState(background),active=false,paused=false,destroyed=false,last=0,frame;
   const reduced=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false;
   const dropButton=document.createElement('button'),skip=document.createElement('button');dropButton.type=skip.type='button';dropButton.className='button dark';skip.className='button outline';dropButton.textContent='Drop layer ↓';skip.textContent='Skip ending';
   const tip=document.createElement('p');tip.textContent='Cheese, lettuce, tomato, patty, bun — repeat! Only the overlapping part stays. Each new layer is exactly as wide as the last. Earn 1 coin per layer, up to 40 per game.';
-  controls.replaceChildren(dropButton,skip,tip);
+  const label=document.createElement('label');label.textContent='Choose your background ';const backgroundSelect=document.createElement('select');
+  for(const [id,name] of Object.entries(BURGER_BACKGROUNDS)){const option=document.createElement('option');option.value=id;option.textContent=name;backgroundSelect.append(option);}
+  backgroundSelect.value=background;backgroundSelect.onchange=()=>{if(!Object.hasOwn(BURGER_BACKGROUNDS,backgroundSelect.value))return;background=backgroundSelect.value;s.background=background;try{localStorage.setItem('sidequest.burger.background.v1',background);}catch{}};
+  label.append(backgroundSelect);controls.replaceChildren(dropButton,skip,tip,label);
   const drop=()=>{if(!active||paused||document.hidden)return;audio.unlock();dropBurger(s);canvas.focus({preventScroll:true});};
   dropButton.onclick=drop;canvas.addEventListener('pointerdown',e=>{if(e.button>0)return;e.preventDefault();drop();},events);
   canvas.addEventListener('keydown',e=>{if(e.code==='Space'||e.code==='Enter'){e.preventDefault();if(!e.repeat)drop();}},events);
@@ -109,5 +154,5 @@ export function createBurgerStack({canvas,onHud,onFinish,bestScore=0,controls=do
   function finish(){if(!active)return;active=false;bestScore=Math.max(bestScore,s.score);onFinish(Math.min(40,s.score),{title:s.score?'A '+s.score+'-layer hamburger!':'Try another hamburger!',detail:'Best: '+bestScore+' layers. Time your drop to keep more of each layer.',score:s.score});}
   function tick(now){if(destroyed)return;const dt=last?Math.min(.05,(now-last)/1000):0;last=now;if(active&&!paused&&!document.hidden){tickBurger(s,dt,cue=>audio.play(cue));if(s.status==='finished')finish();}dropButton.disabled=!active||paused||s.status!=='playing';skip.hidden=s.status!=='ending';skip.disabled=!active||paused;drawBurgerScene(c,s,canvas.width,canvas.height,bestScore,reduced);onHud({text:s.score+' layers · Best '+Math.max(bestScore,s.score)+' · '+(s.status==='ending'?'Watch your hamburger’s adventure!':'Stack as high as you can.')});frame=requestAnimationFrame(tick);}
   frame=requestAnimationFrame(tick);
-  return {start(){audio.stop();audio.unlock();s=createBurgerState();s.status='playing';active=true;paused=false;last=0;canvas.focus();},pause(value){paused=value;last=0;if(value)audio.stop();},setMuted:value=>audio.setMuted(value),destroy(){if(destroyed)return;destroyed=true;finish();controller.abort();audio.destroy();cancelAnimationFrame(frame);controls.replaceChildren();}};
+  return {start(){audio.stop();audio.unlock();s=createBurgerState(background);s.status='playing';active=true;paused=false;last=0;canvas.focus();},pause(value){paused=value;last=0;if(value)audio.stop();},setMuted:value=>audio.setMuted(value),destroy(){if(destroyed)return;destroyed=true;finish();controller.abort();audio.destroy();cancelAnimationFrame(frame);controls.replaceChildren();}};
 }
