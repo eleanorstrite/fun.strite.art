@@ -417,7 +417,7 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
   navigation.append(back,next);
   const sauceHelp=document.createElement('p');sauceHelp.textContent='Syrup bottle: tap to squeeze, hold for more, and drag to spread it around. Thick syrup makes up to two slow drips, then sets in place. Squeeze beside the ice cream to make a puddle on the floor. With a keyboard, focus the canvas, move with arrow keys, and hold Space to pour. Choose another topping to put the bottle away. Choose the same drizzle to bring it back; tap it again while the bottle is out to remove the syrup.';
   const modeButton=document.createElement('button');modeButton.type='button';modeButton.className='button outline';
-  modeButton.onclick=()=>{funny=!funny;recipe.funny=funny;audio.stop();audio.setMuted(userMuted||!funny);renderControls();};
+  modeButton.onclick=()=>{funny=!funny;recipe.funny=funny;audio.stop();audio.setMuted(userMuted);renderControls();};
   controls.replaceChildren(tabs,heading,choices,navigation,sauceHelp,modeButton);
   const stepButtons=steps.map((label,index)=>{
     const button=document.createElement('button');button.type='button';button.className='button outline';button.textContent=(index+1)+'. '+label;
@@ -484,7 +484,7 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
       const cleanup=iceCleanup(recipe,clip),previousClip=clip;
       clip=Math.min(cleanup.end,clip+dt);
       for(const cue of iceEndingSounds(recipe,previousClip,clip))audio.play(cue);
-      if(clip>=cleanup.thanks&&!spoken){spoken=true;if(funny)audio.say('Yum! Thank you!',1.1);}
+      if(clip>=cleanup.thanks&&!spoken){spoken=true;audio.say('Yum! Thank you!',1.1);}
       if(clip>=cleanup.end)finish();
     }
     if(canPour()&&squeezing)pourIceChocolate(recipe,bottle.x,bottle.y,dt,activeTopping);
@@ -498,9 +498,9 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
   document.addEventListener?.('visibilitychange',()=>{last=0;stopPour();if(document.hidden)audio.stop();},{signal:controller.signal});
   renderControls();frame=requestAnimationFrame(tick);
   return {
-    start(){stopPour();activeTopping=null;bottle={x:0,y:-30};audio.stop();audio.unlock();recipe=createIceRecipe();recipe.funny=funny;audio.setMuted(userMuted||!funny);step=0;clip=null;spoken=false;active=true;paused=false;last=0;renderControls();stepButtons[0].focus({preventScroll:true});},
+    start(){stopPour();activeTopping=null;bottle={x:0,y:-30};audio.stop();audio.unlock();recipe=createIceRecipe();recipe.funny=funny;audio.setMuted(userMuted);step=0;clip=null;spoken=false;active=true;paused=false;last=0;renderControls();stepButtons[0].focus({preventScroll:true});},
     pause(value){paused=value;last=0;if(value)audio.stop();renderControls();},
-    setMuted:value=>{userMuted=value;audio.setMuted(userMuted||!funny);},
+    setMuted:value=>{userMuted=value;audio.setMuted(userMuted);},
     destroy(){if(destroyed)return;destroyed=true;active=false;stopPour();controller.abort();audio.destroy();cancelAnimationFrame(frame);controls.replaceChildren();}
   };
 }

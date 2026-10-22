@@ -14,7 +14,7 @@ test('every ice cream ingredient and both animation modes render without changin
   const a=createIceRecipe(),b=createIceRecipe();a.toppings.push('cherry');assert.equal(b.toppings.length,0);
 });
 test('ice cream buttons preserve choices, toggle toppings, pause the ending, finish once, and replay',()=>{
-  const original={document:globalThis.document,requestAnimationFrame:globalThis.requestAnimationFrame,cancelAnimationFrame:globalThis.cancelAnimationFrame};
+  const original={speechSynthesis:globalThis.speechSynthesis,SpeechSynthesisUtterance:globalThis.SpeechSynthesisUtterance,document:globalThis.document,requestAnimationFrame:globalThis.requestAnimationFrame,cancelAnimationFrame:globalThis.cancelAnimationFrame};
   class IceElement{
     constructor(){this.children=[];this.attributes={};this.disabled=false;}
     append(...children){this.children.push(...children);}
@@ -22,6 +22,7 @@ test('ice cream buttons preserve choices, toggle toppings, pause the ending, fin
     setAttribute(name,value){this.attributes[name]=value;}
     focus(){}
   }
+  const spoken=[];globalThis.SpeechSynthesisUtterance=class{constructor(text){this.text=text;}};globalThis.speechSynthesis={speak:utterance=>spoken.push(utterance.text),cancel(){}};
   let frame,finishes=0,now=100,bottles=0,caramelBottles=0;
   const wallet=createSystem({getItem:()=>null,setItem(){}});let session=wallet.beginSession('ice-cream');
   const handlers={},drops=[];
@@ -71,10 +72,10 @@ test('ice cream buttons preserve choices, toggle toppings, pause the ending, fin
     advance(20);assert.equal(finishes,0);
     engine.pause(true);advance(100);assert.equal(finishes,0);
     engine.pause(false);globalThis.document.hidden=true;advance(100);assert.equal(finishes,0);
-    globalThis.document.hidden=false;advance(65);assert.equal(finishes,1);
+    globalThis.document.hidden=false;advance(65);assert.equal(finishes,1);assert.deepEqual(spoken,['Yum! Thank you!']);
     advance(20);assert.equal(finishes,1);assert.equal(wallet.snapshot().coins,5);
     session=wallet.beginSession('ice-cream');engine.start();assert.equal(next.disabled,false);assert.equal(choices.children[0].attributes['aria-pressed'],'true');
-    tabs.children[2].onclick();next.onclick();advance(80);assert.equal(finishes,2);assert.equal(wallet.snapshot().coins,10);
+    engine.setMuted(true);tabs.children[2].onclick();next.onclick();advance(80);assert.equal(finishes,2);assert.deepEqual(spoken,['Yum! Thank you!']);assert.equal(wallet.snapshot().coins,10);
     session=wallet.beginSession('ice-cream');engine.start();
     engine.destroy();engine.destroy();assert.equal(finishes,2);assert.equal(wallet.snapshot().coins,10);assert.equal(controls.children.length,0);
   }finally{engine?.destroy();Object.assign(globalThis,original);}
