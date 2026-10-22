@@ -90,3 +90,5 @@ html[data-background="aurora"]{--home-scene:url('./assets/backgrounds/aurora.svg
 #burger-controls label{display:flex;justify-content:center;align-items:center;gap:10px;flex-wrap:wrap}#burger-controls select{min-height:44px;padding:8px 12px;border:1px solid var(--line);border-radius:6px}
 
 #storm-controls[hidden]{display:none}#storm-controls{padding:16px;margin-top:12px;background:#e5ebed;border-radius:14px}.storm-buttons{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}.storm-buttons button{min-height:52px;touch-action:none;user-select:none}#storm-controls p{font-size:13px;line-height:1.5}
+
+@media(pointer:coarse){.direction-pad{grid-template-columns:repeat(3,58px);grid-template-rows:repeat(3,58px);gap:8px}.direction-pad button{width:58px;height:58px;font-size:28px}.tag-pads button{min-width:62px;min-height:58px}}

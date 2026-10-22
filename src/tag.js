@@ -1,3 +1,4 @@
+import { bindTagSwipes } from './touch-controls.js';
 import { createMazeAudio } from './maze-audio.js';
 
 export const TAG_ROUND_SECONDS=60;
@@ -59,9 +60,12 @@ export function tickTag(s,seconds,inputs=[{},{}],emit=()=>{}){
     const input=computer?p.aiInput:inputs[i]||{};
     p.aiWait=Math.max(0,p.aiWait-dt);
     const direction=Number(Boolean(input.right))-Number(Boolean(input.left));
-    p.vx+=(direction*(computer?230:270)-p.vx)*Math.min(1,dt*(computer?(p.grounded?10:6):(p.grounded?15:8)));if(direction)p.facing=direction;
+    // Slow the whole airborne motion, preserving jump height and trampoline reach.
+    const gentle=Boolean(input.touchAssist)&&!computer,airborne=!p.grounded||input.jump;
+    const motionDt=dt*(gentle&&airborne?.78:1);
+    p.vx+=(direction*(computer?230:gentle&&airborne?220:270)-p.vx)*Math.min(1,motionDt*(computer?(p.grounded?10:6):(p.grounded?15:8)));if(direction)p.facing=direction;
     if(input.jump&&!p.jumpHeld&&p.grounded){p.vy=-540;p.grounded=false;p.aiWait=.35;emit('bounce');}p.jumpHeld=Boolean(input.jump);
-    const oldY=p.y;p.vy+=1200*dt;p.x=tagClamp(p.x+p.vx*dt,24,876);p.y+=p.vy*dt;p.grounded=false;
+    const oldY=p.y;p.vy+=1200*motionDt;p.x=tagClamp(p.x+p.vx*motionDt,24,876);p.y+=p.vy*motionDt;p.grounded=false;
     const surfaces=[...layout.platforms,[0,540,900]].sort((a,b)=>a[1]-b[1]);
     if(p.vy>=0)for(const [x,y,w] of surfaces){
       if(oldY<=y+.01&&p.y>=y&&p.x+15>x&&p.x-15<x+w){
@@ -215,10 +219,12 @@ export function createTagGame({canvas,onHud,onFinish,controls=document.querySele
   let s=createTagState(settings),active=false,paused=false,destroyed=false,last=0,frame;
   const reduced=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false;
   const save=()=>{try{localStorage.setItem('sidequest.tag.settings.v1',JSON.stringify(settings));}catch{}s=createTagState(settings);};
-  const clear=()=>{keys.clear();touch.forEach(set=>set.clear());};
+  const touchAssist=[false,false];
+  const gestures=bindTagSwipes(canvas,{enabled:()=>active&&!paused&&!document.hidden&&['playing','countdown'].includes(s.status),local:()=>settings.mode==='local',onTouch:i=>{touchAssist[i]=true;audio.unlock();}},events);
+  const clear=()=>{keys.clear();touch.forEach(set=>set.clear());gestures.clear();};
   const modeButtons=[];modeControls.replaceChildren();
   const modeLabel=document.createElement('p');modeLabel.textContent='Who would you like to play?';modeControls.append(modeLabel);
-  for(const [id,label] of [['computer','Against the computer'],['local','Multiplayer · 2 on this keyboard']]){
+  for(const [id,label] of [['computer','Against the computer'],['local','Multiplayer · 2 players']]){
     const b=document.createElement('button');b.type='button';b.className='button outline';b.textContent=label;
     b.onclick=()=>{if(active)return;settings.mode=id;save();sync();};modeControls.append(b);modeButtons.push([id,b]);
   }
@@ -235,13 +241,13 @@ export function createTagGame({canvas,onHud,onFinish,controls=document.querySele
     for(const [field,label,options] of [['animal','Character',TAG_ANIMALS],['outfit','Outfit',TAG_OUTFITS],['hat','Hat',TAG_HATS],['accessory','Accessory',TAG_ACCESSORIES]])select(group,label,options,settings.players[i][field],value=>settings.players[i][field]=value);
     select(group,'Color',{},settings.players[i].color,value=>settings.players[i].color=value,'color');form.append(group);
   }
-  const tip=document.createElement('p');tip.textContent='P1: A / D to run, W to jump. P2: ← / → to run, ↑ to jump. Against the computer you can use either set. Keep moving in midair; pink trampolines launch you high! Whoever is tagged at 60 seconds loses. There is a short shield after each tag. Finish a round for 5 shared coins.';
+  const tip=document.createElement('p');tip.textContent='Phone: swipe left/right and keep your finger down to run. Swipe up diagonally to jump and steer in the air. Release to slow down. In multiplayer, P1 uses the left half and P2 the right half. Touch jumps are gentler. P1: A / D to run, W to jump. P2: ← / → to run, ↑ to jump. Against the computer you can use either set. Keep moving in midair; pink trampolines launch you high! Whoever is tagged at 60 seconds loses. There is a short shield after each tag. Finish a round for 5 shared coins.';
   const pads=document.createElement('div');pads.className='tag-pads';const padGroups=[];
   for(let i=0;i<2;i++){
     const group=document.createElement('div');group.setAttribute('aria-label','Player '+(i+1)+' touch controls');const label=document.createElement('strong');label.textContent='P'+(i+1);group.append(label);padGroups.push(group);
     for(const [action,label] of [['left','←'],['jump','↑ Jump'],['right','→']]){
       const b=document.createElement('button');b.type='button';b.className='button outline';b.textContent=label;b.setAttribute('aria-label','Player '+(i+1)+' '+action);
-      b.addEventListener('pointerdown',e=>{if(!active||paused)return;e.preventDefault();b.setPointerCapture?.(e.pointerId);touch[i].add(action);},events);
+      b.addEventListener('pointerdown',e=>{if(!active||paused||document.hidden)return;e.preventDefault();b.setPointerCapture?.(e.pointerId);touchAssist[i]=true;touch[i].add(action);},events);
       for(const name of ['pointerup','pointercancel','lostpointercapture','blur'])b.addEventListener(name,()=>touch[i].delete(action),events);
       b.addEventListener('keydown',e=>{if([' ','Enter'].includes(e.key)){e.preventDefault();touch[i].add(action);}},events);
       b.addEventListener('keyup',()=>touch[i].delete(action),events);group.append(b);
@@ -251,16 +257,16 @@ export function createTagGame({canvas,onHud,onFinish,controls=document.querySele
   controls.replaceChildren(tip,pads,form);
   function sync(){form.disabled=active;for(const [id,b] of modeButtons){b.disabled=active;b.setAttribute('aria-pressed',String(settings.mode===id));}padGroups[1].hidden=settings.mode!=='local';}
   const allowed=['KeyA','KeyD','KeyW','ArrowLeft','ArrowRight','ArrowUp'];
-  canvas.addEventListener('keydown',e=>{if(allowed.includes(e.code)){e.preventDefault();if(active&&!paused)keys.add(e.code);}},events);
+  canvas.addEventListener('keydown',e=>{if(allowed.includes(e.code)){e.preventDefault();if(active&&!paused){keys.add(e.code);touchAssist[settings.mode==='computer'||e.code.startsWith('Key')?0:1]=false;}}},events);
   globalThis.window?.addEventListener('keyup',e=>keys.delete(e.code),events);
   canvas.addEventListener('blur',clear,events);
   globalThis.window?.addEventListener('blur',clear,events);
   document.addEventListener('visibilitychange',()=>{last=0;clear();if(document.hidden)audio.stop();},events);
-  const input=i=>{const computer=settings.mode==='computer',codes=i===0?['KeyA','KeyD','KeyW']:['ArrowLeft','ArrowRight','ArrowUp'];return Object.fromEntries(['left','right','jump'].map((action,n)=>[action,touch[i].has(action)||keys.has(codes[n])||(i===0&&computer&&keys.has(['ArrowLeft','ArrowRight','ArrowUp'][n]))]));};
+  const input=i=>{const computer=settings.mode==='computer',codes=i===0?['KeyA','KeyD','KeyW']:['ArrowLeft','ArrowRight','ArrowUp'];const swipe=gestures.input(i);return {touchAssist:touchAssist[i],...Object.fromEntries(['left','right','jump'].map((action,n)=>[action,swipe[action]||touch[i].has(action)||keys.has(codes[n])||(i===0&&computer&&keys.has(['ArrowLeft','ArrowRight','ArrowUp'][n]))]))};};
   function finish(){if(!active)return;active=false;clear();sync();const name=s.winner===1&&settings.mode==='computer'?'Computer':'Player '+(s.winner+1);onFinish(5,{title:name+' wins!',detail:'The other player was tagged when the timer ran out.'});}
   function tick(now){
     if(destroyed)return;const dt=last?Math.min(.05,(now-last)/1000):0;last=now;
-    if(active&&!paused&&!document.hidden){tickTag(s,dt,[input(0),input(1)],cue=>audio.play(cue));if(s.status==='finished')finish();}
+    if(active&&!paused&&!document.hidden){tickTag(s,dt,[input(0),input(1)],cue=>audio.play(cue));gestures.advance(dt);if(s.status==='finished')finish();}
     drawTagScene(c,s,canvas.width,canvas.height,reduced);
     onHud({text:s.status==='finished'?'Round complete! Choose another look or arena, then play again.':s.status==='ready'?'Choose computer or multiplayer, customize, then press Start.':s.status==='countdown'?'Get ready…':Math.ceil(TAG_ROUND_SECONDS-s.time)+'s · '+(s.tagger===1&&settings.mode==='computer'?'Computer':'Player '+(s.tagger+1))+' is Tag'+(s.grace>0?' · tag shield':'' )});
     frame=requestAnimationFrame(tick);

@@ -1,3 +1,4 @@
+import { bindMazeSwipes } from './touch-controls.js';
 import { ARMORS, DRAGON_STYLES } from './system.js';
 import { createDefeatSequence, drawDefeat } from './maze-defeat.js';
 import { createVictorySequence, drawVictory } from './maze-victory.js';
@@ -425,10 +426,8 @@ export function createKnightMaze({canvas,character,modifiers,consumeBoost,onHud,
   const input={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',w:'up',s:'down',a:'left',d:'right'};
   const turn=direction=>{audio.unlock();if(!active||paused||ending||document.hidden||state.status!=='playing')return;const resolved=mazeInputDirection(direction,state.player.dir,cameraView);if(resolved)state.wanted=resolved;};
   canvas.addEventListener('keydown',e=>{if(e.key==='Enter'&&ending&&active){e.preventDefault();audio.stop();finish();return;}const dir=input[e.key]||input[e.key.toLowerCase()];if(dir){e.preventDefault();turn(dir);}},options);
-  let pointer=null;
-  canvas.addEventListener('pointerdown',e=>{canvas.focus();if(ending&&active){audio.stop();finish();return;}pointer={x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId);},options);
-  canvas.addEventListener('pointermove',e=>{if(!pointer)return;const dx=e.clientX-pointer.x,dy=e.clientY-pointer.y;if(Math.hypot(dx,dy)>12){turn(Math.abs(dx)>Math.abs(dy)?dx>0?'right':'left':dy>0?'down':'up');pointer={x:e.clientX,y:e.clientY};}},options);
-  canvas.addEventListener('pointerup',()=>pointer=null,options);canvas.addEventListener('pointercancel',()=>pointer=null,options);
+  const gestures=bindMazeSwipes(canvas,{enabled:()=>active&&!paused&&!ending&&!document.hidden&&state.status==='playing',turn},options);
+  canvas.addEventListener('pointerdown',()=>{if(ending&&active&&!paused){audio.stop();finish();}},options);
   function finish(){if(!active)return;active=false;onFinish(state.earned,{won:state.status==='won',hasNext:state.status==='won'&&state.level<KNIGHT_LEVELS.length-1,level:state.level,title:state.status==='won'?'The vault is yours!':state.status==='lost'?'The dragons hold the vault.':'Quest saved.',detail:`Level ${state.level+1}: ${KNIGHT_LEVELS[state.level].name} · ${state.status==='won'&&state.level===KNIGHT_LEVELS.length-1?'All levels complete! · ':''}${state.totalGems-state.gems.size} gems · ${state.kills} dragons defeated`});}
   function hud(){onHud({boosts:{...state.boosts},canBoost:active&&!paused&&!ending&&state.status==='playing',lives:state.lives,text:`Level ${state.level+1} · ${KNIGHT_LEVELS[state.level].name} · ${state.lives} lives · ${state.gems.size} gems left · ✦ ${state.earned} coins${state.sword>0?` · Sword ${Math.ceil(state.sword)}s`:''}`});}
   function drawEndingKnight(ctx,x,y,size,wave) {
@@ -455,11 +454,11 @@ export function createKnightMaze({canvas,character,modifiers,consumeBoost,onHud,
     else drawMaze(ctx,state,character,canvas.width,canvas.height);
     frame=requestAnimationFrame(tick);
   }
-  document.addEventListener?.('visibilitychange',()=>{last=0;if(document.hidden)audio.stop();},options);
+  document.addEventListener?.('visibilitychange',()=>{last=0;gestures.clear();if(document.hidden)audio.stop();},options);
   frame=requestAnimationFrame(tick);
   return {setView(value){if(!['2d','3d'].includes(value)||destroyed)return false;cameraView=value;canvas.focus({preventScroll:true});return true;},selectLevel(value){
     if(destroyed||!Number.isInteger(value)||!KNIGHT_LEVELS[value])return false;
     audio.stop();finish();level=value;state=createMazeState(modifiers,level);
-    ending=null;paused=false;last=0;pointer=null;onLevelChange(level);hud();return true;
-  },activateBoost(id){if(!active||paused||ending||document.hidden)return false;const used=activateMazeBoost(state,id,consumeBoost);hud();canvas.focus();return used;},selectNextLevel(){if(active||state.status!=='won'||state.level>=KNIGHT_LEVELS.length-1)return false;level=state.level+1;onLevelChange(level);state=createMazeState(modifiers,level);ending=null;return true;},start(){audio.stop();audio.unlock();ending=null;state=createMazeState(modifiers,level);active=true;paused=false;last=0;hud();canvas.focus();},pause(value){paused=value;last=0;pointer=null;if(value)audio.stop();else audio.unlock();hud();},setCharacter(value){character={...value};},setMuted:value=>audio.setMuted(value),input:turn,destroy(){if(destroyed)return;destroyed=true;cancelAnimationFrame(frame);controller.abort();audio.destroy();finish();}};
+    ending=null;paused=false;last=0;gestures.clear();onLevelChange(level);hud();return true;
+  },activateBoost(id){if(!active||paused||ending||document.hidden)return false;const used=activateMazeBoost(state,id,consumeBoost);hud();canvas.focus();return used;},selectNextLevel(){if(active||state.status!=='won'||state.level>=KNIGHT_LEVELS.length-1)return false;level=state.level+1;onLevelChange(level);state=createMazeState(modifiers,level);ending=null;return true;},start(){gestures.clear();audio.stop();audio.unlock();ending=null;state=createMazeState(modifiers,level);active=true;paused=false;last=0;hud();canvas.focus();},pause(value){paused=value;last=0;gestures.clear();if(value)audio.stop();else audio.unlock();hud();},setCharacter(value){character={...value};},setMuted:value=>audio.setMuted(value),input:turn,destroy(){if(destroyed)return;destroyed=true;gestures.clear();cancelAnimationFrame(frame);controller.abort();audio.destroy();finish();}};
 }
