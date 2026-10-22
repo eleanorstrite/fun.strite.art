@@ -69,3 +69,12 @@ test('computer can chase onto a raised platform',()=>{
  const s=createTagState(defaultTagSettings(),1);s.status='playing';s.players[0].x=450;s.players[0].y=335;
  for(let i=0;i<600&&s.tagger===1;i++)tickTag(s,.05);assert.equal(s.tagger,0);
 });
+
+test('computer reacts more slowly and runs slower than human players',()=>{
+ const s=createTagState(defaultTagSettings(),1);s.status='playing';
+ tickTag(s,.05,[{right:true},{}]);assert.equal(s.players[1].vx,0);assert.ok(s.players[0].vx>0);
+ for(let i=0;i<10;i++)tickTag(s,.05,[{right:true},{}]);
+ assert.ok(Math.abs(s.players[1].vx)<=230);assert.ok(s.players[0].vx>260);
+ const local=ready();for(let i=0;i<10;i++)tickTag(local,.05,[{right:true},{right:true}]);
+ assert.equal(local.players[0].vx,local.players[1].vx);
+});

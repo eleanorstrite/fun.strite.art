@@ -26,7 +26,7 @@ export function validateTagSettings(value){
   return result;
 }
 const tagClamp=(x,a,b)=>Math.max(a,Math.min(b,x));
-export function createTagState(settings=defaultTagSettings(),tagger=0){return {settings:validateTagSettings(settings),status:'ready',countdown:3,time:0,tagger,grace:0,flash:0,winner:null,players:[180,720].map(x=>({x,y:540,vx:0,vy:0,grounded:true,jumpHeld:false,facing:1,aiWait:0}))};}
+export function createTagState(settings=defaultTagSettings(),tagger=0){return {settings:validateTagSettings(settings),status:'ready',countdown:3,time:0,tagger,grace:0,flash:0,winner:null,players:[180,720].map(x=>({x,y:540,vx:0,vy:0,grounded:true,jumpHeld:false,facing:1,aiWait:0,aiThink:.2,aiInput:{}}))};}
 export function tagComputerInput(s){
   const p=s.players[1],other=s.players[0],chasing=s.tagger===1;
   let direction=Math.sign(chasing?other.x-p.x:p.x-other.x);
@@ -51,10 +51,15 @@ export function tickTag(s,seconds,inputs=[{},{}],emit=()=>{}){
   s.time=Math.min(TAG_ROUND_SECONDS,s.time+dt);s.grace=Math.max(0,s.grace-dt);s.flash=Math.max(0,s.flash-dt);
   const layout=TAG_LAYOUTS[s.settings.layout];
   for(let i=0;i<2;i++){
-    const p=s.players[i],input=i===1&&s.settings.mode==='computer'?tagComputerInput(s):inputs[i]||{};
+    const p=s.players[i],computer=i===1&&s.settings.mode==='computer';
+    if(computer){
+      p.aiThink=Math.max(0,p.aiThink-dt);
+      if(p.aiThink===0){p.aiInput=tagComputerInput(s);p.aiThink=.25;}
+    }
+    const input=computer?p.aiInput:inputs[i]||{};
     p.aiWait=Math.max(0,p.aiWait-dt);
     const direction=Number(Boolean(input.right))-Number(Boolean(input.left));
-    p.vx+=(direction*270-p.vx)*Math.min(1,dt*(p.grounded?15:8));if(direction)p.facing=direction;
+    p.vx+=(direction*(computer?230:270)-p.vx)*Math.min(1,dt*(computer?(p.grounded?10:6):(p.grounded?15:8)));if(direction)p.facing=direction;
     if(input.jump&&!p.jumpHeld&&p.grounded){p.vy=-540;p.grounded=false;p.aiWait=.35;emit('bounce');}p.jumpHeld=Boolean(input.jump);
     const oldY=p.y;p.vy+=1200*dt;p.x=tagClamp(p.x+p.vx*dt,24,876);p.y+=p.vy*dt;p.grounded=false;
     const surfaces=[...layout.platforms,[0,540,900]].sort((a,b)=>a[1]-b[1]);
