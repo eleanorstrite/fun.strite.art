@@ -88,3 +88,5 @@ html[data-background="aurora"]{--home-scene:url('./assets/backgrounds/aurora.svg
 #burger-controls[hidden]{display:none}#burger-controls{padding:14px 0;text-align:center}#burger-controls button{margin:0 5px;min-height:48px}#burger-controls p{font-size:13px;line-height:1.6}
 
 #burger-controls label{display:flex;justify-content:center;align-items:center;gap:10px;flex-wrap:wrap}#burger-controls select{min-height:44px;padding:8px 12px;border:1px solid var(--line);border-radius:6px}
+
+#storm-controls[hidden]{display:none}#storm-controls{padding:16px;margin-top:12px;background:#e5ebed;border-radius:14px}.storm-buttons{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}.storm-buttons button{min-height:52px;touch-action:none;user-select:none}#storm-controls p{font-size:13px;line-height:1.5}
