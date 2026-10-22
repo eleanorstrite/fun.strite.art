@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MAZE, KNIGHT_LEVELS, PORTAL_ROW, activateMazeBoost, createMazeState, neighbors, tickMaze, SWORD_SECONDS, createKnightMaze, drawKnight, calculateMazeReward, drawMaze3D, projectMazePoint, MAZE_WALL_HEIGHT, mazeInputDirection, advanceMazeLook } from '../src/knight-maze.js';
+import { MAZE, KNIGHT_LEVELS, PORTAL_ROW, activateMazeBoost, createMazeState, neighbors, tickMaze, SWORD_SECONDS, createKnightMaze, drawKnight, calculateMazeReward, drawMaze3D, projectMazePoint, MAZE_WALL_HEIGHT, mazeInputDirection } from '../src/knight-maze.js';
 function safeState(){const state=createMazeState();state.player.dir='up';state.dragons.forEach(d=>d.respawn=999);return state;}
 function elapse(state,seconds){for(let i=0;i<Math.round(seconds*100);i++)tickMaze(state,.01);}
 test('every gem and sword is reachable in a rectangular maze',()=>{
@@ -242,11 +242,11 @@ test('3D chase camera keeps walls below the knight and dragon and leaves simulat
   }
 });
 
-test('3D arrows follow the visible heading while 2D arrows follow the map',()=>{
+test('3D and 2D arrows stay aligned with the screen for every knight heading',()=>{
   const headings=['up','right','down','left'];
   for(let i=0;i<4;i++){
     for(const key of headings){
-      assert.equal(mazeInputDirection(key,headings[i],'3d'),headings[(i+{up:0,right:1,down:2,left:3}[key])%4]);
+      assert.equal(mazeInputDirection(key,headings[i],'3d'),key);
       assert.equal(mazeInputDirection(key,headings[i],'2d'),key);
     }
   }
@@ -268,41 +268,34 @@ test('steady 3D camera does not rotate when the knight changes heading',()=>{
 });
 
 
-test('knight eye view has a level horizon, large nearby dragons, and clips behind the eye',()=>{
+test('close chase view keeps the knight large and reveals approaching dragons behind',()=>{
   const state=createMazeState();
   for(const size of [380,760]){
-    const ahead=projectMazePoint(state,state.player.x,state.player.y-2,1.05,size,size);
-    assert.equal(ahead.y,size*.46);
-    assert.ok(ahead.scale>size*.25);
-    assert.equal(projectMazePoint(state,state.player.x,state.player.y+2,0,size,size),null);
+    const knight=projectMazePoint(state,state.player.x,state.player.y,.52,size,size);
+    assert.ok(knight.scale>size*.11);
+    for(const [dx,dy] of [[0,3],[-2,2],[2,2],[0,-3]])for(const z of [0,.78,1.55]){
+      const p=projectMazePoint(state,state.player.x+dx,state.player.y+dy,z,size,size);
+      assert.ok(p&&p.x>0&&p.x<size&&p.y>77&&p.y<size-34);
+    }
   }
 });
-test('comfort turns change heading only at full fade and settle without rotation',()=>{
-  const look={facing:'up',phase:0,time:0};
-  assert.equal(advanceMazeLook(look,'left',.06),.5);assert.equal(look.facing,'up');
-  assert.equal(advanceMazeLook(look,'left',.06),1);assert.equal(look.facing,'left');
-  assert.equal(advanceMazeLook(look,'left',.08),.5);
-  assert.equal(advanceMazeLook(look,'left',.08),0);assert.equal(look.phase,0);
-  advanceMazeLook(look,'right',.06);const before={...look};advanceMazeLook(look,'right',0);assert.deepEqual(look,before);
-});
 
-
-test('3D keyboard turns around once and ignores held-key repeats',()=>{
+test('3D keyboard steers the knight without turning the camera',()=>{
   const original={requestAnimationFrame:globalThis.requestAnimationFrame,cancelAnimationFrame:globalThis.cancelAnimationFrame,document:globalThis.document};
   let frame,engine,heading='';const handlers={};
   globalThis.requestAnimationFrame=fn=>(frame=fn,1);globalThis.cancelAnimationFrame=()=>{};globalThis.document={hidden:false};
-  const ctx=new Proxy({createLinearGradient:()=>({addColorStop(){}}),fillText(text){if(text.startsWith('LOOKING '))heading=text;}},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
+  const ctx=new Proxy({createLinearGradient:()=>({addColorStop(){}}),fillText(text){if(text.startsWith('FACING '))heading=text;}},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
   const canvas={width:760,height:760,getContext:()=>ctx,addEventListener(name,fn){handlers[name]=fn;},focus(){}};
   try{
     engine=createKnightMaze({canvas,view:'3d',character:{color:'#ed6e40'},onHud(){},onFinish(){}});engine.start();frame(100);
-    assert.equal(heading,'LOOKING WEST');
-    handlers.keydown({key:'ArrowDown',repeat:false,preventDefault(){}});
+    assert.equal(heading,'FACING WEST');
+    handlers.keydown({key:'ArrowRight',repeat:false,preventDefault(){}});
     for(let now=150;now<=700;now+=50)frame(now);
-    assert.equal(heading,'LOOKING EAST');
-    for(let now=750;now<=1100;now+=50){handlers.keydown({key:'ArrowDown',repeat:true,preventDefault(){}});frame(now);}
-    assert.equal(heading,'LOOKING EAST');
-    handlers.keydown({key:'ArrowDown',repeat:false,preventDefault(){}});
+    assert.equal(heading,'FACING EAST');
+    for(let now=750;now<=1100;now+=50){handlers.keydown({key:'ArrowRight',repeat:true,preventDefault(){}});frame(now);}
+    assert.equal(heading,'FACING EAST');
+    handlers.keydown({key:'ArrowLeft',repeat:false,preventDefault(){}});
     for(let now=1150;now<=1750;now+=50)frame(now);
-    assert.equal(heading,'LOOKING WEST');
+    assert.equal(heading,'FACING WEST');
   }finally{engine?.destroy();Object.assign(globalThis,original);}
 });
