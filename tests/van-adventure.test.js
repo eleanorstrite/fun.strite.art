@@ -50,7 +50,7 @@ test('van engine pauses, freezes hidden tabs, restarts, and settles only once',(
  globalThis.requestAnimationFrame=fn=>(frame=fn,1);globalThis.cancelAnimationFrame=()=>{};
  try{
   const engine=createVanAdventure({canvas,controls,consumeBoost:id=>{assert.equal(id,'snack');used++;return true;},onHud:v=>{hud=v.text;snackSeconds=v.ravenSnack.seconds;},onFinish:()=>finished++});assert.equal(engine.activateSnack(),false);engine.start();controls.children[1].children[5].onclick();
-  assert.equal(engine.activateSnack(),true);assert.equal(engine.activateSnack(),false);assert.equal(used,1);assert.equal(snackSeconds,50);
+  assert.equal(engine.activateSnack(),true);assert.equal(engine.activateSnack(),false);assert.equal(used,1);assert.equal(snackSeconds,15);
   handlers.keydown({key:'ArrowUp',preventDefault(){}});frame(100);frame(150);
   engine.pause(true);const paused=hud,pausedSnack=snackSeconds;assert.equal(engine.activateSnack(),false);frame(200);frame(250);assert.equal(hud,paused);assert.equal(snackSeconds,pausedSnack);
   engine.pause(false);globalThis.document.hidden=true;frame(300);assert.equal(hud,paused);
@@ -59,9 +59,28 @@ test('van engine pauses, freezes hidden tabs, restarts, and settles only once',(
  }finally{Object.assign(globalThis,original);}
 });
 
-test('Snack Attack hides all hazard types for fifty seconds then restores collision',()=>{
- const s=readyVan();s.snack=50;
+test('Snack Attack hides all hazard types for fifteen seconds then restores collision',()=>{
+ const s=readyVan();s.snack=15;
  for(const o of VAN_OBSTACLES){s.z=o.z-20;s.x=vanRoadCenter(o.z)+o.x;s.lane=0;tickVan(s,.05);assert.equal(s.lives,3);}
  s.z=0;s.speed=0;for(let i=0;i<1000;i++)tickVan(s,.05,{down:true});assert.equal(s.snack,0);
  s.z=VAN_OBSTACLES.find(o=>o.type==='gap').z;tickVan(s,.05);assert.equal(s.lives,2);
+});
+
+test('holding Space only flies over gaps and lands after the rear clears each one',()=>{
+ for(const gap of VAN_OBSTACLES.filter(o=>o.type==='gap')){
+  const s=readyVan();s.z=gap.z-190;s.speed=0;
+  tickVan(s,.05,{fly:true,down:true});assert.equal(s.fly,0);
+  s.z=gap.z-175;tickVan(s,.05,{fly:true,down:true});assert.equal(s.fly,1);
+  s.z=gap.z+gap.length+40;tickVan(s,.05,{fly:true,down:true});assert.equal(s.fly,1);
+  s.z=gap.z+gap.length+61;tickVan(s,.05,{fly:true,down:true});assert.equal(s.fly,0);
+  s.z=gap.z+gap.length+100;tickVan(s,.05,{fly:true,down:true});assert.equal(s.fly,0);
+ }
+ const s=readyVan();const barrier=VAN_OBSTACLES.find(o=>o.type==='jump');s.z=barrier.z;
+ tickVan(s,.05,{fly:true});assert.equal(s.fly,0);assert.equal(s.lives,2);
+});
+test('Snack Attack lasts fifteen seconds of gameplay, not fifty',()=>{
+ const s=readyVan();s.snack=15;
+ for(let i=0;i<290;i++)tickVan(s,.05,{down:true});
+ assert.equal(s.snack>.49&&s.snack<.51,true);
+ for(let i=0;i<11;i++)tickVan(s,.05,{down:true});assert.equal(s.snack,0);
 });

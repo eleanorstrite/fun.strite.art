@@ -1,6 +1,7 @@
 import { createMazeAudio } from './maze-audio.js';
 
 export const VAN_FINISH=6000;
+export const SNACK_ATTACK_SECONDS=15;
 export const VAN_OBSTACLES=[
   {z:450,x:-70,type:'cones'},{z:720,x:75,type:'crate'},
   {z:1100,x:0,type:'jump'},{z:1530,x:-90,type:'crate'},{z:1780,x:80,type:'cones'},
@@ -24,11 +25,16 @@ export function tickVan(s,seconds,keys={},emit=()=>{}){
   if(s.status!=='playing')return;
   s.time+=dt;
   for(const name of ['jump','dodge','jumpCooldown','dodgeCooldown','invincible','snack'])s[name]=Math.max(0,s[name]-dt);
-  s.fly=keys.fly?1:0;if(s.fly)s.jump=0;
   s.speed=clampVan(s.speed+(keys.down?-300:180)*dt,0,230);
   const previous=s.z;s.z=Math.min(VAN_FINISH,s.z+s.speed*dt);
   const target=vanRoadCenter(s.z)+s.lane*90;
   s.x+=clampVan(target-s.x,-450*dt,450*dt);
+  // Flight is available only on the approach to a gap and until the rear of
+  // the van clears it. Holding Space cannot bypass the rest of the course.
+  const gap=VAN_OBSTACLES.find(o=>o.type==='gap'&&s.z>=o.z-180&&s.z<=o.z+o.length+60);
+  const wasFlying=s.fly>0;
+  s.fly=keys.fly&&gap&&s.snack<=0?1:0;
+  if(s.fly){s.jump=0;if(!wasFlying)emit('jet');}
   const flying=s.fly>0,jumping=s.jump>0&&Math.sin((1-s.jump/.95)*Math.PI)>.25;
   if(Math.abs(s.x-vanRoadCenter(s.z))>145&&!flying){s.speed=Math.min(s.speed,75);s.message='Grass slows you down — steer back onto the road.';}
   const obstacle=VAN_OBSTACLES.find(o=>{
@@ -154,7 +160,7 @@ export function createVanAdventure({canvas,onHud,onFinish,consumeBoost=()=>false
   let s=createVanState(),active=false,paused=false,destroyed=false,last=0,frame;const keys={};
   const clear=()=>{for(const k of Object.keys(keys))delete keys[k];};
   function action(name){if(!active||paused||document.hidden)return;if(vanAction(s,name))audio.play(name==='jump'?'bounce':'whoosh');}
-  function hold(name,value){if(!value){delete keys[name];return;}if(active&&!paused&&!document.hidden&&s.status==='playing'){keys[name]=true;if(name==='fly')audio.play('jet');}}
+  function hold(name,value){if(!value){delete keys[name];return;}if(active&&!paused&&!document.hidden&&s.status==='playing'){keys[name]=true;}}
   canvas.addEventListener('keydown',e=>{
     if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].includes(e.key))return;e.preventDefault();
     if(e.key===' '){if(!e.repeat)hold('fly',true);}else if(e.key==='ArrowDown')hold('down',true);
@@ -164,7 +170,7 @@ export function createVanAdventure({canvas,onHud,onFinish,consumeBoost=()=>false
   canvas.addEventListener('blur',clear,options);
   document.addEventListener?.('visibilitychange',()=>{last=0;clear();if(document.hidden)audio.stop();},options);
   const buttons={};controls.replaceChildren();
-  const tip=document.createElement('p');tip.textContent='Automatic driving · ← → Dodge · ↑ Jump · Hold Space to fly, release to land · ↓ Brake. Beat your best time!';controls.append(tip);
+  const tip=document.createElement('p');tip.textContent='Automatic driving · ← → Dodge · ↑ Jump · Hold Space near water gaps to fly; auto-land after crossing · ↓ Brake. Beat your best time!';controls.append(tip);
   const row=document.createElement('div');row.className='van-buttons';controls.append(row);
   for(const [name,label] of [['left','← Dodge'],['right','Dodge →'],['jump','↑ Jump'],['fly','Hold to fly · Space'],['down','↓ Brake'],['skip','Skip intro']]){
     const b=document.createElement('button');b.type='button';b.className='button outline';b.textContent=label;buttons[name]=b;row.append(b);
@@ -179,7 +185,7 @@ export function createVanAdventure({canvas,onHud,onFinish,consumeBoost=()=>false
     for(const [name,b] of Object.entries(buttons)){
       b.hidden=name==='skip'&&s.status!=='intro';b.disabled=!active||paused||(name==='skip'?s.status!=='intro':s.status!=='playing');
       if(['jump','left','right'].includes(name)){const timer=s[name==='jump'?'jumpCooldown':'dodgeCooldown'];b.disabled=b.disabled||timer>0||(name==='jump'&&s.fly>0);}
-      if(name==='fly')b.setAttribute('aria-pressed',String(Boolean(keys.fly)));
+      if(name==='fly')b.setAttribute('aria-pressed',String(s.fly>0));
 
     }
     onHud({ravenSnack:{seconds:s.snack,canUse:active&&!paused&&!document.hidden&&s.status==='playing'},text:s.status==='intro'?'All aboard! Watch the family get into The Raven.':s.message+' · '+s.earned+' coins · Best: '+(bestTimeMs?(bestTimeMs/1000).toFixed(2)+'s':'—')});
@@ -187,5 +193,5 @@ export function createVanAdventure({canvas,onHud,onFinish,consumeBoost=()=>false
   function finish(){if(!active)return;active=false;clear();if(s.status==='won')bestTimeMs=Math.min(bestTimeMs||Infinity,Math.round(s.time*1000));onFinish(s.earned,{title:s.status==='won'?'The Raven finished!':s.status==='lost'?'The van needs a rest.':'Road trip saved.',detail:s.time.toFixed(1)+' seconds · '+Math.floor(s.z/VAN_FINISH*100)+'% of the course',...(s.status==='won'?{timeMs:Math.round(s.time*1000)}:{})});}
   function tick(now){if(destroyed)return;const dt=last?Math.min((now-last)/1000,.05):0;last=now;if(active&&!paused&&!document.hidden){tickVan(s,dt,keys,cue=>audio.play(cue));if(s.status==='won'||s.status==='lost')finish();}hud();drawVanScene(c,s,canvas.width,canvas.height);frame=requestAnimationFrame(tick);}
   hud();frame=requestAnimationFrame(tick);
-  return {activateSnack(){if(!active||paused||document.hidden||s.status!=='playing'||s.snack>0||!consumeBoost('snack'))return false;s.snack=50;s.message='Snack Attack! Clear road for 50 seconds!';audio.play('sword');hud();canvas.focus({preventScroll:true});return true;},start(){clear();audio.stop();audio.unlock();s=createVanState();s.status='intro';active=true;paused=false;last=0;canvas.focus();hud();},pause(value){paused=value;last=0;clear();if(value)audio.stop();else audio.unlock();hud();},setMuted:value=>audio.setMuted(value),destroy(){if(destroyed)return;destroyed=true;clear();finish();controller.abort();cancelAnimationFrame(frame);audio.destroy();controls.replaceChildren();}};
+  return {activateSnack(){if(!active||paused||document.hidden||s.status!=='playing'||s.snack>0||!consumeBoost('snack'))return false;s.snack=SNACK_ATTACK_SECONDS;s.message='Snack Attack! Clear road for 15 seconds!';audio.play('sword');hud();canvas.focus({preventScroll:true});return true;},start(){clear();audio.stop();audio.unlock();s=createVanState();s.status='intro';active=true;paused=false;last=0;canvas.focus();hud();},pause(value){paused=value;last=0;clear();if(value)audio.stop();else audio.unlock();hud();},setMuted:value=>audio.setMuted(value),destroy(){if(destroyed)return;destroyed=true;clear();finish();controller.abort();cancelAnimationFrame(frame);audio.destroy();controls.replaceChildren();}};
 }
