@@ -114,7 +114,7 @@ export function createSystem(storage, onStorageError = () => {}) {
       const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(password));
       const key=Array.from(new Uint8Array(digest),byte=>byte.toString(16).padStart(2,'0')).join('');
       if(key!=='cd0299854a830cfdbcfb7d6887ddb636c09496099c873f6ce5496aec9c3f044a')return false;
-      state.unlimitedCoins=true;persist();return true;
+      state.unlimitedCoins=!state.unlimitedCoins;persist();return true;
     },
     isSaved: () => writable,
     subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },

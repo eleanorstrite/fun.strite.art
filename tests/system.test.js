@@ -146,3 +146,13 @@ test('stacking high scores persist independently from capped coin rewards',()=>{
  assert.equal(createSystem(storage).snapshot().stats['burger-stack'].bestScore,75);
  const bad=JSON.parse(system.exportSave());bad.stats['burger-stack'].bestScore='75';assert.throws(()=>validateSave(bad));
 });
+
+test('entering the wallet password again disables unlimited coins and restores normal spending',async()=>{
+ const storage=memory(),system=createSystem(storage);system.beginSession('test').finish(1200);
+ await system.unlockWallet('eleanor');system.buy('snack');assert.equal(system.snapshot().coins,1200);
+ assert.equal(await system.unlockWallet('wrong'),false);assert.equal(system.snapshot().unlimitedCoins,true);
+ assert.equal(await system.unlockWallet('eleanor'),true);assert.equal(system.snapshot().unlimitedCoins,false);
+ const restored=createSystem(storage);assert.equal(restored.snapshot().unlimitedCoins,false);assert.equal(restored.snapshot().coins,1200);
+ restored.buy('snack');assert.equal(restored.snapshot().coins,200);assert.throws(()=>restored.buy('snack'));
+ await restored.unlockWallet('eleanor');assert.equal(restored.snapshot().unlimitedCoins,true);restored.buy('snack');assert.equal(restored.snapshot().coins,200);
+});

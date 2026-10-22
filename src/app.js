@@ -231,11 +231,14 @@ for(const letter of document.querySelectorAll('[data-brand-letter]'))letter.addE
 });
 $('#brand-cancel').addEventListener('click',()=>$('#brand-dialog').close());
 $('#brand-dialog').addEventListener('close',()=>{$('#brand-password').value='';$('#brand-message').textContent='';});
+let walletPending=false;
 $('#brand-form').addEventListener('submit',async event=>{
   event.preventDefault();
+  if(walletPending)return;walletPending=true;
   const password=$('#brand-password').value;$('#brand-password').value='';
   try {
-    if(await system.unlockWallet(password)){$('#brand-dialog').close();notify('Unlimited coins unlocked.');}
+    if(await system.unlockWallet(password)){$('#brand-dialog').close();notify(system.snapshot().unlimitedCoins?'Unlimited coins on.':'Unlimited coins off.');}
     else {$('#brand-message').textContent='Incorrect password.';$('#brand-password').focus();}
-  } catch {$('#brand-message').textContent='Could not unlock. Please try again.';}
+  } catch {$('#brand-message').textContent='Could not update coins. Please try again.';}
+  finally {walletPending=false;}
 });
