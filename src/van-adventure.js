@@ -116,7 +116,9 @@ function drawVanPassenger(c,x,y,index,walk){
 }
 function drawSnack(c,x,y,kind,turn){
   c.save();c.translate(x,y);c.rotate(turn);
-  if(kind==='sandwich'){
+  if(kind==='popcorn'){
+    for(const [xx,yy] of [[0,0],[-5,-4],[5,-4],[-4,4],[4,4]])vanOval(c,xx,yy,5,5,'#fff2b9');vanOval(c,0,1,2,2,'#d8a64e');
+  }else if(kind==='sandwich'){
     c.lineJoin='round';c.strokeStyle='#b77c42';c.lineWidth=3;
     c.fillStyle='#fff0bd';c.beginPath();c.moveTo(-15,12);c.lineTo(-15,-14);c.lineTo(17,12);c.closePath();c.fill();c.stroke();
     c.strokeStyle='#71a64f';c.lineWidth=4;c.beginPath();c.moveTo(-12,5);c.lineTo(7,5);c.stroke();
@@ -210,11 +212,72 @@ export function drawVanScene(c,s,width,height){
   if(s.status==='won'||s.status==='lost'){vanRound(c,90,210,540,170,22,'#fff3d9');c.fillStyle='#284653';c.font='bold 30px sans-serif';c.fillText(s.status==='won'?'Everyone made it!':'Time for another road trip!',360,265);c.font='20px sans-serif';c.fillText(s.status==='won'?'A family adventure to remember.':'Use the minimap and try again.',360,305);c.fillText(s.earned+' coins earned',360,345);}
   c.restore();
 }
+export function createVanEnding(won,audio){
+  let time=0,spoken=false,boom=false;
+  return {get time(){return time;},get complete(){return time>=(won?7:6);},advance(dt){
+    time=Math.min(won?7:6,time+Math.max(0,dt));
+    if(!won&&time>=.8&&!boom){boom=true;audio.play('thunder');}
+    if(time>=(won?3.2:3.8)&&!spoken){spoken=true;audio.say(won?'Hooray! You win!':'You Lose.',won?1.2:.8);if(won)audio.play('win');}
+  }};
+}
+export function drawVanEnding(c,won,time,width,height,reduced=false){
+  c.save();c.scale(width/900,height/650);
+  c.fillStyle=won?'#d7eef1':'#c7d5dc';c.fillRect(0,0,900,650);
+  vanOval(c,760,90,42,42,'#ffe5ad');
+  c.fillStyle='#90ad83';c.fillRect(0,320,900,330);c.fillStyle='#87918d';c.fillRect(0,400,900,250);
+  if(won){
+    c.fillStyle='#496f67';c.fillRect(85,130,15,275);c.fillRect(800,130,15,275);
+    vanRound(c,85,112,730,65,8,'#fff0c8');c.fillStyle='#294852';c.font='bold 29px sans-serif';c.textAlign='center';c.fillText('FINISH · THE RAVEN',450,154);
+    const vanX=500+(reduced?0:(1-clampVan(time/.8,0,1))*520);
+    drawFamilyVan(c,vanX,355,1.15,true,time>.8);
+    for(let i=0;i<4;i++){
+      const progress=clampVan((time-.9-i*.4)/.85,0,1);if(time<.9+i*.4)continue;
+      const x=vanX-10+(210+i*150-(vanX-10))*progress,y=405+100*progress;
+      drawVanPassenger(c,x,y,i,reduced?0:time*10);
+      if(progress===1&&time>=3.2){
+        const wave=reduced?0:Math.sin(time*9+i)*9;
+        c.strokeStyle=i===3?'#252b31':'#efbc91';c.lineWidth=6;c.lineCap='round';c.beginPath();c.moveTo(x-15,y-(i===3?15:40));c.lineTo(x-28,y-(i===3?35:65)-wave);c.stroke();
+      }
+    }
+    if(time>=3.2){
+      for(let i=0;i<24;i++){
+        const age=(time-3.2+i*.073)%1.7,origin=210+(i%4)*150;
+        const x=origin+Math.sin(i*7)*age*55,y=440-age*260+age*age*145;
+        if(reduced){if(i<12)drawSnack(c,150+i*52,240+(i%3)*28,['popcorn','candy','sandwich'][i%3],i);}
+        else drawSnack(c,x,y,['popcorn','candy','sandwich'][i%3],age*(i%2?4:-4));
+      }
+      vanRound(c,190,185,520,74,20,'#fff5dcee');c.fillStyle='#284c55';c.textAlign='center';c.font='bold 36px sans-serif';c.fillText('Hooray! You win!',450,234);
+    }
+  }else{
+    if(time<.8)drawFamilyVan(c,450,365,1.15,true,false);
+    if(time>=.8){
+      const blast=time-.8;
+      // A cartoon puff, loose van parts, and whole characters tumbling onto grass.
+      for(let i=0;i<12;i++){
+        const a=i*Math.PI/6,spread=reduced?45:Math.min(115,blast*140);
+        vanOval(c,450+Math.cos(a)*spread,355+Math.sin(a)*spread*.6,Math.max(18,65-blast*9),Math.max(16,55-blast*7),blast<.8?(i%2?'#ffd17a':'#e98a54'):(i%2?'#809095':'#aab6b6'));
+      }
+      if(blast<1.2){c.fillStyle='#fff2c9';c.textAlign='center';c.font='bold 42px sans-serif';c.fillText('POOF!',450,365);}
+      for(let i=0;i<3;i++){
+        const p=clampVan(blast/1.5,0,1),x=450+(i-1)*160*p,y=410-Math.sin(p*Math.PI)*100;
+        c.save();c.translate(x,y);c.rotate(reduced?0:blast*(i-1)*3);vanRound(c,-35,-13,70,26,8,'#29333a');c.restore();
+      }
+      for(let i=0;i<4;i++){
+        const p=reduced?1:clampVan(blast/1.8,0,1),x=450+(160+i*190-450)*p,y=390+135*p-Math.sin(p*Math.PI)*(190+(i%2)*35);
+        c.save();c.translate(x,y);c.rotate(reduced?0:Math.sin(p*Math.PI)*(i%2?1:-1)*1.5);drawVanPassenger(c,0,0,i,0);c.restore();
+      }
+    }
+    if(time>=3.8){vanRound(c,240,110,420,105,22,'#fff1dce8');c.fillStyle='#644857';c.textAlign='center';c.font='bold 42px sans-serif';c.fillText('You Lose',450,177);}
+  }
+  c.textAlign='center';c.fillStyle='#253f49';c.font='20px sans-serif';c.fillText(won?'A snack party for the whole family!':'The Raven needs repairs. Try another run!',450,594);
+  c.restore();
+}
 export function drawVanPreview(canvas){const c=canvas.getContext('2d');if(c)drawVanScene(c,createVanState(),canvas.width,canvas.height);}
 export function createVanAdventure({canvas,onHud,onFinish,consumeBoost=()=>false,bestTimeMs=null,controls=document.querySelector('#van-controls')}){
   const c=canvas.getContext('2d');if(!c)throw Error('Canvas is unavailable.');
   const audio=createMazeAudio(),controller=new AbortController(),options={signal:controller.signal};
-  let s=createVanState(),active=false,paused=false,destroyed=false,last=0,frame;const keys={};
+  let s=createVanState(),active=false,paused=false,destroyed=false,last=0,frame,ending=null;const keys={};
+  const reduced=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false;
   const clear=()=>{for(const k of Object.keys(keys))delete keys[k];};
   function action(name){if(!active||paused||document.hidden)return;if(vanAction(s,name))audio.play(name==='jump'?'bounce':'whoosh');}
   function hold(name,value){if(!value){delete keys[name];return;}if(active&&!paused&&!document.hidden&&s.status==='playing'){keys[name]=true;}}
@@ -236,19 +299,19 @@ export function createVanAdventure({canvas,onHud,onFinish,consumeBoost=()=>false
       for(const event of ['pointerup','pointercancel','lostpointercapture','blur'])b.addEventListener(event,()=>hold(name,false),options);
       b.addEventListener('keydown',e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();if(!e.repeat)hold(name,true);}},options);
       b.addEventListener('keyup',()=>hold(name,false),options);
-    }else b.onclick=()=>{if(name==='skip'){if(active&&!paused&&s.status==='intro'){s.intro=7;s.status='playing';canvas.focus();}}else{action(name);canvas.focus({preventScroll:true});}};
+    }else b.onclick=()=>{if(name==='skip'){if(active&&!paused&&ending){audio.stop();finish();}else if(active&&!paused&&s.status==='intro'){s.intro=7;s.status='playing';canvas.focus();}}else{action(name);canvas.focus({preventScroll:true});}};
   }
   function hud(){
     for(const [name,b] of Object.entries(buttons)){
-      b.hidden=name==='skip'&&s.status!=='intro';b.disabled=!active||paused||(name==='skip'?s.status!=='intro':s.status!=='playing');
+      b.hidden=name==='skip'&&s.status!=='intro'&&!ending;b.disabled=!active||paused||(name==='skip'?s.status!=='intro'&&!ending:s.status!=='playing');if(name==='skip')b.textContent=ending?'Skip ending':'Skip intro';
       if(['jump','left','right'].includes(name)){const timer=s[name==='jump'?'jumpCooldown':'dodgeCooldown'];b.disabled=b.disabled||timer>0||(name==='jump'&&s.fly>0);}
       if(name==='fly')b.setAttribute('aria-pressed',String(s.fly>0));
 
     }
-    onHud({ravenSnack:{seconds:s.snack,canUse:active&&!paused&&!document.hidden&&s.status==='playing'},text:s.status==='intro'?'All aboard! Watch the family get into The Raven.':s.message+' · '+s.earned+' coins · Best: '+(bestTimeMs?(bestTimeMs/1000).toFixed(2)+'s':'—')});
+    onHud({ravenSnack:{seconds:s.snack,canUse:active&&!paused&&!document.hidden&&s.status==='playing'},text:ending?(s.status==='won'?'The family is celebrating!':'Watch The Raven’s cartoon crash…'):s.status==='intro'?'All aboard! Watch the family get into The Raven.':s.message+' · '+s.earned+' coins · Best: '+(bestTimeMs?(bestTimeMs/1000).toFixed(2)+'s':'—')});
   }
   function finish(){if(!active)return;active=false;clear();if(s.status==='won')bestTimeMs=Math.min(bestTimeMs||Infinity,Math.round(s.time*1000));onFinish(s.earned,{title:s.status==='won'?'The Raven finished!':s.status==='lost'?'The van needs a rest.':'Road trip saved.',detail:s.time.toFixed(1)+' seconds · '+Math.floor(s.z/VAN_FINISH*100)+'% of the course',...(s.status==='won'?{timeMs:Math.round(s.time*1000)}:{})});}
-  function tick(now){if(destroyed)return;const dt=last?Math.min((now-last)/1000,.05):0;last=now;if(active&&!paused&&!document.hidden){tickVan(s,dt,keys,cue=>audio.play(cue));if(s.status==='won'||s.status==='lost')finish();}hud();drawVanScene(c,s,canvas.width,canvas.height);frame=requestAnimationFrame(tick);}
+  function tick(now){if(destroyed)return;const dt=last?Math.min((now-last)/1000,.05):0;last=now;if(active&&!paused&&!document.hidden){if(ending){ending.advance(dt);if(ending.complete)finish();}else{tickVan(s,dt,keys,cue=>audio.play(cue));if(s.status==='won'||s.status==='lost'){clear();ending=createVanEnding(s.status==='won',audio);}}}hud();if(ending)drawVanEnding(c,s.status==='won',ending.time,canvas.width,canvas.height,reduced);else drawVanScene(c,s,canvas.width,canvas.height);frame=requestAnimationFrame(tick);}
   hud();frame=requestAnimationFrame(tick);
-  return {activateSnack(){if(!active||paused||document.hidden||s.status!=='playing'||s.snack>0||!consumeBoost('snack'))return false;s.snack=SNACK_ATTACK_SECONDS;s.snackShots=[];s.snackCleared=[];s.snackThrow=0;s.snackCount=0;s.message='Snack Attack! Sandwiches and candy clear the road!';audio.play('sword');hud();canvas.focus({preventScroll:true});return true;},start(){clear();audio.stop();audio.unlock();s=createVanState();s.status='intro';active=true;paused=false;last=0;canvas.focus();hud();},pause(value){paused=value;last=0;clear();if(value)audio.stop();else audio.unlock();hud();},setMuted:value=>audio.setMuted(value),destroy(){if(destroyed)return;destroyed=true;clear();finish();controller.abort();cancelAnimationFrame(frame);audio.destroy();controls.replaceChildren();}};
+  return {activateSnack(){if(!active||paused||document.hidden||s.status!=='playing'||s.snack>0||!consumeBoost('snack'))return false;s.snack=SNACK_ATTACK_SECONDS;s.snackShots=[];s.snackCleared=[];s.snackThrow=0;s.snackCount=0;s.message='Snack Attack! Sandwiches and candy clear the road!';audio.play('sword');hud();canvas.focus({preventScroll:true});return true;},start(){clear();audio.stop();audio.unlock();ending=null;s=createVanState();s.status='intro';active=true;paused=false;last=0;canvas.focus();hud();},pause(value){paused=value;last=0;clear();if(value)audio.stop();else audio.unlock();hud();},setMuted:value=>audio.setMuted(value),destroy(){if(destroyed)return;destroyed=true;clear();finish();controller.abort();cancelAnimationFrame(frame);audio.destroy();controls.replaceChildren();}};
 }

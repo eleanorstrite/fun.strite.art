@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createVanState, tickVan, vanAction, vanRoadCenter, VAN_OBSTACLES, VAN_FINISH, drawVanScene, createVanAdventure, tickSnackAttack } from '../src/van-adventure.js';
+import { createVanState, tickVan, vanAction, vanRoadCenter, VAN_OBSTACLES, VAN_FINISH, drawVanScene, createVanAdventure, tickSnackAttack, createVanEnding, drawVanEnding } from '../src/van-adventure.js';
 const readyVan=()=>({...createVanState(),status:'playing'});
 test('family boards before driving and actions only work during the course',()=>{
  const s=createVanState();assert.equal(vanAction(s,'fly'),false);s.status='intro';
@@ -96,4 +96,38 @@ test('Snack Attack throws both foods, hits approaching obstacles, and stops at e
  const ctx=new Proxy({},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)}),before=JSON.stringify(s);
  drawVanScene(ctx,s,900,650);assert.equal(JSON.stringify(s),before);
  s.snack=.01;tickVan(s,.05,{down:true});assert.equal(s.snack,0);assert.equal(s.snackShots.length,0);assert.equal(s.snackCleared.length,0);
+});
+
+test('Raven ending cues run once, use the requested words, and both clips render',()=>{
+ const ctx=new Proxy({},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
+ for(const won of [true,false]){
+  const sounds=[],speech=[],scene=createVanEnding(won,{play:cue=>sounds.push(cue),say:line=>speech.push(line)});
+  for(let i=0;i<160;i++){scene.advance(.05);drawVanEnding(ctx,won,scene.time,900,650,false);}
+  assert.equal(scene.complete,true);assert.deepEqual(speech,[won?'Hooray! You win!':'You Lose.']);
+  assert.deepEqual(sounds,[won?'win':'thunder']);scene.advance(10);assert.equal(speech.length,1);
+  drawVanEnding(ctx,won,scene.time,450,325,true);
+ }
+});
+test('Raven endings delay settlement, freeze on pause and hidden tabs, and preserve race time',()=>{
+ const original={document:globalThis.document,window:globalThis.window,requestAnimationFrame:globalThis.requestAnimationFrame,cancelAnimationFrame:globalThis.cancelAnimationFrame};
+ const obstacles=VAN_OBSTACLES.slice();VAN_OBSTACLES.length=0;
+ class Element{children=[];append(...nodes){this.children.push(...nodes);}replaceChildren(...nodes){this.children=nodes;}addEventListener(){}setAttribute(){}}
+ let frame,finished=0,result,now=100,hud='';
+ const ctx=new Proxy({},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)}),controls=new Element();
+ const canvas={width:900,height:650,getContext:()=>ctx,focus(){},addEventListener(){}};
+ globalThis.document={hidden:false,createElement:()=>new Element(),addEventListener(){}};globalThis.window={addEventListener(){}};
+ globalThis.requestAnimationFrame=fn=>(frame=fn,1);globalThis.cancelAnimationFrame=()=>{};
+ let engine;const advance=n=>{for(let i=0;i<n;i++){frame(now);now+=50;}};
+ try{
+  engine=createVanAdventure({canvas,controls,onHud:value=>hud=value.text,onFinish:(coins,value)=>{assert.equal(coins,45);finished++;result=value;}});
+  engine.start();controls.children[1].children[5].onclick();
+  for(let i=0;i<800&&!hud.includes('celebrating');i++)advance(1);
+  assert.equal(hud.includes('celebrating'),true);assert.equal(finished,0);assert.equal(controls.children[1].children[5].textContent,'Skip ending');
+  engine.pause(true);advance(200);assert.equal(finished,0);engine.pause(false);globalThis.document.hidden=true;advance(200);assert.equal(finished,0);
+  globalThis.document.hidden=false;advance(100);assert.equal(finished,0);advance(50);assert.equal(finished,1);
+  assert.equal(result.timeMs>26000&&result.timeMs<29000,true);advance(200);assert.equal(finished,1);
+  engine.start();controls.children[1].children[5].onclick();
+  for(let i=0;i<800&&!hud.includes('celebrating');i++)advance(1);
+  controls.children[1].children[5].onclick();assert.equal(finished,2);engine.destroy();assert.equal(finished,2);
+ }finally{engine?.destroy();VAN_OBSTACLES.splice(0,VAN_OBSTACLES.length,...obstacles);Object.assign(globalThis,original);}
 });
