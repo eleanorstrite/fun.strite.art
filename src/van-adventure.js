@@ -109,6 +109,8 @@ export function drawFamilyVan(c,x,y,scale=1,side=false,door=false){
     c.fillStyle='#71808a';c.fillRect(-144,27,291,4);c.fillRect(-16,0,20,4);
     c.fillStyle='#e7edce';c.fillRect(-151,3,22,9);c.fillStyle='#ee7467';c.fillRect(135,6,15,13);
     if(door){vanRound(c,-48,-52,75,95,6,'#0b1219');vanRound(c,31,-52,51,95,5,'#252e37');}
+    c.fillStyle='#f5dfaa';c.textAlign='center';c.font='bold '+(door?10:16)+'px sans-serif';
+    if(door){c.fillText('The',56,16);c.fillText('Raven',56,29);}else c.fillText('The Raven',10,22);
     for(const xx of [-100,100]){vanOval(c,xx,44,29,29,'#101318');vanOval(c,xx,44,18,18,'#58616b');vanOval(c,xx,44,9,9,'#b0b5b7');}
   }else{
     vanRound(c,-29,-53,58,110,17,'#141b23');vanRound(c,-24,-43,48,90,12,'#29313a');
@@ -276,6 +278,7 @@ function drawRavenWreck(c,blast,reduced){
   c.strokeStyle='#d3e6e8';c.lineWidth=2;c.beginPath();c.moveTo(-62,-44);c.lineTo(-55,-25);c.lineTo(-76,-9);c.moveTo(-55,-25);c.lineTo(-35,-18);c.moveTo(23,-30);c.lineTo(9,-17);c.lineTo(34,-8);c.stroke();
   c.strokeStyle='#48535d';c.lineWidth=3;c.beginPath();c.moveTo(-15,-3);c.lineTo(-21,30);c.lineTo(43,32);c.lineTo(56,3);c.moveTo(-125,17);c.lineTo(-91,25);c.lineTo(-58,13);c.moveTo(62,17);c.lineTo(88,29);c.lineTo(120,18);c.stroke();
   vanRound(c,19,3,20,4,2,'#b6bec2');vanRound(c,-145,5,20,8,2,'#f9e4a5');vanRound(c,132,2,10,13,2,'#ed7467');
+  c.fillStyle='#d5c59e';c.textAlign='center';c.font='bold 14px sans-serif';c.fillText('The Raven',18,23);
   // One wheel stays attached at an angle; the other lands beside the crumpled bumper.
   for(const [x,y,turn] of [[91,39,-.28],[-167,52,.45]]){c.save();c.translate(x,y);c.rotate(turn);vanOval(c,0,0,24,24,'#101820');vanOval(c,0,0,15,15,'#697581');vanOval(c,0,0,6,6,'#bbc5cb');c.restore();}
   c.save();c.translate(-73,54);c.rotate(-.12);vanRound(c,-60,-4,120,8,3,'#a1adb3');c.restore();
