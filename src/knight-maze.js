@@ -368,16 +368,19 @@ export function drawMaze3D(ctx,s,character,width,height,angle=-Math.PI/2){
   ctx.font='11px sans-serif';ctx.textAlign='center';ctx.fillStyle='#fff3bd';ctx.fillText('↑ NORTH',mx+size/2,my+size+17);
   const heading=Math.round((angle+Math.PI/2)/(Math.PI/2)+4)%4;
   ctx.fillText('LOOKING '+['NORTH','EAST','SOUTH','WEST'][heading],width/2,98);
-  ctx.fillStyle='#10151fdd';ctx.fillRect(10,height-34,width-20,25);ctx.fillStyle='#f4e7ce';ctx.font='13px sans-serif';ctx.fillText('↑ North · ↓ South · ← West · → East',width/2,height-16);
+  ctx.fillStyle='#10151fdd';ctx.fillRect(10,height-34,width-20,25);ctx.fillStyle='#f4e7ce';ctx.font='13px sans-serif';ctx.fillText('↑ Forward · ← → Turn · ↓ Turn around',width/2,height-16);
   if(s.status==='dying'){
     ctx.fillStyle='#10151fc9';ctx.fillRect(0,height*.35,width,130);ctx.fillStyle='#f4d388';ctx.font='bold 30px sans-serif';ctx.fillText('GOBBLED UP!',width/2,height*.35+55);
     ctx.font='18px sans-serif';ctx.fillText(s.lives?'Get ready to try again…':'Your last life!',width/2,height*.35+90);
   }
 }
 export function drawKnightPreview(canvas,character,modifiers) { const ctx=canvas.getContext('2d');if(ctx)drawMaze(ctx,createMazeState(modifiers),character,canvas.width,canvas.height,true); }
-// Keep compass controls consistent between views; the fixed minimap is the reference.
+// First-person arrows are relative to the visible heading; 2D remains north-up.
 export function mazeInputDirection(direction, facing, view) {
-  return DIRECTIONS[direction]?direction:null;
+  if(!DIRECTIONS[direction])return null;
+  if(view!=='3d')return direction;
+  const compass=['up','right','down','left'];
+  return compass[(compass.indexOf(facing)+{up:0,right:1,down:2,left:3}[direction]+4)%4];
 }
 export function createKnightMaze({canvas,character,modifiers,consumeBoost,onHud,onFinish,level=0,onLevelChange=()=>{},view='2d'}) {
   const ctx=canvas.getContext('2d');if(!ctx)throw Error('Your browser does not support canvas.');
@@ -387,8 +390,8 @@ export function createKnightMaze({canvas,character,modifiers,consumeBoost,onHud,
   const reducedMotion=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false;
   const controller=new AbortController(),options={signal:controller.signal},audio=createMazeAudio();
   const input={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',w:'up',s:'down',a:'left',d:'right'};
-  const turn=direction=>{audio.unlock();if(!active||paused||ending||document.hidden||state.status!=='playing')return;const resolved=mazeInputDirection(direction,state.player.dir,cameraView);if(resolved)state.wanted=resolved;};
-  canvas.addEventListener('keydown',e=>{if(e.key==='Enter'&&ending&&active){e.preventDefault();audio.stop();finish();return;}const dir=input[e.key]||input[e.key.toLowerCase()];if(dir){e.preventDefault();turn(dir);}},options);
+  const turn=direction=>{audio.unlock();if(!active||paused||ending||document.hidden||state.status!=='playing')return;const resolved=mazeInputDirection(direction,cameraView==='3d'?look.facing:state.player.dir,cameraView);if(resolved)state.wanted=resolved;};
+  canvas.addEventListener('keydown',e=>{if(e.key==='Enter'&&ending&&active){e.preventDefault();audio.stop();finish();return;}const dir=input[e.key]||input[e.key.toLowerCase()];if(dir){e.preventDefault();if(cameraView!=='3d'||!e.repeat)turn(dir);}},options);
   let pointer=null;
   canvas.addEventListener('pointerdown',e=>{canvas.focus();if(ending&&active){audio.stop();finish();return;}pointer={x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId);},options);
   canvas.addEventListener('pointermove',e=>{if(!pointer)return;const dx=e.clientX-pointer.x,dy=e.clientY-pointer.y;if(Math.hypot(dx,dy)>12){turn(Math.abs(dx)>Math.abs(dy)?dx>0?'right':'left':dy>0?'down':'up');pointer={x:e.clientX,y:e.clientY};}},options);

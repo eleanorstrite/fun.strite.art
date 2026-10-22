@@ -242,11 +242,11 @@ test('3D chase camera keeps walls below the knight and dragon and leaves simulat
   }
 });
 
-test('3D and 2D arrows keep the same compass direction for every knight heading',()=>{
+test('3D arrows follow the visible heading while 2D arrows follow the map',()=>{
   const headings=['up','right','down','left'];
   for(let i=0;i<4;i++){
     for(const key of headings){
-      assert.equal(mazeInputDirection(key,headings[i],'3d'),key);
+      assert.equal(mazeInputDirection(key,headings[i],'3d'),headings[(i+{up:0,right:1,down:2,left:3}[key])%4]);
       assert.equal(mazeInputDirection(key,headings[i],'2d'),key);
     }
   }
@@ -284,4 +284,25 @@ test('comfort turns change heading only at full fade and settle without rotation
   assert.equal(advanceMazeLook(look,'left',.08),.5);
   assert.equal(advanceMazeLook(look,'left',.08),0);assert.equal(look.phase,0);
   advanceMazeLook(look,'right',.06);const before={...look};advanceMazeLook(look,'right',0);assert.deepEqual(look,before);
+});
+
+
+test('3D keyboard turns around once and ignores held-key repeats',()=>{
+  const original={requestAnimationFrame:globalThis.requestAnimationFrame,cancelAnimationFrame:globalThis.cancelAnimationFrame,document:globalThis.document};
+  let frame,engine,heading='';const handlers={};
+  globalThis.requestAnimationFrame=fn=>(frame=fn,1);globalThis.cancelAnimationFrame=()=>{};globalThis.document={hidden:false};
+  const ctx=new Proxy({createLinearGradient:()=>({addColorStop(){}}),fillText(text){if(text.startsWith('LOOKING '))heading=text;}},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
+  const canvas={width:760,height:760,getContext:()=>ctx,addEventListener(name,fn){handlers[name]=fn;},focus(){}};
+  try{
+    engine=createKnightMaze({canvas,view:'3d',character:{color:'#ed6e40'},onHud(){},onFinish(){}});engine.start();frame(100);
+    assert.equal(heading,'LOOKING WEST');
+    handlers.keydown({key:'ArrowDown',repeat:false,preventDefault(){}});
+    for(let now=150;now<=700;now+=50)frame(now);
+    assert.equal(heading,'LOOKING EAST');
+    for(let now=750;now<=1100;now+=50){handlers.keydown({key:'ArrowDown',repeat:true,preventDefault(){}});frame(now);}
+    assert.equal(heading,'LOOKING EAST');
+    handlers.keydown({key:'ArrowDown',repeat:false,preventDefault(){}});
+    for(let now=1150;now<=1750;now+=50)frame(now);
+    assert.equal(heading,'LOOKING WEST');
+  }finally{engine?.destroy();Object.assign(globalThis,original);}
 });
