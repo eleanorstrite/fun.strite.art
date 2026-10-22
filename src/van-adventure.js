@@ -120,7 +120,7 @@ export function drawFamilyVan(c,x,y,scale=1,side=false,door=false){
   }
   c.restore();
 }
-function drawVanPassenger(c,x,y,index,walk){
+function drawVanPassenger(c,x,y,index,walk,cheer=null){
   c.save();c.translate(x,y);
   if(index===3){
     vanOval(c,0,-15,22,12,'#20252b');vanOval(c,18,-27,12,13,'#343b43');vanOval(c,11,-29,6,12,'#14191e');
@@ -136,7 +136,13 @@ function drawVanPassenger(c,x,y,index,walk){
     if(index===0){vanOval(c,12,head-21,9,9,'#e4e4e0');c.strokeStyle='#584e62';c.lineWidth=2;c.strokeRect(-12,head-3,10,7);c.strokeRect(2,head-3,10,7);}
     else{vanRound(c,10,head-17,10,5,2,'#edb771');vanOval(c,-5,head,1.5,2,'#26313a');vanOval(c,5,head,1.5,2,'#26313a');}
     c.strokeStyle='#a36e59';c.lineWidth=2;c.beginPath();c.arc(0,head+6,5,0,Math.PI);c.stroke();
-    c.strokeStyle='#efbc91';c.lineWidth=6;c.beginPath();c.moveTo(-16,head+24);c.lineTo(-23,head+42);c.moveTo(16,head+24);c.lineTo(23,head+42);c.stroke();
+    c.strokeStyle='#efbc91';c.lineWidth=6;c.lineCap='round';c.beginPath();
+    for(const side of [-1,1]){
+      c.moveTo(side*16,head+24);
+      if(cheer===null)c.lineTo(side*23,head+42);
+      else {c.lineTo(side*25,head+12-cheer*4);c.lineTo(side*29,head-5-cheer*9);}
+    }
+    c.stroke();
   }
   c.restore();
 }
@@ -256,6 +262,28 @@ export function createVanEnding(won,audio){
     if(time>=(won?3.2:3.8)&&!spoken){spoken=true;audio.say(won?'Hooray! You win!':'You Lose.',won?1.2:.8);if(won)audio.play('win');}
   }};
 }
+function drawRavenWreck(c,blast,reduced){
+  c.save();c.translate(450,385);c.scale(1.15,1.15);
+  vanOval(c,0,51,185,17,'#27333b44');
+  // Keep the van's long body, cabin, windows and lights recognizable after the crash.
+  c.fillStyle='#202830';c.strokeStyle='#56616b';c.lineWidth=3;c.beginPath();
+  c.moveTo(-155,20);c.lineTo(-141,-5);c.lineTo(-110,1);c.lineTo(-89,-47);
+  c.lineTo(-48,-57);c.lineTo(-12,-39);c.lineTo(35,-51);c.lineTo(105,-45);
+  c.lineTo(137,-7);c.lineTo(151,9);c.lineTo(140,40);c.lineTo(95,46);
+  c.lineTo(43,37);c.lineTo(-15,45);c.lineTo(-66,34);c.lineTo(-142,43);c.closePath();c.fill();c.stroke();
+  c.fillStyle='#6e94a3';c.beginPath();c.moveTo(-86,-40);c.lineTo(-51,-48);c.lineTo(-20,-33);c.lineTo(-23,-9);c.lineTo(-100,-7);c.closePath();c.fill();
+  vanRound(c,-11,-32,67,26,4,'#638491');vanRound(c,67,-34,47,27,5,'#536d7c');
+  c.strokeStyle='#d3e6e8';c.lineWidth=2;c.beginPath();c.moveTo(-62,-44);c.lineTo(-55,-25);c.lineTo(-76,-9);c.moveTo(-55,-25);c.lineTo(-35,-18);c.moveTo(23,-30);c.lineTo(9,-17);c.lineTo(34,-8);c.stroke();
+  c.strokeStyle='#48535d';c.lineWidth=3;c.beginPath();c.moveTo(-15,-3);c.lineTo(-21,30);c.lineTo(43,32);c.lineTo(56,3);c.moveTo(-125,17);c.lineTo(-91,25);c.lineTo(-58,13);c.moveTo(62,17);c.lineTo(88,29);c.lineTo(120,18);c.stroke();
+  vanRound(c,19,3,20,4,2,'#b6bec2');vanRound(c,-145,5,20,8,2,'#f9e4a5');vanRound(c,132,2,10,13,2,'#ed7467');
+  // One wheel stays attached at an angle; the other lands beside the crumpled bumper.
+  for(const [x,y,turn] of [[91,39,-.28],[-167,52,.45]]){c.save();c.translate(x,y);c.rotate(turn);vanOval(c,0,0,24,24,'#101820');vanOval(c,0,0,15,15,'#697581');vanOval(c,0,0,6,6,'#bbc5cb');c.restore();}
+  c.save();c.translate(-73,54);c.rotate(-.12);vanRound(c,-60,-4,120,8,3,'#a1adb3');c.restore();
+  const p=reduced?1:clampVan(blast/1.5,0,1);
+  c.save();c.translate(-137-45*p,12-Math.sin(p*Math.PI)*90);c.rotate(-.4-p*.6);
+  c.fillStyle='#323e48';c.beginPath();c.moveTo(-34,-8);c.lineTo(17,-16);c.lineTo(38,6);c.lineTo(-26,13);c.closePath();c.fill();c.strokeStyle='#72808a';c.stroke();c.restore();
+  c.restore();
+}
 export function drawVanEnding(c,won,time,width,height,reduced=false){
   c.save();c.scale(width/900,height/650);
   c.fillStyle=won?'#d7eef1':'#c7d5dc';c.fillRect(0,0,900,650);
@@ -269,11 +297,9 @@ export function drawVanEnding(c,won,time,width,height,reduced=false){
     for(let i=0;i<4;i++){
       const progress=clampVan((time-.9-i*.4)/.85,0,1);if(time<.9+i*.4)continue;
       const x=vanX-10+(210+i*150-(vanX-10))*progress,y=405+100*progress;
-      drawVanPassenger(c,x,y,i,reduced?0:time*10);
-      if(progress===1&&time>=3.2){
-        const wave=reduced?0:Math.sin(time*9+i)*9;
-        c.strokeStyle=i===3?'#252b31':'#efbc91';c.lineWidth=6;c.lineCap='round';c.beginPath();c.moveTo(x-15,y-(i===3?15:40));c.lineTo(x-28,y-(i===3?35:65)-wave);c.stroke();
-      }
+      const celebrating=progress===1&&time>=3.2;
+      const cheer=celebrating?(reduced?0:Math.sin(time*9+i)):null;
+      drawVanPassenger(c,x,y-(i===3&&celebrating&&!reduced?Math.abs(Math.sin(time*7))*9:0),i,celebrating?0:reduced?0:time*10,cheer);
     }
     if(time>=3.2){
       for(let i=0;i<24;i++){
@@ -288,16 +314,15 @@ export function drawVanEnding(c,won,time,width,height,reduced=false){
     if(time<.8)drawFamilyVan(c,450,365,1.15,true,false);
     if(time>=.8){
       const blast=time-.8;
-      // A cartoon puff, loose van parts, and whole characters tumbling onto grass.
+      drawRavenWreck(c,blast,reduced);
+      // Smoke clears to reveal the damaged van while the family tumbles onto grass.
+      c.save();c.globalAlpha=clampVan(1-(blast-.5)/2,0,1);
       for(let i=0;i<12;i++){
         const a=i*Math.PI/6,spread=reduced?45:Math.min(115,blast*140);
         vanOval(c,450+Math.cos(a)*spread,355+Math.sin(a)*spread*.6,Math.max(18,65-blast*9),Math.max(16,55-blast*7),blast<.8?(i%2?'#ffd17a':'#e98a54'):(i%2?'#809095':'#aab6b6'));
       }
+      c.restore();
       if(blast<1.2){c.fillStyle='#fff2c9';c.textAlign='center';c.font='bold 42px sans-serif';c.fillText('POOF!',450,365);}
-      for(let i=0;i<3;i++){
-        const p=clampVan(blast/1.5,0,1),x=450+(i-1)*160*p,y=410-Math.sin(p*Math.PI)*100;
-        c.save();c.translate(x,y);c.rotate(reduced?0:blast*(i-1)*3);vanRound(c,-35,-13,70,26,8,'#29333a');c.restore();
-      }
       for(let i=0;i<4;i++){
         const p=reduced?1:clampVan(blast/1.8,0,1),x=450+(160+i*190-450)*p,y=390+135*p-Math.sin(p*Math.PI)*(190+(i%2)*35);
         c.save();c.translate(x,y);c.rotate(reduced?0:Math.sin(p*Math.PI)*(i%2?1:-1)*1.5);drawVanPassenger(c,0,0,i,0);c.restore();
