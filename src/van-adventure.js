@@ -11,10 +11,10 @@ export const VAN_OBSTACLES=[
   {z:4800,x:0,type:'jump'},{z:5300,x:70,type:'crate'},
 ];
 export const VAN_LEVELS={
-  easy:{name:'Easy',scene:'Countryside cruise',finish:6000,speed:230,coins:1,spacing:400,ice:false,lava:false},
-  medium:{name:'Medium',scene:'Snowy switchbacks',finish:8000,speed:285,coins:2,spacing:360,ice:true,lava:false},
-  hard:{name:'Hard',scene:'Lava storm',finish:10000,speed:345,coins:5,spacing:330,ice:false,lava:true},
-  expert:{name:'Expert',scene:'Frozen volcano',finish:12000,speed:410,coins:10,spacing:300,ice:true,lava:true},
+  easy:{name:'Grandma',scene:'Countryside cruise',finish:6000,speed:230,coins:1,spacing:400,ice:false,lava:false},
+  medium:{name:'Mom',scene:'Snowy switchbacks',finish:8000,speed:285,coins:2,spacing:360,ice:true,lava:false},
+  hard:{name:'Kid',scene:'Lava storm',finish:10000,speed:345,coins:5,spacing:330,ice:false,lava:true},
+  expert:{name:'Puppy',scene:'Frozen volcano',finish:12000,speed:410,coins:10,spacing:300,ice:true,lava:true},
 };
 export const vanRecordId=level=>'family-van-'+level;
 export function buildVanCourse(level){
