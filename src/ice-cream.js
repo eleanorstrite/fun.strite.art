@@ -28,13 +28,23 @@ export function tickIceChocolate(recipe,seconds){
     const dt=Math.min(remaining,1/60);remaining-=dt;
     const end=recipe.cone==='cup'?100:150;
     for(const drop of recipe.sauceDrops||[]){
-      const drained=Math.min(Math.max(0,drop.amount-.02),dt*.28);
+      // New syrup stays mostly on the scoop. Existing trails never restart,
+      // even when more chocolate is poured onto the same spot.
+      drop.age=Math.min(6,(drop.age||0)+dt);
+      if(drop.age>=6)continue;
+      if(drop.flowY===undefined){
+        const runs=(recipe.sauceDrops||[]).filter(p=>p.flowY!==undefined);
+        if(drop.amount<.18||runs.length>=2||runs.some(p=>Math.abs(p.x-drop.x)<16))continue;
+        drop.flowY=drop.y;drop.flowSpeed=26+Math.min(3,drop.amount)*20;
+      }
+      // Viscous drag and setting steadily reduce the speed to zero.
+      const speed=drop.flowSpeed*Math.exp(-.45*drop.age)*(1-drop.age/6);
+      const drained=Math.min(Math.max(0,drop.amount-.15),dt*.035*(1-drop.age/6));
       drop.amount-=drained;drop.flowVolume=(drop.flowVolume||0)+drained;
-      if(drop.flowVolume<=0)continue;
-      drop.flowY=Math.min(end,(drop.flowY??drop.y)+dt*(38+Math.min(2,drop.flowVolume)*30));
-      if(drop.flowY>=end&&drop.flowVolume>=.06&&recipe.sauceFalling.length<120){
-        recipe.sauceFalling.push({x:chocolateSurfaceX(recipe,drop.x,end),y:end,vy:12,volume:.06});
-        drop.flowVolume-=.06;
+      drop.flowY=Math.min(end,drop.flowY+dt*speed);
+      if(drop.flowY>=end&&!drop.detached&&drop.flowVolume>=.06){
+        recipe.sauceFalling.push({x:chocolateSurfaceX(recipe,drop.x,end),y:end,vy:4,volume:.06});
+        drop.flowVolume-=.06;drop.detached=true;
       }
     }
     for(const drop of recipe.sauceFalling){
@@ -306,7 +316,7 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
   const back=document.createElement('button'),next=document.createElement('button');
   back.type=next.type='button';back.className='button outline';next.className='button dark';back.textContent='← Back';
   navigation.append(back,next);
-  const sauceHelp=document.createElement('p');sauceHelp.textContent='Chocolate bottle: tap to squeeze, hold for more, and drag to spread it around. Watch it run down the cone and drip onto the ground. With a keyboard, focus the canvas, move with arrow keys, and hold Space to pour. Tap Chocolate drizzle again to remove it.';
+  const sauceHelp=document.createElement('p');sauceHelp.textContent='Chocolate bottle: tap to squeeze, hold for more, and drag to spread it around. Thick syrup makes up to two slow drips, then sets in place. With a keyboard, focus the canvas, move with arrow keys, and hold Space to pour. Tap Chocolate drizzle again to remove it.';
   controls.replaceChildren(tabs,heading,choices,navigation,sauceHelp);
   const stepButtons=steps.map((label,index)=>{
     const button=document.createElement('button');button.type='button';button.className='button outline';button.textContent=(index+1)+'. '+label;

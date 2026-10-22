@@ -47,9 +47,9 @@ test('ice cream buttons preserve choices, toggle toppings, pause the ending, fin
     handlers.pointermove({...pointer,clientX:246});advance(2);
     assert.equal(drops.some(drop=>drop.x>20),true);
     handlers.pointerup(pointer);const released=drops.at(-1).rx;advance(4);
-    assert.equal(drops.at(-1).rx<released,true);
+    assert.equal(drops.at(-1).rx<=released,true);
     handlers.pointerdown({...pointer,clientX:246});handlers.pointercancel();advance(1);
-    const cancelled=drops.at(-1).rx;advance(3);assert.equal(drops.at(-1).rx<cancelled,true);
+    const cancelled=drops.at(-1).rx;advance(3);assert.equal(drops.at(-1).rx<=cancelled,true);
     engine.pause(true);advance(1);const pausedSize=drops.at(-1).rx;advance(4);assert.equal(drops.at(-1).rx,pausedSize);
     engine.pause(false);globalThis.document.hidden=true;advance(4);assert.equal(drops.at(-1).rx,pausedSize);globalThis.document.hidden=false;
     back.onclick();assert.equal(choices.children[3].attributes['aria-pressed'],'true');
@@ -109,30 +109,43 @@ test('chocolate pours accumulate at the bottle location and remain bounded on th
   assert.equal(recipe.sauceDrops[0].amount,3);
 });
 
-test('chocolate runs down every cone, falls under gravity, and pools on the ground',()=>{
+test('syrup forms at most two trails, slows down, and sets permanently on every cone',()=>{
   for(const cone of Object.keys(ICE_CONES)){
     const recipe=createIceRecipe();recipe.cone=cone;recipe.toppings=['sauce'];
-    pourIceChocolate(recipe,35,-40,2);
-    tickIceChocolate(recipe,.1);
-    assert.equal(recipe.sauceDrops[0].amount<2,true);
-    assert.equal(recipe.sauceDrops[0].flowY>-40,true);
-    let falling=false;
-    for(let i=0;i<200;i++){
-      tickIceChocolate(recipe,.05);
-      for(const drop of recipe.sauceFalling){falling=true;assert.equal(drop.vy>=12,true);assert.equal(drop.y<162,true);}
-    }
-    assert.equal(falling,true);
-    assert.equal(recipe.saucePuddles.length>0,true);
-    assert.equal(recipe.saucePuddles[0].volume>0,true);
-    if(cone!=='cup')assert.equal(recipe.saucePuddles[0].x,0);
-    const snapshot=JSON.stringify(recipe);tickIceChocolate(recipe,0);assert.equal(JSON.stringify(recipe),snapshot);
-    recipe.toppings=[];const removed=JSON.stringify(recipe);tickIceChocolate(recipe,1);assert.equal(JSON.stringify(recipe),removed);
+    for(const x of [-40,-20,0,20,40])pourIceChocolate(recipe,x,-30,1);
+    tickIceChocolate(recipe,1);
+    const runs=recipe.sauceDrops.filter(p=>p.flowY!==undefined);
+    assert.equal(runs.length,2);
+    const firstDistance=runs[0].flowY-runs[0].y,firstY=runs[0].flowY;
+    tickIceChocolate(recipe,1);
+    assert.equal(runs[0].flowY-firstY<firstDistance,true);
+    for(let i=0;i<10;i++)tickIceChocolate(recipe,1);
+    assert.equal(runs[0].flowY<100,true);
+    assert.equal(recipe.sauceDrops.every(p=>p.amount>.8),true);
+    const stopped=JSON.stringify(recipe);
+    for(let i=0;i<20;i++)tickIceChocolate(recipe,1);
+    assert.equal(JSON.stringify(recipe),stopped);
+    pourIceChocolate(recipe,runs[0].x,runs[0].y,1);
+    const settledY=runs[0].flowY;tickIceChocolate(recipe,1);
+    assert.equal(runs[0].flowY,settledY);
   }
 });
-test('chocolate simulation is stable across frame rates and bounded during long pours',()=>{
+test('syrup settles consistently across frame rates and never streams during long pours',()=>{
   function simulate(dt){const r=createIceRecipe();r.toppings=['sauce'];pourIceChocolate(r,-30,-30,3);for(let i=0;i<Math.round(10/dt);i++)tickIceChocolate(r,dt);return r;}
   const a=simulate(1/60),b=simulate(.1);
-  assert.equal(Math.abs(a.saucePuddles[0].volume-b.saucePuddles[0].volume)<.07,true);
+  assert.equal(Math.abs(a.sauceDrops[0].flowY-b.sauceDrops[0].flowY)<.1,true);
+  const stoppedY=a.sauceDrops[0].flowY;
   for(let i=0;i<600;i++){pourIceChocolate(a,-30,-30,.1);tickIceChocolate(a,.1);}
-  assert.equal(a.sauceFalling.length<=120,true);assert.equal(a.saucePuddles[0].volume<=30,true);
+  assert.equal(a.sauceDrops[0].flowY,stoppedY);
+  assert.equal(a.sauceFalling.length,0);
+  assert.equal(a.saucePuddles.reduce((n,p)=>n+p.volume,0)<=.12,true);
+});
+
+test('a heavy syrup drip can fall off a cup once, without becoming a stream',()=>{
+  const recipe=createIceRecipe();recipe.cone='cup';recipe.toppings=['sauce'];pourIceChocolate(recipe,0,12,3);
+  for(let i=0;i<100;i++)tickIceChocolate(recipe,.1);
+  assert.equal(recipe.sauceDrops[0].detached,true);
+  assert.equal(recipe.saucePuddles[0].volume,.06);
+  for(let i=0;i<100;i++)tickIceChocolate(recipe,.1);
+  assert.equal(recipe.saucePuddles[0].volume,.06);
 });
