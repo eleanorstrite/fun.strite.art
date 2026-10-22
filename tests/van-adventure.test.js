@@ -53,7 +53,7 @@ test('van engine pauses, freezes hidden tabs, restarts, and settles only once',(
   assert.equal(engine.getRecordId(),'family-van-easy');controls.children[2].children[1].onclick();assert.equal(engine.getRecordId(),'family-van-medium');
   controls.children[2].children[0].onclick();engine.start();controls.children[2].children[3].onclick();assert.equal(engine.getRecordId(),'family-van-easy');assert.equal(controls.children[2].children[3].disabled,true);
   controls.children[1].children[5].onclick();
-  assert.equal(engine.activateSnack(),true);assert.equal(engine.activateSnack(),false);assert.equal(used,1);assert.equal(snackSeconds,15);
+  assert.equal(engine.activateSnack(),true);assert.equal(engine.activateSnack(),false);assert.equal(used,1);assert.equal(snackSeconds,5);
   handlers.keydown({key:'ArrowUp',preventDefault(){}});frame(100);frame(150);
   engine.pause(true);const paused=hud,pausedSnack=snackSeconds;assert.equal(engine.activateSnack(),false);frame(200);frame(250);assert.equal(hud,paused);assert.equal(snackSeconds,pausedSnack);
   engine.pause(false);globalThis.document.hidden=true;frame(300);assert.equal(hud,paused);
@@ -62,8 +62,8 @@ test('van engine pauses, freezes hidden tabs, restarts, and settles only once',(
  }finally{Object.assign(globalThis,original);}
 });
 
-test('Snack Attack hides all hazard types for fifteen seconds then restores collision',()=>{
- const s=readyVan();s.snack=15;
+test('Snack Attack hides all hazard types for five seconds then restores collision',()=>{
+ const s=readyVan();s.snack=5;
  for(const o of VAN_OBSTACLES){s.z=o.z-20;s.x=vanRoadCenter(o.z)+o.x;s.lane=0;tickVan(s,.05);assert.equal(s.lives,3);}
  s.z=0;s.speed=0;for(let i=0;i<1000;i++)tickVan(s,.05,{down:true});assert.equal(s.snack,0);
  s.z=VAN_OBSTACLES.find(o=>o.type==='gap').z;tickVan(s,.05);assert.equal(s.lives,2);
@@ -81,15 +81,15 @@ test('holding Space only flies over gaps and lands after the rear clears each on
  const s=readyVan();const barrier=VAN_OBSTACLES.find(o=>o.type==='jump');s.z=barrier.z;
  tickVan(s,.05,{fly:true});assert.equal(s.fly,0);assert.equal(s.lives,2);
 });
-test('Snack Attack lasts fifteen seconds of gameplay, not fifty',()=>{
- const s=readyVan();s.snack=15;
- for(let i=0;i<290;i++)tickVan(s,.05,{down:true});
+test('Snack Attack lasts five seconds of gameplay',()=>{
+ const s=readyVan();s.snack=5;
+ for(let i=0;i<90;i++)tickVan(s,.05,{down:true});
  assert.equal(s.snack>.49&&s.snack<.51,true);
  for(let i=0;i<11;i++)tickVan(s,.05,{down:true});assert.equal(s.snack,0);
 });
 
 test('Snack Attack throws both foods, hits approaching obstacles, and stops at expiry',()=>{
- const s=readyVan(),cues=[];s.snack=15;s.z=250;
+ const s=readyVan(),cues=[];s.snack=5;s.z=250;
  tickSnackAttack(s,0,cue=>cues.push(cue));
  assert.equal(s.snackShots[0].target,450);assert.equal(s.snackShots[0].kind,'sandwich');assert.equal(s.snackCleared.length,0);
  for(let i=0;i<8;i++)tickSnackAttack(s,.05,cue=>cues.push(cue));
@@ -158,7 +158,7 @@ test('lava warns before impact, hurts in its marked area, and respects Snack Att
   s.z=o.z-400;tickVan(s,.05,{down:true});assert.ok(o.age>0&&o.age<1.2);assert.equal(s.lives,3);
   s.z=o.z;s.x=vanRoadCenter(o.z)+o.x;s.lane=o.x/90;s.speed=0;
   tickVan(s,.05,{down:true});assert.equal(s.lives,3);
-  o.age=1.2;if(protectedBySnack)s.snack=15;
+  o.age=1.2;if(protectedBySnack)s.snack=5;
   tickVan(s,.05,{down:true});assert.equal(s.lives,protectedBySnack?3:2);
  }
  const s=createVanState('expert');s.status='playing';const o=s.obstacles.find(o=>o.type==='lava');o.age=1.3;

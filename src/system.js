@@ -31,7 +31,7 @@ export const airRecordId=difficulty=>difficulty==='sloth'?'hoop-flight':'hoop-fl
 export const PLANE_DEFAULTS={color:'#ed6e40',style:'sport',difficulty:'sloth',background:'valley',hat:'none',scarf:'none',accessoryColor:'#d34c65'};
 export const KNIGHT_DEFAULTS = { armor: 'silver', helmet: 'plume', cape: true, shield: false, dragon: 'classic' };
 export const UPGRADES = [
-  {id:'snack',name:'Snack Attack',group:'gameplay',category:'THE RAVEN ONLY',icon:'🍿',cost:1000,description:'One use in The Raven: the youngest girl throws sandwiches and candy from the window, clearing obstacles for 15 seconds. Activate the snack button above the course. Buy again for another use.'},
+  {id:'snack',name:'Snack Attack',group:'gameplay',category:'THE RAVEN ONLY',icon:'🍿',cost:1000,description:'One use in The Raven: the youngest girl throws sandwiches and candy from the window, clearing obstacles for 5 seconds. Activate the snack button above the course. Buy again for another use.'},
   ...ICE_SHOP_ITEMS,
   ...Object.entries(PLANE_UNLOCKS).map(([style,id])=>({id,name:PLANE_STYLES[style],group:'appearance',category:'HOOP FLIGHT AIRPLANE',icon:'✈',cost:200,description:'For Hoop Flight only. Permanently unlock this airplane design in the plane customizer. Cosmetic: all planes fly the same.'})),
   ...Object.values(AIR_BACKGROUNDS).filter(scene=>scene.upgrade).map(scene=>({id:scene.upgrade,name:scene.name,group:'appearance',category:'HOOP FLIGHT BACKGROUND',icon:'🌄',cost:200,description:'For Hoop Flight only — separate from home-screen and Flappy Animals backgrounds. Permanently unlock in the plane customizer.'})),

@@ -1,7 +1,7 @@
 import { createMazeAudio } from './maze-audio.js';
 
 export const VAN_FINISH=6000;
-export const SNACK_ATTACK_SECONDS=15;
+export const SNACK_ATTACK_SECONDS=5;
 export const VAN_OBSTACLES=[
   {z:450,x:-70,type:'cones'},{z:720,x:75,type:'crate'},
   {z:1100,x:0,type:'jump'},{z:1530,x:-90,type:'crate'},{z:1780,x:80,type:'cones'},
