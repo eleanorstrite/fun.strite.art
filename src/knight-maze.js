@@ -381,6 +381,11 @@ export function drawMaze3D(ctx,s,character,width,height,angle=-Math.PI/2){
   ctx.fillStyle='#10151fe8';ctx.fillRect(10,10,width-20,67);
   ctx.fillStyle=theme.accent;ctx.textAlign='left';ctx.font='bold 17px sans-serif';ctx.fillText('LEVEL '+(s.level+1)+' · '+theme.name+' · 3D',24,35);
   ctx.font='14px sans-serif';ctx.fillText(s.sword>0?'Sword: '+s.sword.toFixed(1)+'s':'Find a sword · '+s.gems.size+' gems left',24,59);
+  if(s.sword>0){
+    ctx.fillStyle='#39434d';ctx.fillRect(24,65,width-48,7);
+    ctx.fillStyle=s.sword<=3?'#f0a16d':'#f4d388';
+    ctx.fillRect(24,65,(width-48)*Math.min(1,Math.max(0,s.sword/SWORD_SECONDS)),7);
+  }
   // The camera and minimap keep the same orientation while the knight turns.
   const cell=Math.min(5,width/125),size=cell*19,mx=width-size-18,my=90;
   ctx.fillStyle='#10151fdd';ctx.fillRect(mx-6,my-6,size+12,size+30);
