@@ -100,3 +100,29 @@ test('Snack Attack costs 1000 per use, saves separately from the knight bag, and
  const old=freshSave();delete old.boosts.snack;assert.equal(validateSave(old).boosts.snack,0);
  for(const snack of [-1,1.5,null,'1'])assert.throws(()=>validateSave({...old,boosts:{...old.boosts,snack}}));
 });
+test('hidden wallet requires its password and persists unlimited buying without corrupting coins',async()=>{
+ const storage=memory(),system=createSystem(storage);
+ system.beginSession('test').finish(30);
+ assert.equal(await system.unlockWallet('wrong'),false);
+ assert.equal(system.snapshot().unlimitedCoins,false);
+ assert.throws(()=>system.buy('snack'));
+ assert.equal(await system.unlockWallet('eleanor'),true);
+ system.buy('snack');system.buy('snack');system.buy('ice-dragons');
+ assert.equal(system.snapshot().coins,30);
+ assert.equal(system.snapshot().boosts.snack,2);
+ assert.throws(()=>system.buy('ice-dragons'));
+ for(let i=0;i<3;i++)system.buy('boots');
+ assert.throws(()=>system.buy('magnet'));
+ system.consumeBoost('boots');system.buy('magnet');
+ const restored=createSystem(storage);assert.equal(restored.snapshot().unlimitedCoins,true);
+ restored.buy('snack');assert.equal(restored.snapshot().coins,30);
+ const copy=createSystem(memory());copy.importSave(restored.exportSave());
+ assert.deepEqual(copy.snapshot(),restored.snapshot());
+ copy.beginSession('test').finish(5);assert.equal(copy.snapshot().coins,35);
+ assert.equal(copy.snapshot().unlimitedCoins,true);
+});
+test('legacy wallets remain finite and malformed unlimited settings are rejected',()=>{
+ const old=freshSave();delete old.unlimitedCoins;
+ assert.equal(validateSave(old).unlimitedCoins,false);
+ for(const value of ['true',1,null,{}])assert.throws(()=>validateSave({...old,unlimitedCoins:value}));
+});

@@ -186,7 +186,7 @@ function renderShop(){
   const state=system.snapshot(),full=state.boosts.boots+state.boosts.magnet+state.boosts.eliminator>=3;
   $('#shop-gameplay').replaceChildren();$('#shop-appearance').replaceChildren();
   for(const item of UPGRADES){
-    const consumable=item.group==='gameplay',owned=state.upgrades.includes(item.id),canBuy=state.coins>=item.cost,blocked=consumable&&item.id!=='snack'&&full;
+    const consumable=item.group==='gameplay',owned=state.upgrades.includes(item.id),canBuy=state.unlimitedCoins||state.coins>=item.cost,blocked=consumable&&item.id!=='snack'&&full;
     const card=document.createElement('article');card.className='shop-card';
     card.innerHTML=`<div class="shop-icon">${item.icon}</div><small>${item.category}</small><h4>${item.name}</h4><p>${item.description}${item.id==='snack'?' '+state.boosts.snack+' uses stored.':consumable?' '+state.boosts[item.id]+' stored · Bag '+(state.boosts.boots+state.boosts.magnet+state.boosts.eliminator)+'/3.':''}</p><button class="button outline" ${owned||!canBuy||blocked?'disabled':''}><span>${owned?'Owned ✓':blocked?'Boost bag full':canBuy?consumable?'Buy one boost':'Unlock upgrade':`Earn ${item.cost-state.coins} more coins`}</span><span>${owned?'✓':`✦ ${item.cost}`}</span></button>`;
     card.querySelector('button').onclick=()=>{try{system.buy(item.id);notify(`${item.name} ${consumable?'added to your inventory':'unlocked'}!`);}catch(e){notify(e.message);}};
@@ -194,7 +194,7 @@ function renderShop(){
   }
 }
 
-function render(){const state=system.snapshot();$('#balance').textContent=state.coins.toLocaleString();$('#explorer-name').textContent=state.character.name;$('#played-count').textContent=Object.values(state.stats).reduce((sum,s)=>sum+s.plays,0);$('#upgrade-count').textContent=`${state.upgrades.length} / ${UPGRADES.filter(item=>item.group==='appearance').length}`;$('#storage-status').textContent=system.isSaved()?'Progress stays in this browser':'Not saved — export to keep progress';document.documentElement.style.setProperty('--character',state.character.color);characterClass(state.character.style);applyRobotLook(state.character.robot);syncLevelButtons();renderLibrary();renderShop();renderBoosts();renderRavenSnack();syncKnightCustomizer();syncFlightCustomizer();syncPlaneCustomizer();}
+function render(){const state=system.snapshot();$('#balance').textContent=state.unlimitedCoins?'∞':state.coins.toLocaleString();$('#explorer-name').textContent=state.character.name;$('#played-count').textContent=Object.values(state.stats).reduce((sum,s)=>sum+s.plays,0);$('#upgrade-count').textContent=`${state.upgrades.length} / ${UPGRADES.filter(item=>item.group==='appearance').length}`;$('#storage-status').textContent=system.isSaved()?'Progress stays in this browser':'Not saved — export to keep progress';document.documentElement.style.setProperty('--character',state.character.color);characterClass(state.character.style);applyRobotLook(state.character.robot);syncLevelButtons();renderLibrary();renderShop();renderBoosts();renderRavenSnack();syncKnightCustomizer();syncFlightCustomizer();syncPlaneCustomizer();}
 function syncForm(){const c=system.snapshot().character;selectedColor=c.color;$('#character-name').value=c.name;$('#character-style').value=c.style;$('#robot-outfit').value=c.robot.outfit;$('#robot-hat').value=c.robot.hat;$('#robot-color').value=c.robot.color;for(const accessory of ['glasses','headphones','backpack'])$('#robot-'+accessory).checked=c.robot[accessory];swatches();}
 function saveExplorer(){
   const name=$('#character-name').value.trim();if(!name){$('#robot-save-status').textContent='Give your explorer a name to save this look.';return;}
@@ -221,3 +221,20 @@ $('#import').onchange=async e=>{const file=e.target.files[0];if(!file)return;try
 system.subscribe(render);render();syncForm();
 
 initBackgroundPicker(storage,system);
+
+// The lettering keeps its normal appearance and the rest of each logo remains a home link.
+for(const letter of document.querySelectorAll('[data-brand-letter]'))letter.addEventListener('click',event=>{
+  event.preventDefault();event.stopPropagation();
+  $('#brand-password').value='';$('#brand-message').textContent='';
+  $('#brand-dialog').showModal();$('#brand-password').focus();
+});
+$('#brand-cancel').addEventListener('click',()=>$('#brand-dialog').close());
+$('#brand-dialog').addEventListener('close',()=>{$('#brand-password').value='';$('#brand-message').textContent='';});
+$('#brand-form').addEventListener('submit',async event=>{
+  event.preventDefault();
+  const password=$('#brand-password').value;$('#brand-password').value='';
+  try {
+    if(await system.unlockWallet(password)){$('#brand-dialog').close();notify('Unlimited coins unlocked.');}
+    else {$('#brand-message').textContent='Incorrect password.';$('#brand-password').focus();}
+  } catch {$('#brand-message').textContent='Could not unlock. Please try again.';}
+});
