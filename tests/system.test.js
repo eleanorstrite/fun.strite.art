@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createSystem, freshSave, validateSave, UPGRADES } from '../src/system.js';
+import { createSystem as createRealSystem, freshSave, validateSave, UPGRADES } from '../src/system.js';
+const testPassword=async (value,step)=>value===(step===1?'TestFirst':'TestSecond');
+const createSystem=(storage,onError)=>createRealSystem(storage,onError,testPassword);
 function memory(){const data=new Map();return {getItem:key=>data.get(key),setItem:(key,value)=>data.set(key,value)};}
 test('sessions pay once and currency is shared across games',()=>{const system=createSystem(memory());const run=system.beginSession('test-game-a');assert.equal(run.finish(30),true);assert.equal(run.finish(30),false);system.beginSession('test-game-b').finish(20);assert.equal(system.snapshot().coins,50);assert.equal(system.snapshot().stats['test-game-a'].plays,1);});
 test('boosts debit per purchase, share a three-slot bag and must be consumed before rebuying',()=>{
@@ -106,7 +108,7 @@ test('hidden wallet requires its password and persists unlimited buying without 
  assert.equal(await system.unlockWallet('wrong'),false);
  assert.equal(system.snapshot().unlimitedCoins,false);
  assert.throws(()=>system.buy('snack'));
- assert.equal(await system.unlockWallet('eleanor'),true);
+ assert.equal(await system.unlockWallet('TestFirst','TestSecond'),true);
  system.buy('snack');system.buy('snack');system.buy('ice-dragons');
  assert.equal(system.snapshot().coins,30);
  assert.equal(system.snapshot().boosts.snack,2);
@@ -149,10 +151,22 @@ test('stacking high scores persist independently from capped coin rewards',()=>{
 
 test('entering the wallet password again disables unlimited coins and restores normal spending',async()=>{
  const storage=memory(),system=createSystem(storage);system.beginSession('test').finish(1200);
- await system.unlockWallet('eleanor');system.buy('snack');assert.equal(system.snapshot().coins,1200);
+ await system.unlockWallet('TestFirst','TestSecond');system.buy('snack');assert.equal(system.snapshot().coins,1200);
  assert.equal(await system.unlockWallet('wrong'),false);assert.equal(system.snapshot().unlimitedCoins,true);
- assert.equal(await system.unlockWallet('eleanor'),true);assert.equal(system.snapshot().unlimitedCoins,false);
+ assert.equal(await system.unlockWallet('TestFirst','TestSecond'),true);assert.equal(system.snapshot().unlimitedCoins,false);
  const restored=createSystem(storage);assert.equal(restored.snapshot().unlimitedCoins,false);assert.equal(restored.snapshot().coins,1200);
  restored.buy('snack');assert.equal(restored.snapshot().coins,200);assert.throws(()=>restored.buy('snack'));
- await restored.unlockWallet('eleanor');assert.equal(restored.snapshot().unlimitedCoins,true);restored.buy('snack');assert.equal(restored.snapshot().coins,200);
+ await restored.unlockWallet('TestFirst','TestSecond');assert.equal(restored.snapshot().unlimitedCoins,true);restored.buy('snack');assert.equal(restored.snapshot().coins,200);
+});
+
+
+test('hidden wallet requires both exact passwords and ignores cancelled attempts',async()=>{
+ const system=createSystem(memory());
+ for(const args of [['TestFirst'],['TestSecond'],['testfirst','TestSecond'],['TestFirst','wrong'],['wrong','TestSecond']]){
+  assert.equal(await system.unlockWallet(...args),false);assert.equal(system.snapshot().unlimitedCoins,false);
+ }
+ assert.equal(await system.unlockWallet('TestFirst','TestSecond',()=>false),false);
+ assert.equal(system.snapshot().unlimitedCoins,false);
+ assert.equal(await system.unlockWallet('TestFirst','TestSecond'),true);
+ assert.equal(system.snapshot().unlimitedCoins,true);
 });

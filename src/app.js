@@ -4,7 +4,7 @@ import { FLIGHT_VIEWS, FLIGHT_LEVELS, FLIGHT_ANIMALS, FLIGHT_BACKGROUNDS, PIPE_S
 import { drawFlyer } from './sky-flight.js';
 import { initBackgroundPicker } from './backgrounds.js';
 import { drawKnight, KNIGHT_LEVELS } from './knight-maze.js';
-import { createSystem, COLORS, UPGRADES, ARMORS, HELMETS, DRAGON_STYLES, ROBOT_OUTFITS, ROBOT_HATS, PLANE_STYLES, AIR_DIFFICULTIES, airRecordId, AIR_BACKGROUNDS, PLANE_UNLOCKS, PLANE_HATS, PLANE_SCARVES } from './system.js';
+import { verifyWalletPassword, createSystem, COLORS, UPGRADES, ARMORS, HELMETS, DRAGON_STYLES, ROBOT_OUTFITS, ROBOT_HATS, PLANE_STYLES, AIR_DIFFICULTIES, airRecordId, AIR_BACKGROUNDS, PLANE_UNLOCKS, PLANE_HATS, PLANE_SCARVES } from './system.js';
 import { GAMES, drawPreview } from './games.js';
 const $ = selector => document.querySelector(selector);
 let toastTimer;
@@ -224,21 +224,33 @@ system.subscribe(render);render();syncForm();
 initBackgroundPicker(storage,system);
 
 // The lettering keeps its normal appearance and the rest of each logo remains a home link.
+let walletPending=false,walletFirst='',walletAttempt=0;
+function resetWalletPrompt(){
+  walletFirst='';walletAttempt++;walletPending=false;
+  $('#brand-password').value='';$('#brand-message').textContent='';$('#brand-dialog-title').textContent='Password';
+}
 for(const letter of document.querySelectorAll('[data-brand-letter]'))letter.addEventListener('click',event=>{
-  event.preventDefault();event.stopPropagation();
-  $('#brand-password').value='';$('#brand-message').textContent='';
+  event.preventDefault();event.stopPropagation();resetWalletPrompt();
   $('#brand-dialog').showModal();$('#brand-password').focus();
 });
 $('#brand-cancel').addEventListener('click',()=>$('#brand-dialog').close());
-$('#brand-dialog').addEventListener('close',()=>{$('#brand-password').value='';$('#brand-message').textContent='';});
-let walletPending=false;
+$('#brand-dialog').addEventListener('close',resetWalletPrompt);
 $('#brand-form').addEventListener('submit',async event=>{
   event.preventDefault();
   if(walletPending)return;walletPending=true;
-  const password=$('#brand-password').value;$('#brand-password').value='';
+  const attempt=walletAttempt,password=$('#brand-password').value;$('#brand-password').value='';
+  const current=()=>attempt===walletAttempt&&$('#brand-dialog').open;
   try {
-    if(await system.unlockWallet(password)){$('#brand-dialog').close();notify(system.snapshot().unlimitedCoins?'Unlimited coins on.':'Unlimited coins off.');}
-    else {$('#brand-message').textContent='Incorrect password.';$('#brand-password').focus();}
-  } catch {$('#brand-message').textContent='Could not update coins. Please try again.';}
-  finally {walletPending=false;}
+    if(!walletFirst){
+      const valid=await verifyWalletPassword(password,1);if(!current())return;
+      if(valid){walletFirst=password;$('#brand-dialog-title').textContent='Second password';$('#brand-message').textContent='Enter the second password.';}
+      else $('#brand-message').textContent='Incorrect password.';
+      $('#brand-password').focus();
+    }else{
+      const valid=await system.unlockWallet(walletFirst,password,current);if(!current())return;
+      if(valid){$('#brand-dialog').close();notify(system.snapshot().unlimitedCoins?'Unlimited coins on.':'Unlimited coins off.');}
+      else {$('#brand-message').textContent='Incorrect password.';$('#brand-password').focus();}
+    }
+  } catch {if(current())$('#brand-message').textContent='Could not update coins. Please try again.';}
+  finally {if(attempt===walletAttempt)walletPending=false;}
 });

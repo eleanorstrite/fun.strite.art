@@ -50,6 +50,12 @@ export const UPGRADES = [
   { id:'ember-dragons',name:'Ember dragons',group:'appearance',category:'DRAGON STYLE',icon:'♨',cost:200,description:'Dress the dragons in fiery colors. Choose in the customizer. Appearance only.' },
   { id:'ice-dragons',name:'Ice dragons',group:'appearance',category:'DRAGON STYLE',icon:'❄',cost:200,description:'Give the dragons icy blue scales. Choose in the customizer. Appearance only.' },
 ];
+export async function verifyWalletPassword(password,step=1) {
+  if(typeof password!=='string'||![1,2].includes(step))return false;
+  const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(password));
+  const key=Array.from(new Uint8Array(digest),byte=>byte.toString(16).padStart(2,'0')).join('');
+  return key===["1a93513e403b8f2daba3696f9def7fff19fa966597cf6aa3bda016917fe4196c","b5259d596f2cfb78e33b1d8851b575151635d7cb14f68b265ca80e027ab8f542"][step-1];
+}
 export function freshSave() { return { version: 1, mazeLevel:0, ravenLevel:'easy', coins: 0, unlimitedCoins: false, character: { name: 'Pip', color: COLORS[0], style: 'antenna', ...KNIGHT_DEFAULTS, robot:{...ROBOT_DEFAULTS}, flight:{...FLIGHT_DEFAULTS},plane:{...PLANE_DEFAULTS} }, upgrades: [], boosts: {boots:0,magnet:0,eliminator:0,snack:0}, stats: {} }; }
 export function validateSave(data) {
   if(data?.unlimitedCoins!==undefined&&typeof data.unlimitedCoins!=='boolean')throw Error('Invalid wallet setting.');
@@ -96,7 +102,7 @@ export function validateSave(data) {
   }
   return { version: 1, mazeLevel, ravenLevel, unlimitedCoins: data.unlimitedCoins===true, coins: Math.min(1000000000,data.coins+(data.upgrades.includes('garden')?60:0)+(data.upgrades.includes('flight-sunset')?200:0)), character: { name: data.character.name.trim(), color: data.character.color, style: data.character.style, ...look, flight, plane:{color:plane.color,style:plane.style,difficulty:planeDifficulty,background:planeBackground,hat,scarf,accessoryColor}, robot:{outfit:robot.outfit,hat:robot.hat,color:robot.color,glasses:robot.glasses,headphones:robot.headphones,backpack:robot.backpack} }, upgrades: [...new Set(data.upgrades.filter(id=>!['garden','flight-sunset','boots','magnet','eliminator','snack'].includes(id)))], boosts:{boots:boosts.boots,magnet:boosts.magnet,eliminator,snack}, stats };
 }
-export function createSystem(storage, onStorageError = () => {}) {
+export function createSystem(storage, onStorageError = () => {}, checkWalletPassword = verifyWalletPassword) {
   let state = freshSave();
   let writable = true;
   const listeners = new Set();
@@ -110,10 +116,9 @@ export function createSystem(storage, onStorageError = () => {}) {
   }
   return {
     snapshot,
-    async unlockWallet(password) {
-      const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(password));
-      const key=Array.from(new Uint8Array(digest),byte=>byte.toString(16).padStart(2,'0')).join('');
-      if(key!=='cd0299854a830cfdbcfb7d6887ddb636c09496099c873f6ce5496aec9c3f044a')return false;
+    async unlockWallet(password,secondPassword,isCurrent=()=>true) {
+      const valid=await checkWalletPassword(password,1)&&await checkWalletPassword(secondPassword,2);
+      if(!valid||!isCurrent())return false;
       state.unlimitedCoins=!state.unlimitedCoins;persist();return true;
     },
     isSaved: () => writable,
