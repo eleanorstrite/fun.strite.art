@@ -77,7 +77,7 @@ export function chooseDragonTurn(dragon,maze,distances,frightened=false){
   });
   if(!frightened&&options.length>1){
     dragon.decisions=(dragon.decisions??dragon.index)+1;
-    if(dragon.decisions%4===0)return options[1];
+    if(dragon.decisions%6===0)return options[1];
   }
   return options[0];
 }

@@ -301,15 +301,15 @@ test('3D keyboard steers the knight without turning the camera',()=>{
 });
 
 
-test('dragons chase most junctions but take a staggered detour once in four',()=>{
+test('dragons chase most junctions but take a staggered detour once in six',()=>{
   const maze=['#####','#...#','#...#','#...#','#####'];
   const distances=new Map([['2,1',0],['3,2',2],['1,2',4],['2,3',6]]);
   for(let index=0;index<4;index++){
     const dragon={x:2,y:2,dir:'up',index},turns=[];
-    for(let i=0;i<4;i++)turns.push(chooseDragonTurn(dragon,maze,distances).dir);
-    assert.equal(turns.filter(d=>d==='up').length,3);
+    for(let i=0;i<6;i++)turns.push(chooseDragonTurn(dragon,maze,distances).dir);
+    assert.equal(turns.filter(d=>d==='up').length,5);
     assert.equal(turns.filter(d=>d==='right').length,1);
-    assert.equal(turns[3-index],'right');
+    assert.equal(turns[5-index],'right');
     assert.equal(chooseDragonTurn(dragon,maze,distances,true).dir,'left');
   }
 });
