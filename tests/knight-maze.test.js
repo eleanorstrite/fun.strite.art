@@ -321,3 +321,20 @@ test('less relentless dragons still escape dead ends and stay slower than the kn
   const start=s.dragons.map(d=>({...d}));tickMaze(s,.1);
   s.dragons.forEach((d,i)=>{const travel=Math.hypot(d.x-start[i].x,d.y-start[i].y);assert.ok(travel>0&&travel<.3);});
 });
+
+test('dragon shield consumes one charge, prevents damage, and expires',()=>{
+ const s=safeState();s.grace=0;let uses=0;
+ assert.equal(activateMazeBoost(s,'ward',()=>{uses++;return true;}),true);
+ assert.equal(activateMazeBoost(s,'ward',()=>{uses++;return true;}),false);
+ Object.assign(s.dragons[0],{x:s.player.x,y:s.player.y,to:null,respawn:0});tickMaze(s,.01);assert.equal(s.lives,3);assert.equal(s.status,'playing');assert.equal(uses,1);
+ s.dragons.forEach(d=>d.respawn=999);elapse(s,15);assert.equal(s.boosts.ward,0);
+ Object.assign(s.dragons[0],{x:s.player.x,y:s.player.y,to:null,respawn:0});tickMaze(s,.01);assert.equal(s.lives,2);
+});
+test('frost spell halves dragon movement for fifteen seconds without slowing the knight',()=>{
+ const normal=createMazeState(),frost=createMazeState();
+ activateMazeBoost(frost,'frost',()=>true);tickMaze(normal,.1);tickMaze(frost,.1);
+ assert.equal(normal.player.x,frost.player.x);
+ const nd=Math.hypot(normal.dragons[0].x-7,normal.dragons[0].y-9),fd=Math.hypot(frost.dragons[0].x-7,frost.dragons[0].y-9);
+ assert.ok(Math.abs(fd*2-nd)<.00001);assert.ok(frost.boosts.frost>14.8);
+ frost.dragons.forEach(d=>d.respawn=999);elapse(frost,15);assert.equal(frost.boosts.frost,0);
+});

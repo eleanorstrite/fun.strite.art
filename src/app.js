@@ -4,7 +4,7 @@ import { FLIGHT_VIEWS, FLIGHT_LEVELS, FLIGHT_ANIMALS, FLIGHT_BACKGROUNDS, PIPE_S
 import { drawFlyer } from './sky-flight.js';
 import { initBackgroundPicker } from './backgrounds.js';
 import { drawKnight, KNIGHT_LEVELS } from './knight-maze.js';
-import { verifyWalletPassword, createSystem, COLORS, UPGRADES, ARMORS, HELMETS, DRAGON_STYLES, ROBOT_OUTFITS, ROBOT_HATS, PLANE_STYLES, AIR_DIFFICULTIES, airRecordId, AIR_BACKGROUNDS, PLANE_UNLOCKS, PLANE_HATS, PLANE_SCARVES } from './system.js';
+import { verifyWalletPassword, createSystem, MAZE_BOOST_IDS, mazeBagCount, COLORS, UPGRADES, ARMORS, HELMETS, DRAGON_STYLES, ROBOT_OUTFITS, ROBOT_HATS, PLANE_STYLES, AIR_DIFFICULTIES, airRecordId, AIR_BACKGROUNDS, PLANE_UNLOCKS, PLANE_HATS, PLANE_SCARVES } from './system.js';
 import { GAMES, drawPreview } from './games.js';
 const $ = selector => document.querySelector(selector);
 let toastTimer;
@@ -167,15 +167,15 @@ function renderLibrary(){$('#game-count').textContent=String(GAMES.length).padSt
 let boostHud={boosts:{boots:0,magnet:0,eliminator:0},canBoost:false};
 function renderBoosts(){
   const bag=system.snapshot().boosts;
-  $('#boost-bag').textContent=`Boost bag: ${bag.boots+bag.magnet+bag.eliminator}/3 · Each lasts 15 seconds`;
-  for(const id of ['boots','magnet','eliminator']){
-    const button=$('#boost-'+id),seconds=Math.ceil(boostHud.boosts?.[id]||0),name={boots:'Super speed',magnet:'Gem magnet',eliminator:'Dragon eliminator'}[id];
-    button.textContent=`${{boots:'👟',magnet:'🧲',eliminator:'🐉'}[id]} ${name} · ${seconds?seconds+'s':bag[id]+' left'}`;
+  $('#boost-bag').textContent=`Boost bag: ${mazeBagCount(bag)}/3 · Each lasts 15 seconds`;
+  for(const id of MAZE_BOOST_IDS){
+    const button=$('#boost-'+id),seconds=Math.ceil(boostHud.boosts?.[id]||0),name={boots:'Super speed',magnet:'Gem magnet',eliminator:'Dragon eliminator',ward:'Dragon shield',frost:'Frost spell'}[id];
+    button.textContent=`${{boots:'👟',magnet:'🧲',eliminator:'🐉',ward:'🛡️',frost:'❄️'}[id]} ${name} · ${seconds?seconds+'s':bag[id]+' left'}`;
     button.disabled=!boostHud.canBoost||!bag[id]||seconds>0;
     button.setAttribute('aria-label',`${name}: ${bag[id]} stored${seconds?', active for '+seconds+' more seconds':', activate for 15 seconds'}`);
   }
 }
-for(const id of ['boots','magnet','eliminator'])$('#boost-'+id).onclick=()=>engine?.activateBoost(id);
+for(const id of MAZE_BOOST_IDS)$('#boost-'+id).onclick=()=>engine?.activateBoost(id);
 let ravenSnackHud={seconds:0,canUse:false};
 function renderRavenSnack(){
   const button=$('#van-snack'),count=system.snapshot().boosts.snack;
@@ -184,12 +184,12 @@ function renderRavenSnack(){
 }
 $('#van-snack').onclick=()=>engine?.activateSnack?.();
 function renderShop(){
-  const state=system.snapshot(),full=state.boosts.boots+state.boosts.magnet+state.boosts.eliminator>=3;
+  const state=system.snapshot(),full=mazeBagCount(state.boosts)>=3;
   $('#shop-gameplay').replaceChildren();$('#shop-appearance').replaceChildren();
   for(const item of UPGRADES){
     const consumable=item.group==='gameplay',owned=state.upgrades.includes(item.id),canBuy=state.unlimitedCoins||state.coins>=item.cost,blocked=consumable&&item.id!=='snack'&&full;
     const card=document.createElement('article');card.className='shop-card';
-    card.innerHTML=`<div class="shop-icon">${item.icon}</div><small>${item.category}</small><h4>${item.name}</h4><p>${item.description}${item.id==='snack'?' '+state.boosts.snack+' uses stored.':consumable?' '+state.boosts[item.id]+' stored · Bag '+(state.boosts.boots+state.boosts.magnet+state.boosts.eliminator)+'/3.':''}</p><button class="button outline" ${owned||!canBuy||blocked?'disabled':''}><span>${owned?'Owned ✓':blocked?'Boost bag full':canBuy?consumable?'Buy one boost':'Unlock upgrade':`Earn ${item.cost-state.coins} more coins`}</span><span>${owned?'✓':`✦ ${item.cost}`}</span></button>`;
+    card.innerHTML=`<div class="shop-icon">${item.icon}</div><small>${item.category}</small><h4>${item.name}</h4><p>${item.description}${item.id==='snack'?' '+state.boosts.snack+' uses stored.':consumable?' '+state.boosts[item.id]+' stored · Bag '+(mazeBagCount(state.boosts))+'/3.':''}</p><button class="button outline" ${owned||!canBuy||blocked?'disabled':''}><span>${owned?'Owned ✓':blocked?'Boost bag full':canBuy?consumable?'Buy one boost':'Unlock upgrade':`Earn ${item.cost-state.coins} more coins`}</span><span>${owned?'✓':`✦ ${item.cost}`}</span></button>`;
     card.querySelector('button').onclick=()=>{try{system.buy(item.id);notify(`${item.name} ${consumable?'added to your inventory':'unlocked'}!`);}catch(e){notify(e.message);}};
     $('#shop-'+item.group).append(card);
   }

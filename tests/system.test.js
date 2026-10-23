@@ -9,17 +9,17 @@ test('boosts debit per purchase, share a three-slot bag and must be consumed bef
  const system=createSystem(memory());assert.throws(()=>system.buy('boots'));
  system.beginSession('test').finish(10000);
  system.buy('boots');system.buy('boots');system.buy('magnet');
- assert.equal(system.snapshot().coins,8500);assert.deepEqual(system.snapshot().boosts,{boots:2,magnet:1,eliminator:0,snack:0});
+ assert.equal(system.snapshot().coins,8500);assert.deepEqual(system.snapshot().boosts,{boots:2,magnet:1,eliminator:0,ward:0,frost:0,snack:0});
  assert.deepEqual(system.modifiers(),{speed:1,pickupRadius:1});
  assert.throws(()=>system.buy('magnet'));assert.equal(system.snapshot().coins,8500);
  assert.equal(system.consumeBoost('boots'),true);system.buy('magnet');
- assert.deepEqual(system.snapshot().boosts,{boots:1,magnet:2,eliminator:0,snack:0});
+ assert.deepEqual(system.snapshot().boosts,{boots:1,magnet:2,eliminator:0,ward:0,frost:0,snack:0});
  assert.equal(system.consumeBoost('boots'),true);assert.equal(system.consumeBoost('boots'),false);
  assert.equal(system.consumeBoost('unknown'),false);
 });
 test('old permanent boosts migrate once and invalid bags cannot overwrite progress',()=>{
  const old=freshSave();delete old.boosts;old.upgrades=['boots','magnet'];
- const migrated=validateSave(old);assert.deepEqual(migrated.boosts,{boots:1,magnet:1,eliminator:0,snack:0});assert.deepEqual(migrated.upgrades,[]);
+ const migrated=validateSave(old);assert.deepEqual(migrated.boosts,{boots:1,magnet:1,eliminator:0,ward:0,frost:0,snack:0});assert.deepEqual(migrated.upgrades,[]);
  assert.deepEqual(validateSave(migrated),migrated);
  const system=createSystem(memory()),before=system.snapshot();
  for(const boosts of [null,[],{boots:4,magnet:0},{boots:2,magnet:2},{boots:-1,magnet:0},{boots:.5,magnet:0}])assert.throws(()=>system.importSave(JSON.stringify({...before,boosts})));
@@ -78,7 +78,7 @@ test('dragon eliminators cost a thousand coins, share the bag, and persist until
  assert.equal(restored.consumeBoost('eliminator'),true);assert.equal(restored.consumeBoost('eliminator'),false);
  restored.buy('eliminator');assert.equal(restored.snapshot().boosts.eliminator,1);
  const old=freshSave();old.boosts={boots:1,magnet:1};
- assert.deepEqual(validateSave(old).boosts,{boots:1,magnet:1,eliminator:0,snack:0});
+ assert.deepEqual(validateSave(old).boosts,{boots:1,magnet:1,eliminator:0,ward:0,frost:0,snack:0});
  for(const eliminator of [-1,1.5,null,'1',2])assert.throws(()=>validateSave({...old,boosts:{...old.boosts,eliminator}}));
 });
 
@@ -185,4 +185,15 @@ test('new visits and imported old unlimited saves always start with earned coins
  const oldStorage={getItem:()=>JSON.stringify(legacy),setItem(){}};
  assert.equal(createSystem(oldStorage).snapshot().unlimitedCoins,false);
  assert.equal(createSystem(oldStorage).snapshot().coins,130);
+});
+
+test('new shop cosmetics unlock usable saved styles and spells share the three-slot bag',()=>{
+ const storage=memory(),s=createSystem(storage);s.beginSession('test').finish(5000);
+ for(const [id,field,value] of [['sapphire-armor','armor','sapphire'],['sunset-armor','armor','sunset'],['forest-dragons','dragon','forest'],['neon-dragons','dragon','neon']]){
+  assert.throws(()=>s.setCharacter({...s.snapshot().character,[field]:value}));s.buy(id);s.setCharacter({...s.snapshot().character,[field]:value});assert.equal(createSystem(storage).snapshot().character[field],value);assert.throws(()=>s.buy(id));
+ }
+ s.buy('ward');s.buy('frost');s.buy('boots');assert.throws(()=>s.buy('magnet'));assert.equal(s.snapshot().coins,2300);
+ assert.equal(s.consumeBoost('ward'),true);s.buy('frost');assert.equal(s.snapshot().boosts.frost,2);assert.equal(createSystem(storage).snapshot().boosts.frost,2);
+ for(const bad of [-1,1.5,'1',null])assert.throws(()=>validateSave({...freshSave(),boosts:{...freshSave().boosts,ward:bad}}));
+ const legacy=freshSave();delete legacy.boosts.ward;delete legacy.boosts.frost;assert.equal(validateSave(legacy).boosts.ward,0);assert.equal(validateSave(legacy).boosts.frost,0);
 });
