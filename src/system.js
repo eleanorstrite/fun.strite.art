@@ -108,9 +108,11 @@ export function createSystem(storage, onStorageError = () => {}, checkWalletPass
   const listeners = new Set();
   try { const raw = storage.getItem(SAVE_KEY); if (raw) state = validateSave(JSON.parse(raw)); }
   catch { writable = false; onStorageError(); }
+  // Password unlocks apply only to this visit, never to saved or imported wallets.
+  state.unlimitedCoins=false;
   const snapshot = () => JSON.parse(JSON.stringify(state));
   function persist() {
-    try { storage.setItem(SAVE_KEY, JSON.stringify(state)); writable = true; }
+    try { storage.setItem(SAVE_KEY, JSON.stringify({...state,unlimitedCoins:false})); writable = true; }
     catch { writable = false; onStorageError(); }
     for (const listener of listeners) listener(snapshot());
   }
@@ -156,7 +158,7 @@ export function createSystem(storage, onStorageError = () => {}, checkWalletPass
         persist(); return true;
       } };
     },
-    exportSave: () => JSON.stringify(state, null, 2),
-    importSave(raw) { const next = validateSave(JSON.parse(raw)); state = next; persist(); },
+    exportSave: () => JSON.stringify({...state,unlimitedCoins:false}, null, 2),
+    importSave(raw) { const next = validateSave(JSON.parse(raw)); state = {...next,unlimitedCoins:false}; persist(); },
   };
 }

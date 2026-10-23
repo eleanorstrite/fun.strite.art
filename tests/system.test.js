@@ -102,7 +102,7 @@ test('Snack Attack costs 1000 per use, saves separately from the knight bag, and
  const old=freshSave();delete old.boosts.snack;assert.equal(validateSave(old).boosts.snack,0);
  for(const snack of [-1,1.5,null,'1'])assert.throws(()=>validateSave({...old,boosts:{...old.boosts,snack}}));
 });
-test('hidden wallet requires its password and persists unlimited buying without corrupting coins',async()=>{
+test('hidden wallet unlocks only for the current visit and preserves earned coins',async()=>{
  const storage=memory(),system=createSystem(storage);
  system.beginSession('test').finish(30);
  assert.equal(await system.unlockWallet('wrong'),false);
@@ -116,12 +116,12 @@ test('hidden wallet requires its password and persists unlimited buying without 
  for(let i=0;i<3;i++)system.buy('boots');
  assert.throws(()=>system.buy('magnet'));
  system.consumeBoost('boots');system.buy('magnet');
- const restored=createSystem(storage);assert.equal(restored.snapshot().unlimitedCoins,true);
- restored.buy('snack');assert.equal(restored.snapshot().coins,30);
+ const restored=createSystem(storage);assert.equal(restored.snapshot().unlimitedCoins,false);
+ assert.throws(()=>restored.buy('snack'));assert.equal(restored.snapshot().coins,30);
  const copy=createSystem(memory());copy.importSave(restored.exportSave());
  assert.deepEqual(copy.snapshot(),restored.snapshot());
  copy.beginSession('test').finish(5);assert.equal(copy.snapshot().coins,35);
- assert.equal(copy.snapshot().unlimitedCoins,true);
+ assert.equal(copy.snapshot().unlimitedCoins,false);
 });
 test('legacy wallets remain finite and malformed unlimited settings are rejected',()=>{
  const old=freshSave();delete old.unlimitedCoins;
@@ -169,4 +169,20 @@ test('hidden wallet requires both exact passwords and ignores cancelled attempts
  assert.equal(system.snapshot().unlimitedCoins,false);
  assert.equal(await system.unlockWallet('TestFirst','TestSecond'),true);
  assert.equal(system.snapshot().unlimitedCoins,true);
+});
+
+
+test('new visits and imported old unlimited saves always start with earned coins',async()=>{
+ const storage=memory(),system=createSystem(storage);
+ assert.equal(system.snapshot().unlimitedCoins,false);assert.equal(system.snapshot().coins,0);
+ system.beginSession('test').finish(123);
+ await system.unlockWallet('TestFirst','TestSecond');system.beginSession('test').finish(7);
+ assert.equal(system.snapshot().unlimitedCoins,true);
+ assert.equal(JSON.parse(system.exportSave()).unlimitedCoins,false);
+ const restored=createSystem(storage);assert.equal(restored.snapshot().unlimitedCoins,false);assert.equal(restored.snapshot().coins,130);
+ const legacy={...restored.snapshot(),unlimitedCoins:true};
+ restored.importSave(JSON.stringify(legacy));assert.equal(restored.snapshot().unlimitedCoins,false);assert.equal(restored.snapshot().coins,130);
+ const oldStorage={getItem:()=>JSON.stringify(legacy),setItem(){}};
+ assert.equal(createSystem(oldStorage).snapshot().unlimitedCoins,false);
+ assert.equal(createSystem(oldStorage).snapshot().coins,130);
 });
