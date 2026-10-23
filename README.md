@@ -1,6 +1,6 @@
 # Sidequest
 
-A static game playground for GitHub Pages. Includes Knights and Dragons (a 2D knight-and-dragon maze), Flappy Animals (a flap-to-fly obstacle game), and Hoop Flight (an airplane hoop time trial), a shared character studio, a wallet, and character/environment/equipment upgrades. No runtime dependencies, bundler, account, or backend required.
+A static game playground for GitHub Pages. Includes Knights and Dragons (a 2D knight-and-dragon maze), Flappy Animals (a flap-to-fly obstacle game), and Hoop Flight (an airplane hoop time trial), a shared character studio, a wallet, and character/environment/equipment upgrades. No bundler, account, or backend required. City Builder loads a locally bundled Three.js renderer; no runtime CDN is required.
 
 ## Homepage robot wardrobe
 
@@ -121,3 +121,11 @@ Three original platform layouts include one-way landing platforms and high-bounc
 Click/tap the arena, press Space or Enter, or use Drop layer to drop each sliding ingredient. Layers start at 230 pixels per second, accelerate up to 440, and hover 28 pixels above their landing position. Choose House Kitchen (default), Burger Diner, Garden Picnic, or Classic Sky beneath the game; the choice saves locally under `sidequest.burger.background.v1`. The tower rests on a plate. Cheese, lettuce, tomato, patty, and bun repeat above a bun base. Only the exact horizontal overlap survives; cutoffs fall away and the next piece inherits the remaining width. A complete miss starts a skippable animated ending: a pedestrian eats the hamburger, slips on a puddle, and tosses it into a trash bin.
 
 The layer count and personal best appear above the tower. Best scores use the shared save's optional `stats[gameId].bestScore`, independently of coins or race times, and transfer with save export/import. Each layer pays 1 coin, capped at 40 per game. Completion or closing settles the session once; pausing and hidden tabs freeze motion and the ending.
+
+## City Builder
+
+City Builder uses a textured WebGL scene with sunlight, shadows, a movable build camera, and a walking camera that avoids building walls. Choose 8×8, 12×12, or 20×20 plots and city or country scenery. Growing preserves existing plots; shrinking asks before removing occupied outer plots. Clothing, pants, accessories, map size, setting, and plots save under `sidequest.city.v1`; older 12×12 city saves migrate automatically. City saves remain device-local and separate from wallet exports.
+
+Choose **Start building**, place buildings and roads, customize the person below, then **Play — explore your city**. Use WASD/arrows, touch direction buttons, or tap a destination. Tap a building to route to its front door; use E or the entrance button to enter. Homes, cafés, bakeries, markets, schools, hospitals, fire stations, and offices have furnished interiors with furniture collisions. Exit returns to the same door; Back to building restores editing. All city content is free.
+
+`src/city-builder.js` owns save validation, map editing, pathfinding, input, and game lifecycle. `src/city-3d.js` owns meshes, generated material textures, instanced scenery, interiors, and GPU cleanup. Three.js 0.180.0 and its MIT license live in `src/vendor/three/`; only City Builder imports it. WebGL is required, and an in-game message explains a loading or context failure.

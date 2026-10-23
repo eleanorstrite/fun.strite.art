@@ -22,21 +22,58 @@ export const CITY_ITEMS = {
   road:{name:'Road',category:'roads'},
   plaza:{name:'Walking plaza',category:'roads'}
 };
+export const CITY_SIZES = [8,12,20];
+export const CITY_PERSON = {skin:'#bc8765',hair:'#382a23',jacket:'#476c73',pants:'#344252',outfit:'jacket',pantsStyle:'jeans',accessory:'none'};
 export function createCityState(raw) {
   let data; try { data=JSON.parse(raw); } catch {}
-  return {tiles:Array.from({length:CITY_SIZE*CITY_SIZE},(_,i)=>Object.hasOwn(CITY_ITEMS,data?.tiles?.[i])?data.tiles[i]:null),history:[]};
+  const size=CITY_SIZES.includes(data?.size)?data.size:12;
+  const person={...CITY_PERSON};
+  for(const key of ['skin','hair','jacket','pants'])if(/^#[0-9a-f]{6}$/i.test(data?.person?.[key]))person[key]=data.person[key];
+  if(['jacket','hoodie','coat'].includes(data?.person?.outfit))person.outfit=data.person.outfit;
+  if(['jeans','trousers','shorts'].includes(data?.person?.pantsStyle))person.pantsStyle=data.person.pantsStyle;
+  if(['none','cap','scarf','backpack','glasses'].includes(data?.person?.accessory))person.accessory=data.person.accessory;
+  return {size,theme:data?.theme==='country'?'country':'city',person,tiles:Array.from({length:size*size},(_,i)=>Object.hasOwn(CITY_ITEMS,data?.tiles?.[i])?data.tiles[i]:null),history:[]};
 }
 export function cityPlace(state,x,y,tool) {
-  if(!Number.isInteger(x)||!Number.isInteger(y)||x<0||y<0||x>=CITY_SIZE||y>=CITY_SIZE||(tool!==null&&!Object.hasOwn(CITY_ITEMS,tool)))return false;
-  const index=y*CITY_SIZE+x;
+  if(!Number.isInteger(x)||!Number.isInteger(y)||x<0||y<0||x>=state.size||y>=state.size||(tool!==null&&!Object.hasOwn(CITY_ITEMS,tool)))return false;
+  const index=y*state.size+x;
   if(state.tiles[index]===tool)return false;
   state.history.push({index,before:state.tiles[index]});
-  if(state.history.length>300)state.history.shift();
+  if(state.history.length>500)state.history.shift();
   state.tiles[index]=tool;return true;
 }
 export function cityUndo(state) {
   const edit=state.history.pop();if(!edit)return false;
   state.tiles[edit.index]=edit.before;return true;
+}
+export function cityResize(state,size,allowCrop=false) {
+  if(!CITY_SIZES.includes(size))return false;
+  if(!allowCrop&&state.tiles.some((id,i)=>id&&(i%state.size>=size||Math.floor(i/state.size)>=size)))return false;
+  const tiles=Array(size*size).fill(null);
+  for(let y=0;y<Math.min(size,state.size);y++)for(let x=0;x<Math.min(size,state.size);x++)tiles[y*size+x]=state.tiles[y*state.size+x];
+  state.size=size;state.tiles=tiles;state.history=[];return true;
+}
+export function citySerialize(state){return JSON.stringify({size:state.size,theme:state.theme,person:state.person,tiles:state.tiles});}
+export function cityDoor(state,index){return {x:(index%state.size)*5+2.5,z:Math.floor(index/state.size)*5+4.55};}
+export function citySpawn(state){const index=state.tiles.findIndex(id=>CITY_ITEMS[id]?.height);return index<0?{x:state.size*2.5,z:state.size*5-.5}:cityDoor(state,index);}
+export function cityCanWalk(state,x,z,room=null) {
+  if(room)return x> -6.6&&x<6.6&&z> -5.6&&z<5.6&&!room.some(b=>Math.abs(x-b.x)<b.w/2+.22&&Math.abs(z-b.z)<b.d/2+.22);
+  if(x<.3||z<.3||x>state.size*5-.3||z>state.size*5-.3)return false;
+  const tx=Math.floor(x/5),tz=Math.floor(z/5),id=state.tiles[tz*state.size+tx];
+  if(id==='pond')return Math.abs(x%5-2.5)>1.75||Math.abs(z%5-2.5)>1.75;
+  return !CITY_ITEMS[id]?.height||Math.abs(x%5-2.5)>1.85||Math.abs(z%5-2.5)>1.85;
+}
+// A one-metre walking grid routes taps around buildings rather than through walls.
+export function cityPath(state,from,to) {
+  const n=state.size*5,cell=p=>Math.max(0,Math.min(n-1,Math.floor(p))),sx=cell(from.x),sz=cell(from.z),tx=cell(to.x),tz=cell(to.z),start=sz*n+sx,end=tz*n+tx;
+  const previous=new Int32Array(n*n).fill(-1),queue=[start];previous[start]=start;
+  for(let head=0;head<queue.length&&previous[end]===-1;head++){
+    const id=queue[head],x=id%n,z=Math.floor(id/n);
+    for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]){const xx=x+dx,zz=z+dz,next=zz*n+xx;if(xx<0||zz<0||xx>=n||zz>=n||previous[next]!==-1||!cityCanWalk(state,xx+.5,zz+.5))continue;previous[next]=id;queue.push(next);}
+  }
+  if(previous[end]===-1)return [];
+  const path=[];for(let i=end;i!==start;i=previous[i])path.push({x:i%n+.5,z:Math.floor(i/n)+.5});
+  return path.reverse();
 }
 export function cityPoint(x,y){return {x:450+(x-y)*32,y:168+(x+y)*16};}
 export function cityCell(px,py){const a=(px-450)/32,b=(py-168)/16;return {x:Math.floor((a+b)/2),y:Math.floor((b-a)/2)};}
@@ -91,30 +128,65 @@ export function drawCity(canvas,state,hover=null,tool='cottage',time=0){
   }
   c.font='13px sans-serif';c.fillStyle='#527466';c.textAlign='center';c.fillText('Tap a diamond to build · Roads connect automatically',450,620);c.restore();
 }
-export function drawCityPreview(canvas){const s=createCityState();for(let i=1;i<11;i++){s.tiles[6*12+i]='road';s.tiles[i*12+6]='road';}for(const [x,y,id] of [[4,4,'glass'],[5,3,'skyline'],[3,5,'office'],[7,7,'cottage'],[8,7,'townhouse'],[9,8,'cottage'],[7,4,'park'],[8,4,'pond'],[4,7,'cafe'],[4,8,'flowers'],[5,8,'market']])s.tiles[y*12+x]=id;drawCity(canvas,s);}
+let cityPreviewImage;
+export function drawCityPreview(canvas){
+  if(typeof Image!=='undefined'){
+    if(!cityPreviewImage){cityPreviewImage=new Image();cityPreviewImage.src='./assets/city-builder-preview.jpg';}
+    if(cityPreviewImage.complete&&cityPreviewImage.naturalWidth){canvas.getContext('2d').drawImage(cityPreviewImage,0,0,canvas.width,canvas.height);return;}
+    if(!cityPreviewImage.complete)cityPreviewImage.addEventListener('load',()=>{if(canvas.isConnected)drawCityPreview(canvas);},{once:true});
+  }
+  const s=createCityState();for(let i=1;i<11;i++){s.tiles[6*12+i]='road';s.tiles[i*12+6]='road';}for(const [x,y,id] of [[4,4,'glass'],[5,3,'skyline'],[3,5,'office'],[7,7,'cottage'],[8,7,'townhouse'],[9,8,'cottage'],[7,4,'park'],[8,4,'pond'],[4,7,'cafe'],[4,8,'flowers'],[5,8,'market']])s.tiles[y*12+x]=id;drawCity(canvas,s);}
 export function createCityBuilder({canvas,onHud}){
   let storage,state,saveError=false;
   try{storage=window.localStorage;state=createCityState(storage.getItem(CITY_KEY));}catch{state=createCityState();saveError=true;}
-  const abort=new AbortController(),options={signal:abort.signal};
-  const panel=document.querySelector('#city-controls'),categories=panel.querySelector('#city-categories'),items=panel.querySelector('#city-items'),status=panel.querySelector('#city-status');
-  let category='homes',tool='cottage',active=false,paused=false,hover=null,pointer=null,last=null,frame=0,lastFrame=0;
-  function report(){const count=state.tiles.filter(Boolean).length;status.textContent=saveError?'Saving unavailable in this browser. Keep this game open to keep your city.':`${count} / 144 plots used · Saved on this device`;onHud({text:`City Builder · ${count} plots · All buildings are free`});panel.querySelector('#city-undo').disabled=!state.history.length;}
-  function save(){try{if(!storage)throw Error();storage.setItem(CITY_KEY,JSON.stringify({tiles:state.tiles}));saveError=false;}catch{saveError=true;}report();}
-  function choose(){for(const button of items.children)button.setAttribute('aria-pressed',String(button.dataset.item===tool));panel.querySelector('#city-erase').setAttribute('aria-pressed',String(tool===null));panel.querySelector('#city-selected').textContent=tool?`Selected: ${CITY_ITEMS[tool].name}`:'Eraser: tap a plot to remove it';}
-  function renderItems(){items.replaceChildren();for(const [id,item] of Object.entries(CITY_ITEMS))if(item.category===category){const b=document.createElement('button');b.type='button';b.className='button outline';b.dataset.item=id;b.textContent=item.name;b.addEventListener('click',()=>{tool=id;choose();},options);items.append(b);}choose();}
-  categories.replaceChildren();for(const [id,name] of Object.entries(CITY_CATEGORIES)){const b=document.createElement('button');b.type='button';b.className='button outline';b.textContent=name;b.setAttribute('aria-pressed',String(category===id));b.addEventListener('click',()=>{category=id;tool=Object.keys(CITY_ITEMS).find(key=>CITY_ITEMS[key].category===id);for(const button of categories.children)button.setAttribute('aria-pressed',String(button===b));renderItems();},options);categories.append(b);}
-  panel.querySelector('#city-erase').addEventListener('click',()=>{tool=null;choose();},options);
-  panel.querySelector('#city-undo').addEventListener('click',()=>{if(active&&!paused&&cityUndo(state))save();},options);
-  panel.querySelector('#city-clear').addEventListener('click',()=>{if(!active||paused||!confirm('Clear your entire city?'))return;for(let y=0;y<12;y++)for(let x=0;x<12;x++)cityPlace(state,x,y,null);save();},options);
-  function locate(e){const r=canvas.getBoundingClientRect();return cityCell((e.clientX-r.left)*900/r.width,(e.clientY-r.top)*650/r.height);}
-  function place(cell){if(!active||paused)return;if(cityPlace(state,cell.x,cell.y,tool))save();}
-  canvas.addEventListener('pointerdown',e=>{if(!active||paused||pointer!==null||e.button>0)return;e.preventDefault();pointer=e.pointerId;canvas.setPointerCapture(pointer);hover=locate(e);last=hover;place(hover);},options);
-  canvas.addEventListener('pointermove',e=>{hover=locate(e);if(e.pointerId!==pointer)return;e.preventDefault();if(tool==='road'||tool===null){const dx=hover.x-last.x,dy=hover.y-last.y,steps=Math.max(Math.abs(dx),Math.abs(dy));for(let i=1;i<=Math.min(steps,24);i++)place({x:Math.round(last.x+dx*i/steps),y:Math.round(last.y+dy*i/steps)});}last=hover;},options);
-  const release=e=>{if(pointer===e.pointerId){pointer=null;last=null;}};
-  for(const name of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(name,release,options);
-  canvas.addEventListener('pointerleave',()=>{if(pointer===null)hover=null;},options);
-  canvas.addEventListener('keydown',e=>{if(!active||paused)return;if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)){e.preventDefault();hover??={x:5,y:5};if(e.key==='ArrowUp')hover.y--;if(e.key==='ArrowDown')hover.y++;if(e.key==='ArrowLeft')hover.x--;if(e.key==='ArrowRight')hover.x++;hover.x=Math.max(0,Math.min(11,hover.x));hover.y=Math.max(0,Math.min(11,hover.y));if(e.key==='Enter'||e.key===' ')place(hover);}},options);
-  function loop(now){if(now-lastFrame>32){drawCity(canvas,state,hover,tool,paused?0:now/1000);lastFrame=now;}frame=requestAnimationFrame(loop);}
-  renderItems();report();drawCity(canvas,state);frame=requestAnimationFrame(loop);
-  return {start(){active=true;paused=false;canvas.focus({preventScroll:true});},pause(value){paused=value;pointer=null;},destroy(){abort.abort();cancelAnimationFrame(frame);},setMuted(){}};
+  const abort=new AbortController(),options={signal:abort.signal},panel=document.querySelector('#city-controls'),$=id=>panel.querySelector('#city-'+id);
+  let category='homes',tool='cottage',active=false,paused=false,hover=null,pointer=null,last=null,frame=0,previous=0,view=null,destroyed=false,mode='build',interior=null,obstacles=null,path=[],destinationBuilding=null,moving=false;
+  const keys=new Set(),player={x:.5,z:.5,angle:0};let nearby=null;
+  function report(){const count=state.tiles.filter(Boolean).length;$('status').textContent=saveError?'Saving unavailable in this browser. Keep this game open to keep your city.':`${count} / ${state.size*state.size} plots used · Saved on this device`;onHud({text:`City Builder · ${mode==='walk'?(interior?CITY_ITEMS[state.tiles[interior.index]].name:'Exploring your '+state.theme):'Build your '+state.theme} · ${count} plots`});$('undo').disabled=!state.history.length||mode!=='build';}
+  function save(){try{if(!storage)throw Error();storage.setItem(CITY_KEY,citySerialize(state));saveError=false;}catch{saveError=true;}report();}
+  function refresh(){view?.rebuild();save();}
+  function choose(){for(const button of $('items').children)button.setAttribute('aria-pressed',String(button.dataset.item===tool));$('erase').setAttribute('aria-pressed',String(tool===null));$('selected').textContent=tool?`Selected: ${CITY_ITEMS[tool].name}`:'Eraser: tap a plot to remove it';}
+  function renderItems(){$('items').replaceChildren();for(const [id,item] of Object.entries(CITY_ITEMS))if(item.category===category){const b=document.createElement('button');b.type='button';b.className='button outline';b.dataset.item=id;b.textContent=item.name;b.addEventListener('click',()=>{tool=id;choose();},options);$('items').append(b);}choose();}
+  $('categories').replaceChildren();for(const [id,name] of Object.entries(CITY_CATEGORIES)){const b=document.createElement('button');b.type='button';b.className='button outline';b.textContent=name;b.setAttribute('aria-pressed',String(category===id));b.addEventListener('click',()=>{category=id;tool=Object.keys(CITY_ITEMS).find(key=>CITY_ITEMS[key].category===id);for(const button of $('categories').children)button.setAttribute('aria-pressed',String(button===b));renderItems();},options);$('categories').append(b);}
+  $('erase').addEventListener('click',()=>{tool=null;choose();},options);
+  $('undo').addEventListener('click',()=>{if(active&&!paused&&mode==='build'&&cityUndo(state))refresh();},options);
+  $('clear').addEventListener('click',()=>{if(!active||paused||mode!=='build'||!confirm('Clear your entire city?'))return;for(let y=0;y<state.size;y++)for(let x=0;x<state.size;x++)cityPlace(state,x,y,null);refresh();},options);
+  $('size').value=String(state.size);$('theme').value=state.theme;
+  $('size').addEventListener('change',()=>{const size=Number($('size').value);if(!cityResize(state,size)){if(confirm('The smaller map will remove buildings outside its edges. Shrink the map?'))cityResize(state,size,true);else{$('size').value=String(state.size);return;}}refresh();},options);
+  $('theme').addEventListener('change',()=>{state.theme=$('theme').value==='country'?'country':'city';refresh();},options);
+  for(const key of Object.keys(CITY_PERSON)){const input=$('person-'+key);input.value=state.person[key];input.addEventListener('input',()=>{state.person[key]=input.value;view?.person();if(view)view.portrait($('portrait'));save();},options);}
+  function resetInput(){keys.clear();pointer=null;last=null;path=[];destinationBuilding=null;moving=false;}
+  function setMode(next){if(!active||paused||!view)return;resetInput();mode=next;canvas.closest('dialog').classList.toggle('city-walking',mode==='walk');interior=null;obstacles=null;Object.assign(player,citySpawn(state));$('build-tools').disabled=mode!=='build';$('build-tools').hidden=mode==='walk';$('person-customizer').open=mode==='build';$('walk-tools').hidden=mode!=='walk';$('play').textContent=mode==='walk'?'Back to building':'Play — explore your city';$('play').setAttribute('aria-pressed',String(mode==='walk'));canvas.focus({preventScroll:true});canvas.closest('dialog').scrollTop=0;report();}
+  $('play').disabled=true;$('play').addEventListener('click',()=>setMode(mode==='build'?'walk':'build'),options);
+  function enter(index){if(index===null||!CITY_ITEMS[state.tiles[index]]?.height)return;interior={index,outside:{x:player.x,z:player.z}};obstacles=view.furnish(state.tiles[index]);player.x=0;player.z=5;resetInput();report();}
+  function interact(){if(!active||paused||mode!=='walk')return;if(interior){player.x=interior.outside.x;player.z=interior.outside.z;interior=null;obstacles=null;resetInput();report();}else if(nearby!==null)enter(nearby);canvas.focus({preventScroll:true});}
+  $('enter').addEventListener('click',interact,options);
+  for(const [id,action] of [['rotate-left',()=>view?.turn(-1)],['rotate-right',()=>view?.turn(1)],['zoom-in',()=>view?.zoom(-.15)],['zoom-out',()=>view?.zoom(.15)]])$(id).addEventListener('click',()=>{action();canvas.focus({preventScroll:true});},options);
+  const keyName=key=>({w:'up',a:'left',s:'down',d:'right',ArrowUp:'up',ArrowLeft:'left',ArrowDown:'down',ArrowRight:'right'}[key.length===1?key.toLowerCase():key]);
+  window.addEventListener('keydown',e=>{if(!active||paused||!view||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;
+    if(mode==='walk'){const name=keyName(e.key);if(name){e.preventDefault();keys.add(name);path=[];destinationBuilding=null;}if(e.key.toLowerCase()==='e'&&!e.repeat){e.preventDefault();interact();}}
+    else if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)&&e.target===canvas){e.preventDefault();hover??={x:0,y:0};if(e.key==='ArrowUp')hover.y--;if(e.key==='ArrowDown')hover.y++;if(e.key==='ArrowLeft')hover.x--;if(e.key==='ArrowRight')hover.x++;hover.x=Math.max(0,Math.min(state.size-1,hover.x));hover.y=Math.max(0,Math.min(state.size-1,hover.y));if(e.key==='Enter'||e.key===' ')place(hover);}
+  },options);
+  window.addEventListener('keyup',e=>keys.delete(keyName(e.key)),options);window.addEventListener('blur',resetInput,options);document.addEventListener('visibilitychange',()=>{if(document.hidden)resetInput();},options);
+  for(const direction of ['up','down','left','right']){const b=$('walk-'+direction);b.addEventListener('pointerdown',e=>{if(!active||paused)return;e.preventDefault();b.setPointerCapture(e.pointerId);keys.add(direction);path=[];destinationBuilding=null;},options);for(const name of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(name,()=>keys.delete(direction),options);}
+  function place(cell){if(!active||paused||mode!=='build')return;if(cityPlace(state,cell.x,cell.y,tool))refresh();}
+  function hit(e){const p=view.pick(e.clientX,e.clientY,Boolean(interior));if(!p)return null;return {...p,cell:p.building!==undefined?{x:p.building%state.size,y:Math.floor(p.building/state.size)}:{x:Math.floor(p.x/5),y:Math.floor(p.z/5)}};}
+  function bindCanvas(){canvas.addEventListener('pointerdown',e=>{if(!active||paused||pointer!==null||e.button>0)return;e.preventDefault();canvas.focus({preventScroll:true});pointer=e.pointerId;canvas.setPointerCapture(pointer);const p=hit(e);if(!p)return;
+    if(mode==='walk'){destinationBuilding=p.building??null;const target=destinationBuilding!==null?cityDoor(state,destinationBuilding):p;path=interior?[{x:Math.max(-6.5,Math.min(6.5,p.x)),z:Math.max(-5.5,Math.min(5.5,p.z))}]:cityPath(state,player,target);}
+    else{hover=p.cell;last=hover;place(hover);}},options);
+    canvas.addEventListener('pointermove',e=>{if(mode!=='build')return;const p=hit(e);if(!p)return;hover=p.cell;if(e.pointerId!==pointer||!last)return;e.preventDefault();if(tool==='road'||tool===null){const dx=hover.x-last.x,dy=hover.y-last.y,steps=Math.max(Math.abs(dx),Math.abs(dy));for(let i=1;i<=Math.min(steps,state.size*2);i++)place({x:Math.round(last.x+dx*i/steps),y:Math.round(last.y+dy*i/steps)});}last=hover;},options);
+    const release=e=>{if(pointer===e.pointerId){pointer=null;last=null;}};for(const name of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(name,release,options);
+    canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();paused=true;resetInput();$('loading').hidden=false;$('loading').textContent='The 3D view was interrupted. Close and reopen City Builder to restore your saved city.';},options);
+  }
+  function step(dt){moving=false;if(!active||paused||mode!=='walk')return;let dx=0,dz=0;
+    if(path.length){const target=path[0],distance=Math.hypot(target.x-player.x,target.z-player.z);if(distance<.14)path.shift();else{dx=(target.x-player.x)/distance;dz=(target.z-player.z)/distance;}}
+    else{const right=Number(keys.has('right'))-Number(keys.has('left')),forward=Number(keys.has('up'))-Number(keys.has('down')),yaw=interior?0:view.yaw();dx=right*Math.cos(yaw)-forward*Math.sin(yaw);dz=-right*Math.sin(yaw)-forward*Math.cos(yaw);const length=Math.hypot(dx,dz);if(length){dx/=length;dz/=length;}}
+    if(dx||dz){const beforeX=player.x,beforeZ=player.z,speed=interior?3.1:4.2;const nx=player.x+dx*speed*dt,nz=player.z+dz*speed*dt;if(cityCanWalk(state,nx,player.z,obstacles))player.x=nx;if(cityCanWalk(state,player.x,nz,obstacles))player.z=nz;moving=Math.hypot(player.x-beforeX,player.z-beforeZ)>.001;if(moving)player.angle=Math.atan2(dx,dz);else path=[];}
+    nearby=null;if(!interior){let distance=2.6;state.tiles.forEach((id,index)=>{if(!CITY_ITEMS[id]?.height)return;const door=cityDoor(state,index),d=Math.hypot(player.x-door.x,player.z-door.z);if(d<distance){nearby=index;distance=d;}});if(destinationBuilding!==null&&!path.length&&nearby===destinationBuilding)enter(destinationBuilding);}
+    const text=interior?'Exit building':nearby!==null?'Enter '+CITY_ITEMS[state.tiles[nearby]].name:'Walk to a front door';if($('enter').textContent!==text)$('enter').textContent=text;$('enter').disabled=!interior&&nearby===null;
+  }
+  function loop(now){const dt=Math.min(.04,(now-previous)/1000||0);previous=now;if(view&&!document.hidden){step(dt);view.render({mode,player,hover,time:now/1000,moving,interior,dt});}frame=requestAnimationFrame(loop);}
+  canvas.closest('dialog').classList.remove('city-walking');$('build-tools').disabled=false;$('build-tools').hidden=false;$('walk-tools').hidden=true;$('person-customizer').open=true;$('play').textContent='Play — explore your city';$('play').setAttribute('aria-pressed','false');renderItems();report();$('loading').hidden=false;$('loading').textContent='Preparing your 3D city…';
+  import('./city-3d.js').then(({createCityScene})=>{if(destroyed)return;view=createCityScene(canvas,state);canvas=view.canvas;bindCanvas();view.portrait($('portrait'));$('loading').hidden=true;$('play').disabled=!active;frame=requestAnimationFrame(loop);}).catch(error=>{if(destroyed)return;$('loading').hidden=false;$('loading').textContent='The 3D city could not load. Try reopening the game in a browser with WebGL enabled.';console.error(error);});
+  return {start(){active=true;paused=false;$('play').disabled=!view;canvas.focus({preventScroll:true});},pause(value){paused=value;resetInput();},destroy(){canvas.closest('dialog')?.classList.remove('city-walking');destroyed=true;abort.abort();cancelAnimationFrame(frame);view?.dispose();},setMuted(){}};
 }
