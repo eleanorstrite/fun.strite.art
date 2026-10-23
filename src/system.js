@@ -54,7 +54,7 @@ export async function verifyWalletPassword(password,step=1) {
   if(typeof password!=='string'||![1,2].includes(step))return false;
   const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(password));
   const key=Array.from(new Uint8Array(digest),byte=>byte.toString(16).padStart(2,'0')).join('');
-  return key===["1a93513e403b8f2daba3696f9def7fff19fa966597cf6aa3bda016917fe4196c","b5259d596f2cfb78e33b1d8851b575151635d7cb14f68b265ca80e027ab8f542"][step-1];
+  return key===["cd0299854a830cfdbcfb7d6887ddb636c09496099c873f6ce5496aec9c3f044a","b5259d596f2cfb78e33b1d8851b575151635d7cb14f68b265ca80e027ab8f542"][step-1];
 }
 export function freshSave() { return { version: 1, mazeLevel:0, ravenLevel:'easy', coins: 0, unlimitedCoins: false, character: { name: 'Pip', color: COLORS[0], style: 'antenna', ...KNIGHT_DEFAULTS, robot:{...ROBOT_DEFAULTS}, flight:{...FLIGHT_DEFAULTS},plane:{...PLANE_DEFAULTS} }, upgrades: [], boosts: {boots:0,magnet:0,eliminator:0,snack:0}, stats: {} }; }
 export function validateSave(data) {
