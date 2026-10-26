@@ -1,3 +1,4 @@
+import { CITY_FOOD, CITY_FOOD_UNLOCKS, cityFoodUnlocked } from './city-shop.js';
 import { ICE_SHOP_ITEMS } from './ice-settings.js';
 import { FLIGHT_BACKGROUNDS, FLIGHT_DEFAULTS, validateFlightSettings } from './flight-settings.js';
 /** Shared, renderer-independent progression API. No game owns the wallet. */
@@ -43,6 +44,7 @@ export const UPGRADES = [
   ...['forest','neon'].map(id=>({id:DRAGON_STYLES[id].upgrade,name:DRAGON_STYLES[id].name,group:'appearance',category:'KNIGHTS AND DRAGONS LOOK',icon:'🐲',cost:200,description:'Permanently unlock this dragon color collection in the knight customizer. Appearance only; works in 2D and 3D.'})),
   {id:'snack',name:'Snack Attack',group:'gameplay',category:'THE RAVEN ONLY',icon:'🍿',cost:1000,description:'One use in The Raven: the youngest girl throws sandwiches and candy from the window, clearing obstacles for 5 seconds. Activate the snack button above the course. Buy again for another use.'},
   ...ICE_SHOP_ITEMS,
+  ...CITY_FOOD_UNLOCKS,
   ...Object.entries(PLANE_UNLOCKS).map(([style,id])=>({id,name:PLANE_STYLES[style],group:'appearance',category:'HOOP FLIGHT AIRPLANE',icon:'✈',cost:200,description:'For Hoop Flight only. Permanently unlock this airplane design in the plane customizer. Cosmetic: all planes fly the same.'})),
   ...Object.values(AIR_BACKGROUNDS).filter(scene=>scene.upgrade).map(scene=>({id:scene.upgrade,name:scene.name,group:'appearance',category:'HOOP FLIGHT BACKGROUND',icon:'🌄',cost:200,description:'For Hoop Flight only — separate from home-screen and Flappy Animals backgrounds. Permanently unlock in the plane customizer.'})),
 
@@ -148,6 +150,14 @@ export function createSystem(storage, onStorageError = () => {}, checkWalletPass
       if(!state.unlimitedCoins)state.coins -= item.cost;
       if(item.group==='gameplay')state.boosts[id]++;else state.upgrades.push(id);
       persist();
+    },
+    buyCityFood(kind) {
+      const food=CITY_FOOD[kind];
+      if(!Object.hasOwn(CITY_FOOD,kind))throw new Error('That food is not on the menu.');
+      if(!cityFoodUnlocked(kind,state.upgrades))throw new Error('Unlock this recipe in the main shop first.');
+      if(!state.unlimitedCoins&&state.coins<food.price)throw new Error(`You need ${food.price-state.coins} more coins. Earn coins in any game, then come back.`);
+      if(!state.unlimitedCoins)state.coins-=food.price;
+      persist();return {kind,price:food.price};
     },
     consumeBoost(id) {
       if(![...MAZE_BOOST_IDS,'snack'].includes(id) || state.boosts[id]<1)return false;

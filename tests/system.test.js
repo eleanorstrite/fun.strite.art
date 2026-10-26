@@ -197,3 +197,14 @@ test('new shop cosmetics unlock usable saved styles and spells share the three-s
  for(const bad of [-1,1.5,'1',null])assert.throws(()=>validateSave({...freshSave(),boosts:{...freshSave().boosts,ward:bad}}));
  const legacy=freshSave();delete legacy.boosts.ward;delete legacy.boosts.frost;assert.equal(validateSave(legacy).boosts.ward,0);assert.equal(validateSave(legacy).boosts.frost,0);
 });
+test('City food spends the shared wallet, rejects locked recipes, and persists permanent unlocks',()=>{
+ const storage=memory(),system=createSystem(storage);system.beginSession('garden').finish(40);
+ let balance;const stop=system.subscribe(save=>balance=save.coins);
+ system.buyCityFood('bread');assert.equal(balance,39);assert.equal(createSystem(storage).snapshot().coins,39);
+ const before=system.snapshot();for(const kind of ['cake','toString','__proto__','missing'])assert.throws(()=>system.buyCityFood(kind));assert.deepEqual(system.snapshot(),before);
+ system.buy('city-cake');assert.equal(system.snapshot().coins,14);system.buyCityFood('cake');assert.equal(system.snapshot().coins,10);
+ const reopened=createSystem(storage);assert.ok(reopened.snapshot().upgrades.includes('city-cake'));reopened.buyCityFood('cake');reopened.buyCityFood('cake');assert.equal(reopened.snapshot().coins,2);assert.throws(()=>reopened.buyCityFood('cake'));assert.equal(reopened.snapshot().coins,2);reopened.buyCityFood('pizza');assert.equal(reopened.snapshot().coins,0);assert.throws(()=>reopened.buyCityFood('bread'));stop();
+});
+test('City food honors an unlocked unlimited wallet without changing saved coins',async()=>{
+ const system=createSystem(memory());await system.unlockWallet('TestFirst','TestSecond');system.buy('city-cake');system.buyCityFood('cake');assert.equal(system.snapshot().coins,0);assert.equal(system.snapshot().unlimitedCoins,true);
+});

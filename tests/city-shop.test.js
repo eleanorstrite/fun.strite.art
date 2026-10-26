@@ -5,7 +5,7 @@ const table={id:'table',x:0,z:0,w:2,d:2,y:1,occupied:[{x:.6,z:.6}]};
 const customer={x:-1,z:-2.2};
 test('register menus are shop specific and ordering requires an available nearby counter',()=>{
   assert.equal(createCityShop('school'),null);
-  assert.deepEqual(CITY_SHOPS.cafe.menu,['bread','milkshake','sandwich','pizza']);
+  assert.deepEqual(CITY_SHOPS.cafe.menu,['bread','milkshake','sandwich','pizza','galaxyShake']);
   assert.ok(CITY_SHOPS.bakery.menu.includes('croissant'));assert.ok(CITY_SHOPS.market.menu.includes('milk'));
   const shop=createCityShop('cafe',[table]);assert.equal(cityAtRegister(shop,{x:0,z:5}),false);
   assert.equal(cityOrderFood(shop,'pizza',{x:0,z:5}),null);assert.equal(cityOrderFood(shop,'carrot',customer),null);
@@ -36,4 +36,20 @@ test('Space can eat the counter order and cannot eat a distant or already eaten 
   const shop=createCityShop('market'),player={x:-3.2,z:5},food=cityOrderFood(shop,'milk',player);
   assert.equal(cityEatOrderedFood(shop,{x:5,z:-5}),null);assert.equal(cityEatOrderedFood(shop,player),food);assert.equal(cityEatOrderedFood(shop,player),null);
   assert.ok(cityOrderFood(shop,'apple',player));
+});
+test('rejected and duplicate orders never charge; a failed charge creates no food',()=>{
+ const shop=createCityShop('cafe');let charged=0;const charge=()=>charged++;
+ cityOrderFood(shop,'pizza',{x:6,z:5},charge);cityOrderFood(shop,'cake',customer,charge);assert.equal(charged,0);
+ assert.throws(()=>cityOrderFood(shop,'pizza',customer,()=>{throw Error('Not enough coins');}));assert.equal(shop.items.length,0);assert.equal(shop.nextId,1);
+ cityOrderFood(shop,'pizza',customer,charge);cityOrderFood(shop,'pizza',customer,charge);assert.equal(charged,1);assert.equal(shop.items.length,1);
+});
+test('paid orders restore at their last surface and reject invalid saved items',async()=>{
+ const {restoreCityOrders}=await import('../src/city-shop.js');const shop=createCityShop('cafe',[table]);
+ restoreCityOrders(shop,[null,{kind:'pizza',surface:'counter',x:-2,z:-3.1,carried:true},{kind:'cake',surface:'counter',x:-2,z:-3.1},{kind:'bread',surface:'counter',x:Infinity,z:0}]);
+ assert.equal(shop.items.length,1);assert.equal(shop.items[0].carried,false);assert.equal(shop.items[0].y,1.2);assert.equal(shop.nextId,2);
+});
+test('saved orders follow their plot when resizing and clear when the building is replaced',async()=>{
+ const {createCityState,cityPlace,cityResize,citySerialize}=await import('../src/city-builder.js');const state=createCityState();cityPlace(state,2,2,'bakery');
+ state.shopOrders['2,2']={id:'bakery',items:[{kind:'cake',surface:'counter',x:-2,z:-3.1}]};cityResize(state,20);
+ const restored=createCityState(citySerialize(state));assert.equal(restored.shopOrders['2,2'].items[0].kind,'cake');cityPlace(restored,2,2,'cafe');assert.equal(restored.shopOrders['2,2'],undefined);
 });

@@ -17,7 +17,7 @@ test('register buttons, hold gestures, Space and all exit routes share the same 
   const button=id=>panel.querySelector('#city-'+id),tick=(n=1)=>{for(let i=0;i<n;i++){now+=40;frame(now);}},key=(type,key)=>{const e=new Event(type);e.key=key;window.dispatchEvent(e);},walk=(k,n)=>{key('keydown',k);tick(n);key('keyup',k);};
   const pointer=(type,x=50)=>{const e=new Event(type);Object.assign(e,{pointerId:1,button:0,clientX:x,clientY:50});canvas.dispatchEvent(e);};
   try{
-    game=createCityBuilder({canvas,onHud(){},loadScene:async()=>({createCityScene:()=>view})});game.start();await Promise.resolve();button('play').dispatchEvent(new Event('click'));walk('w',2);walk('w',58);
+    game=createCityBuilder({canvas,wallet:{snapshot:()=>({coins:100,upgrades:[]}),subscribe:()=>()=>{},buyFood(){}},onHud(){},loadScene:async()=>({createCityScene:()=>view})});game.start();await Promise.resolve();button('play').dispatchEvent(new Event('click'));walk('w',2);walk('w',58);
     assert.equal(button('shop-menu').hidden,false);const pizza=button('shop-choices').children.find(b=>b.dataset.food==='pizza');pizza.dispatchEvent(new Event('click'));tick();assert.equal(snapshot.shop.items.length,1);
     hit={x:-2,z:-3.1,orderId:snapshot.shop.items[0].id};pointer('pointerdown');tick(5);pointer('pointercancel');tick(15);assert.equal(snapshot.shop.items[0].carried,false,'cancelled holds cannot pick up');
     pointer('pointerdown');tick(5);pointer('pointermove',80);tick(15);pointer('pointerup');assert.equal(snapshot.shop.items[0].carried,false,'dragging cancels the hold');

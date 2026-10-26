@@ -1,6 +1,6 @@
 import { createCityAudio } from './city-audio.js';
 import { cityBedReaction } from './city-life.js';
-import { CITY_FOOD, CITY_SHOPS, CITY_HOLD_SECONDS, createCityShop, cityAtRegister, cityCarriedFood, cityOrderFood, cityPickUpFood, cityPlaceFood, cityEatOrderedFood, cityCanLeaveShop } from './city-shop.js';
+import { CITY_FOOD, cityFoodUnlocked, restoreCityOrders, CITY_SHOPS, CITY_HOLD_SECONDS, createCityShop, cityAtRegister, cityCarriedFood, cityOrderFood, cityPickUpFood, cityPlaceFood, cityEatOrderedFood, cityCanLeaveShop } from './city-shop.js';
 import { cityFurnitureAt, cityNearbyMealSeat, cityHomeStyle } from './city-interiors.js';
 export const CITY_SIZE = 12;
 export const CITY_KEY = 'sidequest.city.v1';
@@ -36,7 +36,7 @@ export function createCityState(raw) {
   if(['jacket','hoodie','coat'].includes(data?.person?.outfit))person.outfit=data.person.outfit;
   if(['jeans','trousers','shorts'].includes(data?.person?.pantsStyle))person.pantsStyle=data.person.pantsStyle;
   if(['none','cap','scarf','backpack','glasses'].includes(data?.person?.accessory))person.accessory=data.person.accessory;
-  return {size,theme:data?.theme==='country'?'country':'city',person,tiles:Array.from({length:size*size},(_,i)=>Object.hasOwn(CITY_ITEMS,data?.tiles?.[i])?data.tiles[i]:null),history:[]};
+  return {shopOrders:data?.shopOrders&&typeof data.shopOrders==='object'&&!Array.isArray(data.shopOrders)?data.shopOrders:{},size,theme:data?.theme==='country'?'country':'city',person,tiles:Array.from({length:size*size},(_,i)=>Object.hasOwn(CITY_ITEMS,data?.tiles?.[i])?data.tiles[i]:null),history:[]};
 }
 export function cityPlace(state,x,y,tool) {
   if(!Number.isInteger(x)||!Number.isInteger(y)||x<0||y<0||x>=state.size||y>=state.size||(tool!==null&&!Object.hasOwn(CITY_ITEMS,tool)))return false;
@@ -44,20 +44,20 @@ export function cityPlace(state,x,y,tool) {
   if(state.tiles[index]===tool)return false;
   state.history.push({index,before:state.tiles[index]});
   if(state.history.length>500)state.history.shift();
-  state.tiles[index]=tool;return true;
+  delete state.shopOrders[`${x},${y}`];state.tiles[index]=tool;return true;
 }
 export function cityUndo(state) {
   const edit=state.history.pop();if(!edit)return false;
-  state.tiles[edit.index]=edit.before;return true;
+  delete state.shopOrders[`${edit.index%state.size},${Math.floor(edit.index/state.size)}`];state.tiles[edit.index]=edit.before;return true;
 }
 export function cityResize(state,size,allowCrop=false) {
   if(!CITY_SIZES.includes(size))return false;
   if(!allowCrop&&state.tiles.some((id,i)=>id&&(i%state.size>=size||Math.floor(i/state.size)>=size)))return false;
   const tiles=Array(size*size).fill(null);
   for(let y=0;y<Math.min(size,state.size);y++)for(let x=0;x<Math.min(size,state.size);x++)tiles[y*size+x]=state.tiles[y*state.size+x];
-  state.size=size;state.tiles=tiles;state.history=[];return true;
+  for(const key of Object.keys(state.shopOrders)){const [x,y]=key.split(',').map(Number);if(x>=size||y>=size)delete state.shopOrders[key];}state.size=size;state.tiles=tiles;state.history=[];return true;
 }
-export function citySerialize(state){return JSON.stringify({size:state.size,theme:state.theme,person:state.person,tiles:state.tiles});}
+export function citySerialize(state){return JSON.stringify({shopOrders:state.shopOrders,size:state.size,theme:state.theme,person:state.person,tiles:state.tiles});}
 export function cityDoor(state,index){return {x:(index%state.size)*5+2.5,z:Math.floor(index/state.size)*5+4.55};}
 export function citySpawn(state){const index=state.tiles.findIndex(id=>CITY_ITEMS[id]?.height);return index<0?{x:state.size*2.5,z:state.size*5-.5}:cityDoor(state,index);}
 // Enter the exit mat from the room or either side, without exiting at spawn.
@@ -146,11 +146,14 @@ export function drawCityPreview(canvas){
     if(!cityPreviewImage.complete)cityPreviewImage.addEventListener('load',()=>{if(canvas.isConnected)drawCityPreview(canvas);},{once:true});
   }
   const s=createCityState();for(let i=1;i<11;i++){s.tiles[6*12+i]='road';s.tiles[i*12+6]='road';}for(const [x,y,id] of [[4,4,'glass'],[5,3,'skyline'],[3,5,'office'],[7,7,'cottage'],[8,7,'townhouse'],[9,8,'cottage'],[7,4,'park'],[8,4,'pond'],[4,7,'cafe'],[4,8,'flowers'],[5,8,'market']])s.tiles[y*12+x]=id;drawCity(canvas,s);}
-export function createCityBuilder({canvas,onHud,loadScene=()=>import('./city-3d.js')}){
+export function createCityBuilder({canvas,onHud,wallet=null,openFoodShop=()=>{},loadScene=()=>import('./city-3d.js')}){
   let storage,state,saveError=false;
   try{storage=window.localStorage;state=createCityState(storage.getItem(CITY_KEY));}catch{state=createCityState();saveError=true;}
   const abort=new AbortController(),options={signal:abort.signal},panel=document.querySelector('#city-controls'),$=id=>panel.querySelector('#city-'+id);
   const shopMenu=$('shop-menu'),shopChoices=$('shop-choices'),shopTitle=$('shop-title'),shopStatus=$('shop-status');
+  const walletBox=$('wallet'),walletBalance=$('wallet-balance');
+  let walletState=wallet?.snapshot()??{coins:0,upgrades:[]};
+  const unsubscribeWallet=wallet?.subscribe(()=>{walletState=wallet.snapshot();syncShopUI();});
   const audio=createCityAudio();
   let focused=true,roomTheme=null,shop=null,shopMessage='',hold=null;
   let category='homes',tool='cottage',active=false,paused=false,hover=null,pointer=null,last=null,frame=0,previous=0,view=null,destroyed=false,mode='build',interior=null,obstacles=null,resting=null,standOrigin=null,path=[],destinationBuilding=null,moving=false;
@@ -172,20 +175,23 @@ export function createCityBuilder({canvas,onHud,loadScene=()=>import('./city-3d.
   function resetInput(){audio.stop();keys.clear();hold=null;pointer=null;last=null;resetTravel();}
   function shopNotice(message){shopMessage=message;shopStatus.textContent=message;updateRestControls(message);}
   function syncShopUI(){
+    walletBox.hidden=!active;walletBalance.textContent=walletState.unlimitedCoins?'∞ coins':`${walletState.coins} coins`;
     const visible=Boolean(active&&!paused&&mode==='walk'&&shop&&interior);
     shopMenu.hidden=!visible||!cityAtRegister(shop,player);
     const bedCue=active&&!paused&&mode==='walk'&&interior?cityBedReaction(roomTheme,resting):null;shopStatus.hidden=!visible&&!bedCue;
     if(bedCue){shopStatus.textContent=bedCue==='dog'?'Woof! The dog is barking. Get out of the bed to calm it down.':bedCue==='cat'?'Meow! The cat is protesting. Get out of the bed to calm it down.':'Hey, get out of the bed!';return;}
     if(!visible)return;
     const carried=cityCarriedFood(shop),counterFull=shop.items.some(item=>!item.carried&&item.surface==='counter');
-    for(const button of shopChoices.children)button.disabled=counterFull||shop.items.length>=6;
+    for(const button of shopChoices.children){const food=CITY_FOOD[button.dataset.food],unlocked=cityFoodUnlocked(button.dataset.food,walletState.upgrades);button.disabled=counterFull||shop.items.length>=6||!unlocked||(!walletState.unlimitedCoins&&walletState.coins<food.price);button.textContent=`${food.icon??''} ${food.name} · ${food.price} coin${food.price===1?'':'s'}${unlocked?'':' · 🔒 Main shop'}`;button.title=!unlocked?'Buy the permanent recipe in the main shop':!walletState.unlimitedCoins&&walletState.coins<food.price?'Earn more shared coins to order this food':'';}
     shopStatus.textContent=shop.items.length>=6?'Six orders are already out. Eat an item before ordering more.':hold&&!hold.cancelled&&!hold.done?`Keep holding… ${Math.min(100,Math.round(hold.elapsed/CITY_HOLD_SECONDS*100))}%`:shopMessage||(carried?`Carrying ${CITY_FOOD[carried.kind].name}. Hold a clear spot on a table to put it down, or press Space to eat.`:'Walk to the register to order. Hold food to pick it up. Press Space to eat nearby food.');
   }
+  function saveOrders(){if(shop&&interior){state.shopOrders[`${interior.index%state.size},${Math.floor(interior.index/state.size)}`]={id:shop.id,items:shop.items.map(item=>({...item,carried:false}))};save();}}
+  $('food-shop').addEventListener('click',()=>{if(active&&!paused&&mayLeave())openFoodShop();},options);
   function prepareShop(id){
-    shop=createCityShop(id,view.shopSurfaces?.()??[]);shopMessage='';hold=null;shopChoices.replaceChildren();
+    shop=createCityShop(id,view.shopSurfaces?.()??[]);shopMessage='';hold=null;shopChoices.replaceChildren();const saved=state.shopOrders[`${interior.index%state.size},${Math.floor(interior.index/state.size)}`];if(saved?.id===id)restoreCityOrders(shop,saved.items);
     if(shop){shopTitle.textContent=CITY_SHOPS[id].name;for(const kind of CITY_SHOPS[id].menu){const button=document.createElement('button');button.type='button';button.className='button outline';button.dataset.food=kind;button.textContent=CITY_FOOD[kind].name;
       button.addEventListener('click',()=>{if(!active||paused||!interior||!cityAtRegister(shop,player))return;
-        if(cityOrderFood(shop,kind,player)){resetInput();shopNotice(`${CITY_FOOD[kind].name} is on the counter. Hold it to pick it up, or press Space to eat.`);}else shopNotice('Clear the counter before ordering again.');syncShopUI();canvas.focus({preventScroll:true});
+        try{if(cityOrderFood(shop,kind,player,food=>{if(!wallet)throw Error('Shared wallet unavailable. Reopen City Builder from the home screen.');wallet.buyFood(food);})){saveOrders();resetInput();shopNotice(`${CITY_FOOD[kind].name} is on the counter. Hold it to pick it up, or press Space to eat.`);}else shopNotice('Clear the counter before ordering again.');}catch(error){shopNotice(error.message);}syncShopUI();canvas.focus({preventScroll:true});
       },options);shopChoices.append(button);}}
     syncShopUI();
   }
@@ -197,7 +203,7 @@ export function createCityBuilder({canvas,onHud,loadScene=()=>import('./city-3d.
       const picked=cityPickUpFood(shop,hold.hit.orderId,player);
       shopNotice(picked?`Carrying ${CITY_FOOD[cityCarriedFood(shop).kind].name}. Hold a clear tabletop to set it down. Space eats it.`:cityCarriedFood(shop)?'Put down or eat the food you are already carrying.':'Walk closer to the food, then hold it again.');
     }else if(cityPlaceFood(shop,hold.hit.surfaceId,hold.hit,player))shopNotice('Food placed on the table. Hold it to pick it up again, or press Space nearby to eat.');
-    else shopNotice('Choose a clear spot near you, away from the table edge and other food.');
+    else shopNotice('Choose a clear spot near you, away from the table edge and other food.');saveOrders();
   }
   function updateRestControls(message=''){
     $('stand').hidden=!resting;$('eat').hidden=!interior;
@@ -210,7 +216,7 @@ export function createCityBuilder({canvas,onHud,loadScene=()=>import('./city-3d.
   }
   function eat(){
     if(!active||paused||!interior)return;
-    const ordered=cityEatOrderedFood(shop,player);if(ordered){hold=null;view.eatOrder?.();shopNotice(`Yum! You ate the ${CITY_FOOD[ordered.kind].name.toLowerCase()}.`);syncShopUI();return;}
+    const ordered=cityEatOrderedFood(shop,player);if(ordered){hold=null;saveOrders();view.eatOrder?.(ordered.kind);shopNotice(`Yum! You ate the ${CITY_FOOD[ordered.kind].name.toLowerCase()}.`);syncShopUI();return;}
     if(!resting){const seat=cityNearbyMealSeat(obstacles,player);if(seat)sit(seat);}
     if(resting?.mealId===undefined){updateRestControls('Walk up to a food table, then press Space or Eat food.');return;}
     if(view.eat(resting.mealId))updateRestControls('Yum! Move to stand up.');
@@ -261,6 +267,6 @@ export function createCityBuilder({canvas,onHud,loadScene=()=>import('./city-3d.
   }
   function loop(now){const dt=Math.min(.04,(now-previous)/1000||0);previous=now;if(view&&!document.hidden){if(active&&!paused)advanceHold(dt);step(dt);if(active&&!paused&&focused)audio.tick(dt,cityBedReaction(roomTheme,resting));syncShopUI();view.render({mode,player,hover,time:now/1000,moving,interior,resting,shop,dt:paused?0:dt});}frame=requestAnimationFrame(loop);}
   canvas.closest('dialog').classList.remove('city-walking');$('build-tools').disabled=false;$('build-tools').hidden=false;$('walk-tools').hidden=true;$('person-customizer').open=true;$('play').textContent='Play — explore your city';$('play').setAttribute('aria-pressed','false');for(const id of ['zoom-in','zoom-out'])$(id).disabled=false;updateRestControls();renderItems();report();$('loading').hidden=false;$('loading').textContent='Preparing your 3D city…';
-  loadScene().then(({createCityScene})=>{if(destroyed)return;view=createCityScene(canvas,state);canvas=view.canvas;canvas.parentElement?.append(shopMenu,shopStatus);bindCanvas();view.portrait($('portrait'));$('loading').hidden=true;$('play').disabled=!active;frame=requestAnimationFrame(loop);}).catch(error=>{if(destroyed)return;$('loading').hidden=false;$('loading').textContent='The 3D city could not load. Try reopening the game in a browser with WebGL enabled.';console.error(error);});
-  return {start(){audio.unlock();active=true;paused=false;$('play').disabled=!view;canvas.focus({preventScroll:true});},pause(value){paused=value;resetInput();syncShopUI();},destroy(){canvas.closest('dialog')?.classList.remove('city-walking');destroyed=true;audio.destroy();panel.append(shopMenu,shopStatus);shopMenu.hidden=true;shopStatus.hidden=true;abort.abort();cancelAnimationFrame(frame);view?.dispose();},setMuted(value){audio.setMuted(value);}};
+  loadScene().then(({createCityScene})=>{if(destroyed)return;view=createCityScene(canvas,state);canvas=view.canvas;canvas.parentElement?.append(shopMenu,shopStatus,walletBox);bindCanvas();view.portrait($('portrait'));$('loading').hidden=true;$('play').disabled=!active;frame=requestAnimationFrame(loop);}).catch(error=>{if(destroyed)return;$('loading').hidden=false;$('loading').textContent='The 3D city could not load. Try reopening the game in a browser with WebGL enabled.';console.error(error);});
+  return {start(){audio.unlock();active=true;paused=false;$('play').disabled=!view;canvas.focus({preventScroll:true});},pause(value){paused=value;resetInput();syncShopUI();},destroy(){canvas.closest('dialog')?.classList.remove('city-walking');destroyed=true;unsubscribeWallet?.();audio.destroy();walletBox.hidden=true;panel.append(shopMenu,shopStatus,walletBox);shopMenu.hidden=true;shopStatus.hidden=true;abort.abort();cancelAnimationFrame(frame);view?.dispose();},setMuted(value){audio.setMuted(value);}};
 }
