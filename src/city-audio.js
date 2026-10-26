@@ -17,5 +17,10 @@ export function createCityAudio({Context=globalThis.AudioContext||globalThis.web
       gain.gain.setValueAtTime(0,at);gain.gain.linearRampToValueAtTime(.055,at+.025);gain.gain.exponentialRampToValueAtTime(.001,at+duration);oscillator.connect(gain);gain.connect(context.destination);voices.add(oscillator);oscillator.onended=()=>{voices.delete(oscillator);oscillator.disconnect();gain.disconnect();};oscillator.start(at);oscillator.stop(at+duration+.02);
     }
   }
-  return {unlock,stop,tick(dt,next){if(destroyed||muted||!next){if(cue)stop();return;}if(next!==cue){stop();cue=next;elapsed=4;}elapsed+=dt;if(elapsed>=3){elapsed=0;sound(cue);}},setMuted(value){muted=value;if(value)stop();else unlock();},destroy(){stop();destroyed=true;context?.close?.()?.catch?.(()=>{});}};
+  function magic(kind){
+    if(destroyed||muted)return;unlock();if(!context||context.state==='suspended')return;
+    const notes={flight:[392,587,784,1175,1568],speed:[330,440,660,880,1320],flowers:[523,659,784,1047,1319],bloom:[784,1175]}[kind];if(!notes)return;
+    for(const [i,hz] of notes.entries()){const oscillator=context.createOscillator(),gain=context.createGain(),at=context.currentTime+i*.1;oscillator.type=kind==='flight'?'sine':'triangle';oscillator.frequency.setValueAtTime(hz,at);oscillator.frequency.exponentialRampToValueAtTime(hz*1.025,at+.55);gain.gain.setValueAtTime(.001,at);gain.gain.linearRampToValueAtTime(kind==='bloom'?.025:.045,at+.025);gain.gain.exponentialRampToValueAtTime(.001,at+.6);oscillator.connect(gain);gain.connect(context.destination);voices.add(oscillator);oscillator.onended=()=>{voices.delete(oscillator);oscillator.disconnect();gain.disconnect();};oscillator.start(at);oscillator.stop(at+.65);}
+  }
+  return {unlock,stop,magic,tick(dt,next){if(destroyed||muted||!next){if(cue)stop();return;}if(next!==cue){stop();cue=next;elapsed=4;}elapsed+=dt;if(elapsed>=3){elapsed=0;sound(cue);}},setMuted(value){muted=value;if(value)stop();else unlock();},destroy(){stop();destroyed=true;context?.close?.()?.catch?.(()=>{});}};
 }

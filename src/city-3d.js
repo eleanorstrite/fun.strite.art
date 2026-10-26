@@ -1,3 +1,4 @@
+import {createCityMagic} from './city-magic-3d.js';
 import { citySip, cityBedReaction, createCityRoutine, cityTickRoutine, createCityRoamer, cityRoam } from './city-life.js';
 import { CITY_FOOD, CITY_SHOPS } from './city-shop.js';
 import * as T from './vendor/three/three.module.min.js';
@@ -81,14 +82,15 @@ export function createCityScene(original,state){
     selection=box(world,0,.05,0,4.95,.03,4.95,material('selection',{color:'#f3db91',transparent:true,opacity:.35,depthWrite:false}));selection.visible=false;
     batch(world);light.target.position.set(center,0,center);light.position.set(center-35,65,center+35);initialized=false;
   }
-  let limbs=[],knees=[],head,bite;
+  let limbs=[],knees=[],head,bite,magic;
+  function showBite(kind){bite.clear();const food=orderModel(kind);food.removeFromParent();food.name='eating-'+kind;food.scale.setScalar(['galaxyShake','fruitCup','cake'].includes(kind)?.33:.55);bite.add(food);bite.userData.kind=kind;}
   function person(){avatar.clear();limbs=[];knees=[];const p=state.person,skin=solid(p.skin),jacket=solid(p.jacket),pants=solid(p.pants),hair=solid(p.hair);
     const torso=mesh(avatar,geo('torso',()=>new T.CapsuleGeometry(.24,.38,6,12)),jacket,0,1.15,0);torso.scale.z=.65;
     if(p.outfit==='coat')box(avatar,0,.82,0,.53,.55,.36,jacket);
     box(avatar,0,1.2,.18,.025,.62,.02,'#c6bd9c');
     for(const side of [-1,1]){const leg=new T.Group();leg.position.set(side*.13,.77,0);avatar.add(leg);mesh(leg,geo('thigh',()=>new T.CapsuleGeometry(.085,.17,5,10)),pants,0,-.15,0);const knee=new T.Group();leg.add(knee);knee.position.y=-.31;knees.push(knee);mesh(knee,geo('shin',()=>new T.CapsuleGeometry(.08,.17,5,10)),p.pantsStyle==='shorts'?skin:pants,0,-.15,0);box(knee,0,-.33,.06,.19,.14,.34,'#333435');limbs.push(leg);
       const arm=new T.Group();arm.position.set(side*.32,1.37,0);avatar.add(arm);mesh(arm,geo('arm',()=>new T.CapsuleGeometry(.075,.4,5,10)),jacket,0,-.24,0);ball(arm,0,-.5,0,.07,.1,.07,skin);limbs.push(arm);}
-    bite=ball(limbs[3],0,-.5,.08,.09,.07,.07,'#bf813d');bite.visible=false;
+    bite=new T.Group();bite.name='eating-food';avatar.add(bite);bite.visible=false;magic?.reattach();
     cylinder(avatar,0,1.52,0,.08,.16,skin);head=ball(avatar,0,1.76,0,.18,.23,.18,skin);ball(avatar,0,1.9,-.02,.19,.13,.18,hair);ball(avatar,0,1.76,.175,.045,.055,.05,skin);
     for(const x of [-.07,.07])ball(avatar,x,1.8,.16,.018,.022,.015,'#28332e');
     if(p.outfit==='hoodie')ball(avatar,0,1.52,-.13,.24,.21,.18,jacket);
@@ -382,22 +384,24 @@ export function createCityScene(original,state){
   }
   function eat(mealId){
     const meal=meals[mealId];if(!meal||meal.eaten)return false;
-    meal.eaten=true;meal.food.visible=false;biteUntil=roomTime+1.5;
+    meal.eaten=true;meal.food.visible=false;showBite('bread');biteUntil=roomTime+1.5;
     if(meal.owner)meal.owner.shockUntil=roomTime+4;
     return true;
   }
-  function render({mode,player,hover,time,moving,interior,resting=null,shop=null,dt}){
+  function render({mode,player,hover,time,moving,interior,resting=null,shop=null,powers={},dt}){
     if(celebration){const age=roomTime-celebration.userData.start;if(age>=3.2){celebration.removeFromParent();celebration=null;}else for(const [i,p] of celebration.children.entries()){const t=Math.max(0,age-(i%3)*.22),a=i*2.399;const radius=t*(.65+(i%5)*.15);p.visible=age>=(i%3)*.22;p.position.set(Math.sin(a+t*.6)*radius,1+t*(1.8+(i%4)*.22)-t*t*.8,Math.cos(a+t*.6)*radius);p.rotation.set(t*3+i,t*2,t);p.scale.setScalar(Math.max(0,1-t/3.2));}}
+    magic?.render({player,powers,moving,interior,mode,dt});
     const inside=Boolean(interior);currentRest=resting;bedAlert=inside?cityBedReaction(roomHome?.theme,resting):null;syncOrders(inside?shop:null,player);if(inside){reactionTarget=player;roomTime+=dt;for(const update of roomAnimations)update(roomTime,dt);for(const item of roomObstacles)if(item.use)item.use.occupied=residents.some(r=>r.seated&&Math.hypot(r.x-item.use.x,r.z-item.use.z)<.6);}world.visible=!inside;room.visible=inside;avatar.visible=mode==='walk';grid.visible=mode==='build';
     if(selection){selection.visible=!inside&&mode==='build'&&hover&&hover.x>=0&&hover.y>=0&&hover.x<state.size&&hover.y<state.size;if(selection.visible)selection.position.set(hover.x*5+2.5,.07,hover.y*5+2.5);}
     if(avatar.visible){
       const seated=resting?.pose==='sit',lying=resting?.pose==='lie',eating=inside&&roomTime<biteUntil;
-      avatar.position.set(player.x,lying?resting.height:seated?resting.height-.77:.07,player.z);avatar.rotation.set(0,player.angle||0,0);if(lying)avatar.rotation.x=-Math.PI/2;
+      avatar.position.set(player.x,lying?resting.height:seated?resting.height-.77:.07+(player.altitude||0),player.z);avatar.rotation.set(0,player.angle||0,0);if(lying)avatar.rotation.x=-Math.PI/2;
       const swing=moving?Math.sin(time*9)*.5:0;
       limbs.forEach((limb,i)=>limb.rotation.x=seated?(i%2===0?-Math.PI/2:-.4):swing*(i===0||i===3?1:-1));
       knees.forEach(knee=>knee.rotation.x=seated?Math.PI/2:0);
+      for(const [i,limb] of limbs.entries()){limb.rotation.z=(player.altitude||0)>.1?(i%2?(i===1?.35:-.35):0):0;if((player.altitude||0)>.1)limb.rotation.x=i%2?-.35:.25;}
       if(shop?.items.some(item=>item.carried)){limbs[1].rotation.x=-1.1;limbs[3].rotation.x=-1.1;}
-      bite.visible=eating;if(eating)limbs[3].rotation.x=-1.3-Math.sin((1.5-biteUntil+roomTime)*Math.PI)*.8;
+      bite.visible=eating;if(eating){const lift=Math.sin(Math.min(1,(1.5-biteUntil+roomTime)/.7)*Math.PI/2);limbs[3].rotation.x=-1.3-lift*.8;const drink=['milk','milkshake','galaxyShake'].includes(bite.userData.kind);bite.position.set(.28-.02*lift,1.15+lift*(drink?.23:.5),.36);bite.rotation.set(drink?-lift*.45:0,0,0);}
     }
     const target=new T.Vector3(),position=new T.Vector3();
     if(mode==='walk'){const pose=cityWalkCamera(player,yaw);target.set(pose.target.x,pose.target.y,pose.target.z);position.set(pose.position.x,pose.position.y,pose.position.z);}
@@ -419,5 +423,6 @@ export function createCityScene(original,state){
   }
   function portrait(target){const oldPosition=avatar.position.clone(),oldRotation=avatar.rotation.clone(),oldVisible=avatar.visible,oldWorld=world.visible,oldRoom=room.visible;world.visible=false;room.visible=false;avatar.visible=true;avatar.position.set(0,0,0);avatar.rotation.set(0,-.25,0);const cam=new T.PerspectiveCamera(30,1,.1,20);cam.position.set(0,1.3,4.5);cam.lookAt(0,1.05,0);renderer.setSize(200,200,false);renderer.render(scene,cam);const c=target.getContext('2d');c.drawImage(canvas,0,0,target.width,target.height);renderer.setSize(900,650,false);avatar.position.copy(oldPosition);avatar.rotation.copy(oldRotation);avatar.visible=oldVisible;world.visible=oldWorld;room.visible=oldRoom;}
   rebuild();person();
-  return {canvas,rebuild,person,render,pick,furnish,eat,shopSurfaces:()=>shopSurfaces,eatOrder(kind){biteUntil=roomTime+1.5;if(CITY_FOOD[kind]?.upgrade){celebration?.removeFromParent();celebration=new T.Group();celebration.name='food-celebration';celebration.position.set(reactionTarget.x,0,reactionTarget.z);celebration.userData.start=roomTime;room.add(celebration);for(let i=0;i<72;i++)mesh(celebration,geo(kind==='galaxyShake'?'food-star':'food-confetti',()=>kind==='galaxyShake'?new T.OctahedronGeometry(.035):new T.BoxGeometry(.07,.025,.04)),solid(['#ff3e93','#ffac32','#ffec49','#4be978','#38dbff','#be6bff'][i%6]),0,0,0);}},portrait,faceDoor(){yaw=0;},turn(direction){yaw+=direction*.35;},zoom(value){zoom=Math.max(.65,Math.min(1.5,zoom+value));},yaw:()=>yaw,dispose(){clear(world);clear(room);for(const m of materials.values())m.dispose();for(const g of geometries.values())g.dispose();for(const t of textures)t.dispose();renderer.dispose();renderer.forceContextLoss();canvas.replaceWith(original);}};
+  magic=createCityMagic(T,scene,avatar,material,geo);
+  return {canvas,rebuild,person,render,pick,furnish,eat,growFlower:magic.growFlower,shopSurfaces:()=>shopSurfaces,eatOrder(kind){showBite(kind);biteUntil=roomTime+1.5;if(CITY_FOOD[kind]?.upgrade){celebration?.removeFromParent();celebration=new T.Group();celebration.name='food-celebration';celebration.position.set(reactionTarget.x,0,reactionTarget.z);celebration.userData.start=roomTime;room.add(celebration);for(let i=0;i<72;i++)mesh(celebration,geo(kind==='galaxyShake'?'food-star':'food-confetti',()=>kind==='galaxyShake'?new T.OctahedronGeometry(.035):new T.BoxGeometry(.07,.025,.04)),solid(['#ff3e93','#ffac32','#ffec49','#4be978','#38dbff','#be6bff'][i%6]),0,0,0);}},portrait,faceDoor(){yaw=0;},turn(direction){yaw+=direction*.35;},zoom(value){zoom=Math.max(.65,Math.min(1.5,zoom+value));},yaw:()=>yaw,dispose(){magic.dispose();clear(world);clear(room);for(const m of materials.values())m.dispose();for(const g of geometries.values())g.dispose();for(const t of textures)t.dispose();renderer.dispose();renderer.forceContextLoss();canvas.replaceWith(original);}};
 }

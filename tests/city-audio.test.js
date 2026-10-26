@@ -12,3 +12,9 @@ test('bed sounds repeat only while needed and stop on leaving, pause, mute, and 
   audio.tick(.1,'owner');audio.setMuted(true);assert.equal(cancelled,2);audio.tick(10,'dog');assert.equal(notes.length,5);audio.setMuted(false);audio.tick(.1,'dog');assert.equal(notes.length,7);audio.destroy();assert.equal(closed,1);audio.tick(10,'cat');assert.equal(notes.length,7);
 });
 test('unsupported audio still permits all bed interactions',()=>{const audio=createCityAudio({Context:null,speech:null,Utterance:null});audio.unlock();audio.tick(1,'cat');audio.tick(1,'owner');audio.stop();audio.destroy();});
+test('each food power has its own magical notes and mute stops them',()=>{
+ const melodies=[];let stopped=0;
+ const param={setValueAtTime(){},linearRampToValueAtTime(){},exponentialRampToValueAtTime(){}};
+ class Context{state='running';currentTime=0;destination={};resume(){return Promise.resolve();}createGain(){return {gain:param,connect(){},disconnect(){}};}createOscillator(){return {frequency:{setValueAtTime(hz){melodies.push(hz);},exponentialRampToValueAtTime(){}},connect(){},disconnect(){},start(){},stop(){stopped++;}};}}
+ const audio=createCityAudio({Context});for(const power of ['flight','speed','flowers'])audio.magic(power);assert.equal(melodies.length,15);assert.notDeepEqual(melodies.slice(0,5),melodies.slice(5,10));assert.notDeepEqual(melodies.slice(5,10),melodies.slice(10));audio.setMuted(true);assert.equal(stopped,30);audio.magic('flight');assert.equal(melodies.length,15);audio.destroy();
+});

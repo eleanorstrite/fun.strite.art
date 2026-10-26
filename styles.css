@@ -110,3 +110,5 @@ html[data-background="aurora"]{--home-scene:url('./assets/backgrounds/aurora.svg
 #city-shop-choices button{white-space:pre-line}
 
 #city-shop-choices button{display:flex;flex-direction:column;align-items:center;gap:4px;white-space:normal}.city-food-name{font-weight:700}.city-food-price{font-size:13px;color:#395d48}.city-food-type,.city-food-lock{font-size:10px;line-height:1.25}.city-food-lock:empty{display:none}
+
+.city-power-hud{position:absolute;top:76px;left:10px;z-index:5;width:min(300px,43%);padding:10px;border:1px solid #dcc381;border-radius:12px;background:#291d47ed;color:#fff7dd;font-size:12px;pointer-events:none}.city-power-hud[hidden]{display:none}.city-power-hud p{white-space:pre-line;margin:0;line-height:1.5}.city-power-hud button{pointer-events:auto;margin-top:8px;touch-action:none;font-size:11px}
