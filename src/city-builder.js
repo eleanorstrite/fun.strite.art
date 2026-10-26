@@ -56,8 +56,11 @@ export function cityResize(state,size,allowCrop=false) {
 export function citySerialize(state){return JSON.stringify({size:state.size,theme:state.theme,person:state.person,tiles:state.tiles});}
 export function cityDoor(state,index){return {x:(index%state.size)*5+2.5,z:Math.floor(index/state.size)*5+4.55};}
 export function citySpawn(state){const index=state.tiles.findIndex(id=>CITY_ITEMS[id]?.height);return index<0?{x:state.size*2.5,z:state.size*5-.5}:cityDoor(state,index);}
-// Crossing the front threshold is intentional; arriving inside at z=5 is safe.
-export function cityLeavingRoom(from,to){return from.z<5.4&&to.z>=5.4&&to.z>from.z&&Math.abs(to.x)<.85;}
+// Enter the exit mat from the room or either side, without exiting at spawn.
+export function cityLeavingRoom(from,to){
+  const onMat=p=>Math.abs(p.x)<.85&&p.z>=5.25;
+  return !onMat(from)&&onMat(to);
+}
 export function cityWalkCamera(player,yaw){return {target:{x:player.x,y:1.2,z:player.z},position:{x:player.x+Math.sin(yaw)*5,y:3.2,z:player.z+Math.cos(yaw)*5}};}
 export function cityCanWalk(state,x,z,room=null) {
   if(room)return x> -6.6&&x<6.6&&z> -5.6&&z<5.6&&!room.some(b=>Math.abs(x-b.x)<b.w/2+.22&&Math.abs(z-b.z)<b.d/2+.22);
@@ -139,7 +142,7 @@ export function drawCityPreview(canvas){
     if(!cityPreviewImage.complete)cityPreviewImage.addEventListener('load',()=>{if(canvas.isConnected)drawCityPreview(canvas);},{once:true});
   }
   const s=createCityState();for(let i=1;i<11;i++){s.tiles[6*12+i]='road';s.tiles[i*12+6]='road';}for(const [x,y,id] of [[4,4,'glass'],[5,3,'skyline'],[3,5,'office'],[7,7,'cottage'],[8,7,'townhouse'],[9,8,'cottage'],[7,4,'park'],[8,4,'pond'],[4,7,'cafe'],[4,8,'flowers'],[5,8,'market']])s.tiles[y*12+x]=id;drawCity(canvas,s);}
-export function createCityBuilder({canvas,onHud}){
+export function createCityBuilder({canvas,onHud,loadScene=()=>import('./city-3d.js')}){
   let storage,state,saveError=false;
   try{storage=window.localStorage;state=createCityState(storage.getItem(CITY_KEY));}catch{state=createCityState();saveError=true;}
   const abort=new AbortController(),options={signal:abort.signal},panel=document.querySelector('#city-controls'),$=id=>panel.querySelector('#city-'+id);
@@ -158,11 +161,19 @@ export function createCityBuilder({canvas,onHud}){
   $('size').addEventListener('change',()=>{const size=Number($('size').value);if(!cityResize(state,size)){if(confirm('The smaller map will remove buildings outside its edges. Shrink the map?'))cityResize(state,size,true);else{$('size').value=String(state.size);return;}}refresh();},options);
   $('theme').addEventListener('change',()=>{state.theme=$('theme').value==='country'?'country':'city';refresh();},options);
   for(const key of Object.keys(CITY_PERSON)){const input=$('person-'+key);input.value=state.person[key];input.addEventListener('input',()=>{state.person[key]=input.value;view?.person();if(view)view.portrait($('portrait'));save();},options);}
-  function resetInput(){keys.clear();pointer=null;last=null;path=[];destinationBuilding=null;moving=false;}
+  function resetTravel(){path=[];destinationBuilding=null;moving=false;}
+  function resetInput(){keys.clear();pointer=null;last=null;resetTravel();}
   function setMode(next){if(!active||paused||!view)return;resetInput();mode=next;canvas.closest('dialog').classList.toggle('city-walking',mode==='walk');interior=null;obstacles=null;Object.assign(player,citySpawn(state));$('build-tools').disabled=mode!=='build';$('build-tools').hidden=mode==='walk';$('person-customizer').open=mode==='build';$('walk-tools').hidden=mode!=='walk';$('play').textContent=mode==='walk'?'Back to building':'Play — explore your city';$('play').setAttribute('aria-pressed',String(mode==='walk'));for(const id of ['zoom-in','zoom-out'])$(id).disabled=mode==='walk';canvas.focus({preventScroll:true});canvas.closest('dialog').scrollTop=0;report();}
   $('play').disabled=true;$('play').addEventListener('click',()=>setMode(mode==='build'?'walk':'build'),options);
-  function enter(index){if(index===null||!CITY_ITEMS[state.tiles[index]]?.height)return;interior={index,outside:{x:player.x,z:player.z}};obstacles=view.furnish(state.tiles[index]);player.x=0;player.z=5;player.angle=Math.PI;view.faceDoor();resetInput();report();}
-  function interact(){if(!active||paused||mode!=='walk')return;if(interior){player.x=interior.outside.x;player.z=interior.outside.z;interior=null;obstacles=null;resetInput();report();}else if(nearby!==null)enter(nearby);canvas.focus({preventScroll:true});}
+  function enter(index){
+    if(index===null||!CITY_ITEMS[state.tiles[index]]?.height)return;
+    obstacles=view.furnish(state.tiles[index]);
+    interior={index,outside:cityDoor(state,index)};
+    player.x=0;player.z=5;player.angle=Math.PI;view.faceDoor();
+    // Preserve held keys and touch buttons across the doorway.
+    resetTravel();report();
+  }
+  function interact(){if(!active||paused||mode!=='walk')return;if(interior){player.x=interior.outside.x;player.z=interior.outside.z;interior=null;obstacles=null;resetTravel();report();}else if(nearby!==null)enter(nearby);canvas.focus({preventScroll:true});}
   $('enter').addEventListener('click',interact,options);
   for(const [id,action] of [['rotate-left',()=>view?.turn(-1)],['rotate-right',()=>view?.turn(1)],['zoom-in',()=>view?.zoom(-.15)],['zoom-out',()=>view?.zoom(.15)]])$(id).addEventListener('click',()=>{action();canvas.focus({preventScroll:true});},options);
   const keyName=key=>({w:'up',a:'left',s:'down',d:'right',ArrowUp:'up',ArrowLeft:'left',ArrowDown:'down',ArrowRight:'right'}[key.length===1?key.toLowerCase():key]);
@@ -190,6 +201,6 @@ export function createCityBuilder({canvas,onHud}){
   }
   function loop(now){const dt=Math.min(.04,(now-previous)/1000||0);previous=now;if(view&&!document.hidden){step(dt);view.render({mode,player,hover,time:now/1000,moving,interior,dt});}frame=requestAnimationFrame(loop);}
   canvas.closest('dialog').classList.remove('city-walking');$('build-tools').disabled=false;$('build-tools').hidden=false;$('walk-tools').hidden=true;$('person-customizer').open=true;$('play').textContent='Play — explore your city';$('play').setAttribute('aria-pressed','false');for(const id of ['zoom-in','zoom-out'])$(id).disabled=false;renderItems();report();$('loading').hidden=false;$('loading').textContent='Preparing your 3D city…';
-  import('./city-3d.js').then(({createCityScene})=>{if(destroyed)return;view=createCityScene(canvas,state);canvas=view.canvas;bindCanvas();view.portrait($('portrait'));$('loading').hidden=true;$('play').disabled=!active;frame=requestAnimationFrame(loop);}).catch(error=>{if(destroyed)return;$('loading').hidden=false;$('loading').textContent='The 3D city could not load. Try reopening the game in a browser with WebGL enabled.';console.error(error);});
+  loadScene().then(({createCityScene})=>{if(destroyed)return;view=createCityScene(canvas,state);canvas=view.canvas;bindCanvas();view.portrait($('portrait'));$('loading').hidden=true;$('play').disabled=!active;frame=requestAnimationFrame(loop);}).catch(error=>{if(destroyed)return;$('loading').hidden=false;$('loading').textContent='The 3D city could not load. Try reopening the game in a browser with WebGL enabled.';console.error(error);});
   return {start(){active=true;paused=false;$('play').disabled=!view;canvas.focus({preventScroll:true});},pause(value){paused=value;resetInput();},destroy(){canvas.closest('dialog')?.classList.remove('city-walking');destroyed=true;abort.abort();cancelAnimationFrame(frame);view?.dispose();},setMuted(){}};
 }

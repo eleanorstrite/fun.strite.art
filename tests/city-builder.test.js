@@ -61,12 +61,14 @@ test('Play spawns at an accessible door, or on open ground for an empty map',asy
   cityPlace(state,2,3,'cafe');spawn=citySpawn(state);assert.deepEqual(spawn,{x:12.5,z:19.55});assert.equal(cityCanWalk(state,spawn.x,spawn.z),true);
 });
 
-test('interior doorway exits only on an outward crossing within the opening',async()=>{
+test('exit mat accepts forward and sideways approaches but not spawn or other walls',async()=>{
   const {cityLeavingRoom}=await import('../src/city-builder.js');
   assert.equal(cityLeavingRoom({x:0,z:5},{x:0,z:5.1}),false);
-  assert.equal(cityLeavingRoom({x:0,z:5.35},{x:0,z:5.46}),true);
+  assert.equal(cityLeavingRoom({x:0,z:5.2},{x:0,z:5.3}),true);
   assert.equal(cityLeavingRoom({x:2,z:5.35},{x:2,z:5.46}),false);
-  assert.equal(cityLeavingRoom({x:0,z:5.45},{x:0,z:5.3}),false);
+  assert.equal(cityLeavingRoom({x:0,z:5.45},{x:0,z:5.1}),false);
+  assert.equal(cityLeavingRoom({x:1,z:5.5},{x:.8,z:5.5}),true);
+  assert.equal(cityLeavingRoom({x:-1,z:5.5},{x:-.8,z:5.5}),true);
 });
 test('walking camera keeps its height and distance at every position and view angle',async()=>{
   const {cityWalkCamera}=await import('../src/city-builder.js');
