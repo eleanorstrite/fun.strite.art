@@ -11,3 +11,6 @@ export function cityTickFireTrip(trip,dt,input={}){
  if(trip.spraying)for(const fire of trip.fires){if(fire.health<=0)continue;const dx=fire.x-trip.x,dz=fire.z-trip.z,distance=Math.hypot(dx,dz),ahead=(dx*Math.sin(trip.angle)+dz*Math.cos(trip.angle))/Math.max(.001,distance);if(distance<17&&distance>1&&ahead>.955){fire.health=Math.max(0,fire.health-dt*.55);if(fire.health===0)trip.extinguished++;}}
  if(trip.remaining===0){trip.spraying=false;trip.speed=0;}
 }
+export const CITY_FIRE_VICTORY_SECONDS=5;
+export const CITY_FIRE_VICTORY_LINE='Hooray! You saved the town!';
+export const cityFireTripWon=trip=>trip.fires.length>0&&trip.fires.every(fire=>fire.health<=0);

@@ -423,7 +423,7 @@ export function createCityScene(original,state){
     if(computer?.open&&resting?.computer){const desk=resting.computer;target.set(desk.x,1.25,desk.z+.05);position.set(desk.x,1.45,desk.z+1.25);}
     const ease=computer?.open?1-Math.exp(-dt*10):mode==='walk'||!initialized?1:1-Math.exp(-dt*6);camera.position.lerp(position,ease);look.lerp(target,ease);camera.lookAt(look);initialized=true;
     for(const piece of doorFrame)piece.visible=position.z<5.6;
-    scene.background.set(inside?'#d8d1c4':'#adcbdc');scene.fog.near=inside?200:110;if(fireGraphics.render(fire)){avatar.visible=false;world.visible=false;room.visible=fire.phase==='cab';scene.background.set(fire.phase==='drive'?'#a5d4e8':'#d8d1c4');}renderer.render(scene,camera);
+    scene.background.set(inside?'#d8d1c4':'#adcbdc');scene.fog.near=inside?200:110;if(fireGraphics.render(fire)){avatar.visible=false;world.visible=false;room.visible=fire.phase==='cab';scene.background.set(fire.phase!=='cab'?'#a5d4e8':'#d8d1c4');}renderer.render(scene,camera);
   }
   const ray=new T.Raycaster(),plane=new T.Plane(new T.Vector3(0,1,0),0);
   function pick(clientX,clientY,inside=false){

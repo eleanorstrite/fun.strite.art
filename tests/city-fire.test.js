@@ -8,3 +8,6 @@ test('firefighting starts fresh, moves and steers, sprays only forward, and ends
  for(let i=0;i<1600;i++)cityTickFireTrip(trip,.04,{up:true,spray:true});assert.equal(trip.remaining,0);assert.equal(trip.spraying,false);assert.equal(trip.speed,0);assert.ok(Math.abs(trip.x)<=32&&Math.abs(trip.z)<=32);
  const saved=structuredClone(trip);cityTickFireTrip(trip,1,{up:true});assert.deepEqual(trip,saved);assert.equal(createCityFireTrip().fires[0].health,1);
 });
+test('victory requires every fire to be out',async()=>{
+ const {cityFireTripWon}=await import('../src/city-fire.js');const trip=createCityFireTrip();trip.extinguished=8;assert.equal(cityFireTripWon(trip),false);for(const fire of trip.fires)fire.health=0;assert.equal(cityFireTripWon(trip),true);trip.fires[7].health=.01;assert.equal(cityFireTripWon(trip),false);
+});

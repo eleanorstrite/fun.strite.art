@@ -18,3 +18,7 @@ test('each food power has its own magical notes and mute stops them',()=>{
  class Context{state='running';currentTime=0;destination={};resume(){return Promise.resolve();}createGain(){return {gain:param,connect(){},disconnect(){}};}createOscillator(){return {frequency:{setValueAtTime(hz){melodies.push(hz);},exponentialRampToValueAtTime(){}},connect(){},disconnect(){},start(){},stop(){stopped++;}};}}
  const audio=createCityAudio({Context});for(const power of ['flight','speed','flowers'])audio.magic(power);assert.equal(melodies.length,15);assert.notDeepEqual(melodies.slice(0,5),melodies.slice(5,10));assert.notDeepEqual(melodies.slice(5,10),melodies.slice(10));audio.setMuted(true);assert.equal(stopped,30);audio.magic('flight');assert.equal(melodies.length,15);audio.destroy();
 });
+test('victory cheer uses the requested words and obeys mute and stop',()=>{
+ const lines=[];let cancelled=0;const audio=createCityAudio({Context:null,speech:{speak(line){lines.push(line);},cancel(){cancelled++;}},Utterance:class{constructor(text){this.text=text;}}});
+ audio.cheer();assert.equal(lines[0].text,'Hooray! You saved the town!');audio.stop();assert.equal(cancelled,1);audio.setMuted(true);audio.cheer();assert.equal(lines.length,1);audio.destroy();
+});
