@@ -1,4 +1,4 @@
-import { cityFurnitureAt } from './city-interiors.js';
+import { cityFurnitureAt, cityNearbyMealSeat } from './city-interiors.js';
 export const CITY_SIZE = 12;
 export const CITY_KEY = 'sidequest.city.v1';
 export const CITY_CATEGORIES = {
@@ -165,11 +165,18 @@ export function createCityBuilder({canvas,onHud,loadScene=()=>import('./city-3d.
   function resetTravel(){path=[];destinationBuilding=null;moving=false;}
   function resetInput(){keys.clear();pointer=null;last=null;resetTravel();}
   function updateRestControls(message=''){
-    $('stand').hidden=!resting;$('eat').hidden=!resting||resting.mealId===undefined;
+    $('stand').hidden=!resting;$('eat').hidden=!interior;
     $('action').textContent=message||(resting?(resting.pose==='lie'?'Lying down. Move or tap Stand up to get up.':resting.mealId!==undefined?'Seated at a table. Press Space or Eat food. Move to stand up.':'Sitting. Move or tap Stand up to get up.'):'');
   }
   function stand(){if(!resting)return;standOrigin={...resting.outside,seat:resting};Object.assign(player,resting.outside);resting=null;updateRestControls();}
-  function eat(){if(!active||paused||!resting||resting.mealId===undefined)return;
+  function sit(seat){
+    resting={...seat,outside:{x:player.x,z:player.z,angle:player.angle}};
+    player.x=seat.x;player.z=seat.z;player.angle=seat.angle;resetInput();updateRestControls();
+  }
+  function eat(){
+    if(!active||paused||!interior)return;
+    if(!resting){const seat=cityNearbyMealSeat(obstacles,player);if(seat)sit(seat);}
+    if(resting?.mealId===undefined){updateRestControls('Walk up to a food table, then press Space or Eat food.');return;}
     if(view.eat(resting.mealId))updateRestControls('Yum! Move to stand up.');
     else updateRestControls('That plate is empty. Move to stand up.');
   }
@@ -185,7 +192,7 @@ export function createCityBuilder({canvas,onHud,loadScene=()=>import('./city-3d.
     // Preserve held keys and touch buttons across the doorway.
     resetTravel();report();
   }
-  function interact(){if(!active||paused||mode!=='walk')return;if(interior){resting=null;standOrigin=null;updateRestControls();player.x=interior.outside.x;player.z=interior.outside.z;interior=null;obstacles=null;resetTravel();report();}else if(nearby!==null)enter(nearby);canvas.focus({preventScroll:true});}
+  function interact(){if(!active||paused||mode!=='walk')return;if(interior){resting=null;standOrigin=null;updateRestControls();player.x=interior.outside.x;player.z=interior.outside.z;interior=null;obstacles=null;updateRestControls();resetTravel();report();}else if(nearby!==null)enter(nearby);canvas.focus({preventScroll:true});}
   $('enter').addEventListener('click',interact,options);
   for(const [id,action] of [['rotate-left',()=>view?.turn(-1)],['rotate-right',()=>view?.turn(1)],['zoom-in',()=>view?.zoom(-.15)],['zoom-out',()=>view?.zoom(.15)]])$(id).addEventListener('click',()=>{action();canvas.focus({preventScroll:true});},options);
   const keyName=key=>({w:'up',a:'left',s:'down',d:'right',ArrowUp:'up',ArrowLeft:'left',ArrowDown:'down',ArrowRight:'right'}[key.length===1?key.toLowerCase():key]);
@@ -207,7 +214,7 @@ export function createCityBuilder({canvas,onHud,loadScene=()=>import('./city-3d.
   function step(dt){moving=false;if(!active||paused||mode!=='walk'||resting)return;let dx=0,dz=0;
     if(path.length){const target=path[0],distance=Math.hypot(target.x-player.x,target.z-player.z);if(distance<.14)path.shift();else{dx=(target.x-player.x)/distance;dz=(target.z-player.z)/distance;}}
     else{const right=Number(keys.has('right'))-Number(keys.has('left')),forward=Number(keys.has('up'))-Number(keys.has('down')),yaw=view.yaw();dx=right*Math.cos(yaw)-forward*Math.sin(yaw);dz=-right*Math.sin(yaw)-forward*Math.cos(yaw);const length=Math.hypot(dx,dz);if(length){dx/=length;dz/=length;}}
-    if(dx||dz){const beforeX=player.x,beforeZ=player.z,speed=interior?3.1:4.2;const nx=player.x+dx*speed*dt,nz=player.z+dz*speed*dt;if(interior&&cityLeavingRoom(player,{x:nx,z:nz})){interact();return;}if(!interior&&dz<0){const index=state.tiles.findIndex((id,i)=>{if(!CITY_ITEMS[id]?.height)return false;const door=cityDoor(state,i);return Math.abs(nx-door.x)<.5&&player.z>=door.z-.15&&nz<door.z-.15;});if(index>=0){enter(index);return;}}const seat=interior?cityFurnitureAt(obstacles,player,{x:nx,z:nz}):null;if(seat&&!(standOrigin&&seat.x===standOrigin.seat.x&&seat.z===standOrigin.seat.z)){resting={...seat,outside:{x:player.x,z:player.z,angle:player.angle}};player.x=seat.x;player.z=seat.z;player.angle=seat.angle;resetInput();updateRestControls();return;}if(cityCanWalk(state,nx,player.z,obstacles))player.x=nx;if(cityCanWalk(state,player.x,nz,obstacles))player.z=nz;moving=Math.hypot(player.x-beforeX,player.z-beforeZ)>.001;if(moving)player.angle=Math.atan2(dx,dz);else path=[];}
+    if(dx||dz){const beforeX=player.x,beforeZ=player.z,speed=interior?3.1:4.2;const nx=player.x+dx*speed*dt,nz=player.z+dz*speed*dt;if(interior&&cityLeavingRoom(player,{x:nx,z:nz})){interact();return;}if(!interior&&dz<0){const index=state.tiles.findIndex((id,i)=>{if(!CITY_ITEMS[id]?.height)return false;const door=cityDoor(state,i);return Math.abs(nx-door.x)<.5&&player.z>=door.z-.15&&nz<door.z-.15;});if(index>=0){enter(index);return;}}const seat=interior?cityFurnitureAt(obstacles,player,{x:nx,z:nz}):null;if(seat&&!(standOrigin&&seat.x===standOrigin.seat.x&&seat.z===standOrigin.seat.z)){sit(seat);return;}if(cityCanWalk(state,nx,player.z,obstacles))player.x=nx;if(cityCanWalk(state,player.x,nz,obstacles))player.z=nz;moving=Math.hypot(player.x-beforeX,player.z-beforeZ)>.001;if(moving)player.angle=Math.atan2(dx,dz);else path=[];}
     if(standOrigin&&Math.hypot(player.x-standOrigin.x,player.z-standOrigin.z)>.6)standOrigin=null;
     nearby=null;if(!interior){let distance=2.6;state.tiles.forEach((id,index)=>{if(!CITY_ITEMS[id]?.height)return;const door=cityDoor(state,index),d=Math.hypot(player.x-door.x,player.z-door.z);if(d<distance){nearby=index;distance=d;}});if(destinationBuilding!==null&&!path.length&&nearby===destinationBuilding)enter(destinationBuilding);}
     const text=interior?'Exit building (or walk through door)':nearby!==null?'Enter '+CITY_ITEMS[state.tiles[nearby]].name:'Walk to a front door';if($('enter').textContent!==text)$('enter').textContent=text;$('enter').disabled=!interior&&nearby===null;

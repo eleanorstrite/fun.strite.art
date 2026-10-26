@@ -32,6 +32,10 @@ for(const input of ['keyboard','touch'])test(`held ${input} movement survives en
     press('down',false);press('up',true);tick(15);assert.ok(snapshot.interior,'the same door can be entered again');assert.equal(visits,2);
     game.pause(true);const paused=snapshot.player.z;tick(3);assert.equal(snapshot.player.z,paused);
     game.pause(false);tick(3);assert.equal(snapshot.player.z,paused,'pause still clears held movement');
+    const nearFood=new Event('keydown');nearFood.key=' ';window.dispatchEvent(nearFood);tick();
+    assert.equal(snapshot.resting.pose,'sit','Space near the table seats the player');assert.equal(eaten,1,'Space also eats nearby food');
+    eaten=0;panel.querySelector('#city-stand').dispatchEvent(new Event('click'));tick();
+    press('down',true);tick(6);press('down',false);
     press('up',true);tick(25);assert.equal(snapshot.resting.pose,'sit','walking into a chair sits down');
     const seatedZ=snapshot.player.z;tick(5);assert.equal(snapshot.player.z,seatedZ);
     const space=new Event('keydown');space.key=' ';window.dispatchEvent(space);tick();assert.equal(eaten,1);
