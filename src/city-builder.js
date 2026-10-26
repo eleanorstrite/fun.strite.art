@@ -1,7 +1,7 @@
 import {cityNearTruck,createCityFireTrip,cityTickFireTrip} from './city-fire.js';
 import {createCityPowers,cityGrantPower,cityTickPowers,cityPowerMessage} from './city-powers.js';
 import { createCityAudio } from './city-audio.js';
-import { cityBedReaction } from './city-life.js';
+import { cityBedReaction, cityRoomRoute } from './city-life.js';
 import { CITY_FOOD, cityFoodUnlocked, restoreCityOrders, CITY_SHOPS, CITY_HOLD_SECONDS, createCityShop, cityAtRegister, cityCarriedFood, cityOrderFood, cityPickUpFood, cityPlaceFood, cityEatOrderedFood, cityCanLeaveShop } from './city-shop.js';
 import { cityFurnitureAt, cityNearbyMealSeat, cityHomeStyle } from './city-interiors.js';
 export const CITY_SIZE = 12;
@@ -207,7 +207,13 @@ export function createCityBuilder({canvas,onHud,wallet=null,openFoodShop=()=>{},
     syncShopUI();
   }
   function mayLeave(){if(fire)return false;if(computer.open)closeComputer();if(cityCanLeaveShop(shop))return true;resetInput();shopNotice('Please eat your food or put it on a table before leaving.');return false;}
-  function walkTo(p){stand();destinationBuilding=p.building??null;const target=destinationBuilding!==null?cityDoor(state,destinationBuilding):p;path=interior?[{x:Math.max(-6.5,Math.min(6.5,p.x)),z:Math.max(-5.5,Math.min(5.5,p.z))}]:cityPath(state,player,target);}
+  function availableComputer(preferred=null){return obstacles?.filter(item=>item.use?.computer&&!item.use.occupied).map(item=>item.use).sort((a,b)=>Math.hypot(a.x-(preferred?.x??player.x),a.z-(preferred?.z??player.z))-Math.hypot(b.x-(preferred?.x??player.x),b.z-(preferred?.z??player.z)))[0]??null;}
+  function walkTo(p){
+    stand();destinationBuilding=p.building??null;
+    if(interior&&p.computerSeat){const seat=availableComputer(p.computerSeat);if(!seat){updateRestControls('All desks are occupied. Try another computer.');return;}const blockers=obstacles.filter(item=>item.use!==seat).map(item=>item.actor?{...item,actor:false}:item);path=cityRoomRoute(player,seat,blockers);if(!path.length){updateRestControls('Walk closer to the computer chair, then tap it again.');return;}updateRestControls('Walking to an available computer…');return;}
+    const target=destinationBuilding!==null?cityDoor(state,destinationBuilding):p;path=interior?[{x:Math.max(-6.5,Math.min(6.5,p.x)),z:Math.max(-5.5,Math.min(5.5,p.z))}]:cityPath(state,player,target);
+  }
+
   function advanceHold(dt){
     if(!hold||hold.done||hold.cancelled)return;hold.elapsed+=dt;if(hold.elapsed<CITY_HOLD_SECONDS)return;hold.done=true;
     if(hold.hit.orderId!==undefined){
@@ -230,10 +236,10 @@ export function createCityBuilder({canvas,onHud,wallet=null,openFoodShop=()=>{},
     focused=true;canvas.focus({preventScroll:true});updateRestControls();report();
   }
   $('computer-close').addEventListener('click',closeComputer,options);
-  $('computer-type').addEventListener('click',()=>{typeAtComputer();canvas.focus({preventScroll:true});},options);
+  $('computer-type').addEventListener('click',()=>{if(!active||paused||mode!=='walk')return;if(resting?.computer)typeAtComputer(false);else{const seat=availableComputer();if(seat)walkTo({computerSeat:seat});}canvas.focus({preventScroll:true});},options);
   canvas.closest('dialog').addEventListener('cancel',event=>{if(computer.open){event.preventDefault();closeComputer();}},options);
   function updateRestControls(message=''){
-    $('stand').hidden=!resting;$('eat').hidden=!interior;$('computer-type').hidden=!resting?.computer;
+    $('stand').hidden=!resting;$('eat').hidden=!interior;$('computer-type').hidden=!(interior&&CITY_ITEMS[state.tiles[interior.index]]?.category==='towers');
     $('action').textContent=message||(resting?.computer?'Office desk · Your website opens when you sit down. Press Space to reopen it or type. Move to stand up.':resting?(resting.pose==='lie'?'Lying down. Move or tap Stand up to get up.':resting.mealId!==undefined?'Seated at a table. Press Space or Eat food. Move to stand up.':'Sitting. Move or tap Stand up to get up.'):'');
   }
   function stand(){if(!resting)return;closeComputer();if(!resting)return;audio.stop();standOrigin={...resting.outside,seat:resting};Object.assign(player,resting.outside);resting=null;updateRestControls();}
@@ -243,6 +249,7 @@ export function createCityBuilder({canvas,onHud,wallet=null,openFoodShop=()=>{},
   }
   function eat(){
     if(fire)return;
+    if(active&&!paused&&!resting&&interior&&CITY_ITEMS[state.tiles[interior.index]]?.category==='towers'){const seat=availableComputer();if(seat)walkTo({computerSeat:seat});return;}
     if(resting?.computer){typeAtComputer();return;}
     if(!active||paused||!interior)return;
     const ordered=cityEatOrderedFood(shop,player);if(ordered){hold=null;saveOrders();view.eatOrder?.(ordered.kind);const power=cityGrantPower(powers,ordered.kind);if(power)audio.magic?.(power);shopNotice(`Yum! You ate the ${CITY_FOOD[ordered.kind].name.toLowerCase()}.`);syncShopUI();return;}

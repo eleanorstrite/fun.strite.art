@@ -18,7 +18,7 @@ export function createCityScene(original,state){
   const light=new T.DirectionalLight('#fff1d8',3.2);light.position.set(-35,65,35);light.castShadow=true;light.shadow.mapSize.set(2048,2048);light.shadow.radius=3;light.shadow.bias=-.0005;light.shadow.normalBias=.035;
   light.shadow.camera.left=-80;light.shadow.camera.right=80;light.shadow.camera.top=80;light.shadow.camera.bottom=-80;light.shadow.camera.far=240;scene.add(light,light.target,new T.HemisphereLight('#dbefff','#7b7658',2.1));
   const world=new T.Group(),room=new T.Group(),avatar=new T.Group();scene.add(world,room,avatar);room.visible=false;avatar.visible=false;
-  const materials=new Map(),geometries=new Map(),textures=new Set();let buildings=[],grid,selection,roomObstacles=[],doorFrame=[],roomAnimations=[],roomTime=0,roomPets=[],bedAlert=null,currentRest=null,roomHome=null,fridgeDoor=null,shopSurfaces=[],orderMeshes=new Map(),celebration=null,meals=[],residents=[],biteUntil=0,reactionTarget={x:0,z:0},yaw=.35,zoom=1,look=new T.Vector3(),initialized=false;
+  const materials=new Map(),geometries=new Map(),textures=new Set();let buildings=[],grid,selection,roomObstacles=[],doorFrame=[],roomAnimations=[],roomTime=0,roomPets=[],bedAlert=null,currentRest=null,roomHome=null,fridgeDoor=null,shopSurfaces=[],computerTargets=[],orderMeshes=new Map(),celebration=null,meals=[],residents=[],biteUntil=0,reactionTarget={x:0,z:0},yaw=.35,zoom=1,look=new T.Vector3(),initialized=false;
   const material=(key,opts)=>{if(!materials.has(key))materials.set(key,new T.MeshStandardMaterial(opts));return materials.get(key);};
   const solid=(color,roughness=.8)=>material(color+roughness,{color,roughness});
   function texture(key,paint){if(materials.has(key))return materials.get(key);const c=document.createElement('canvas');c.width=c.height=256;const ctx=c.getContext('2d');paint(ctx);const map=new T.CanvasTexture(c);map.colorSpace=T.SRGBColorSpace;map.anisotropy=4;textures.add(map);return material(key,{map,roughness:.87,bumpMap:map,bumpScale:.025});}
@@ -101,7 +101,7 @@ export function createCityScene(original,state){
     if(p.accessory==='scarf'){cylinder(avatar,0,1.5,0,.18,.14,'#b56f4e');box(avatar,.1,1.28,.2,.13,.4,.05,'#b56f4e');}
     if(p.accessory==='glasses'){for(const x of [-.075,.075])box(avatar,x,1.8,.182,.12,.075,.025,'#252d2d');box(avatar,0,1.8,.19,.06,.02,.02,'#252d2d');}
   }
-  function furnish(id,index=0){clear(room);roomObstacles=[];doorFrame=[];roomAnimations=[];roomTime=0;roomPets=[];roomHome=null;fridgeDoor=null;orderMeshes.clear();celebration=null;shopSurfaces=[];meals=[];residents=[];biteUntil=0;const tables=[];const category=CITY_ITEMS[id].category,home=cityHomeStyle(state.size,index),accent=category==='homes'?home.accent:CITY_ITEMS[id].color;
+  function furnish(id,index=0){clear(room);roomObstacles=[];doorFrame=[];roomAnimations=[];roomTime=0;roomPets=[];roomHome=null;fridgeDoor=null;orderMeshes.clear();computerTargets=[];celebration=null;shopSurfaces=[];meals=[];residents=[];biteUntil=0;const tables=[];const category=CITY_ITEMS[id].category,home=cityHomeStyle(state.size,index),accent=category==='homes'?home.accent:CITY_ITEMS[id].color;
     roomHome=category==='homes'?home:null;
     const animate=(group,update)=>{group.traverse(object=>object.userData.animated=true);roomAnimations.push(update);};
     const palette={cafe:'#386e64',bakery:'#c86a88',market:'#508953',school:'#dba638',hospital:'#65a8b9',fire:'#bb473a',cottage:'#b77b4b',townhouse:'#876899',apartments:'#437a96',glass:'#3b8797',skyline:'#675398',office:'#476960'};const color=category==='homes'?home.color:palette[id]||accent;
@@ -302,6 +302,8 @@ export function createCityScene(original,state){
       const mealId=meals.findIndex(m=>Math.hypot(m.x-item.use.x,m.z-item.use.z)<1.5);if(mealId>=0)item.use.mealId=mealId;
     }
     for(const meal of meals)meal.owner=residents.find(r=>r.seated&&Math.hypot(r.x-meal.x,r.z-meal.z)<1.4);
+    // Dedicated pick targets keep monitor/chair taps out of floor and tabletop walking.
+    for(const item of roomObstacles){if(!item.use?.computer)continue;const seat=item.use,desk=seat.computer;for(const [x,y,z,w,h,d] of [[seat.x,.65,seat.z,.8,1.2,.8],[desk.x,1.22,desk.z,.9,.7,.2]]){const target=box(room,x,y,z,w,h,d,'#ffffff');target.visible=false;target.userData.animated=true;target.userData.computerSeat=seat;computerTargets.push(target);}}
     batch(room);return roomObstacles;
   }
   function orderModel(kind){
@@ -427,6 +429,7 @@ export function createCityScene(original,state){
   function pick(clientX,clientY,inside=false){
     const r=canvas.getBoundingClientRect();ray.setFromCamera(new T.Vector2((clientX-r.left)/r.width*2-1,-(clientY-r.top)/r.height*2+1),camera);
     if(inside){
+      const computer=ray.intersectObjects(computerTargets,false)[0];if(computer){const seat=computer.object.userData.computerSeat;return {x:seat.x,z:seat.z,computerSeat:seat};}
       const food=ray.intersectObjects([...orderMeshes.values()].filter(g=>!g.userData.carried),true)[0];
       if(food)return {x:food.point.x,z:food.point.z,orderId:food.object.userData.orderId};
       const hits=[];for(const surface of shopSurfaces){const point=new T.Vector3();if(ray.ray.intersectPlane(new T.Plane(new T.Vector3(0,1,0),-surface.y),point)&&Math.abs(point.x-surface.x)<=surface.w/2&&Math.abs(point.z-surface.z)<=surface.d/2)hits.push({x:point.x,z:point.z,surfaceId:surface.id,distance:camera.position.distanceTo(point)});}
