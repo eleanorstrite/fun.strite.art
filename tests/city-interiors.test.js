@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {cityHomeStyle,cityActivityPose,cityPetPose,cityFurnitureAt} from '../src/city-interiors.js';
+import {cityHomeStyle,cityActivityPose,cityFurnitureAt} from '../src/city-interiors.js';
 
 test('neighboring homes have different interests and keep them after reload or map growth',()=>{
   const profiles=Array.from({length:6},(_,x)=>cityHomeStyle(12,24+x));
@@ -20,16 +20,6 @@ test('every resident activity moves over time, with offset rhythms for different
   }
   const typing=cityActivityPose('type',.2);assert.notEqual(typing.left,typing.right);
 });
-test('pets roam the open center aisle and animate their legs and tails',()=>{
-  let previous=cityPetPose(0),distance=0;
-  for(let t=.05;t<30;t+=.05){
-    const pose=cityPetPose(t);
-    assert.ok(pose.x>=-.2&&pose.x<=.7&&Math.abs(pose.z)<=1.7);
-    distance+=Math.hypot(pose.x-previous.x,pose.z-previous.z);previous=pose;
-  }
-  assert.ok(distance>10);assert.notEqual(cityPetPose(0).stride,cityPetPose(.1).stride);assert.notEqual(cityPetPose(0).tail,cityPetPose(.1).tail);
-});
-
 test('furniture activates on contact, skips occupied seats, and leaves ordinary tables solid',()=>{
   const chair={x:0,z:0,w:.65,d:.65,use:{pose:'sit',x:0,z:0}},table={x:3,z:0,w:2,d:2};
   assert.equal(cityFurnitureAt([chair,table],{x:0,z:.7},{x:0,z:.5}),chair.use);

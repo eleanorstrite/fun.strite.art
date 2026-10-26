@@ -30,11 +30,6 @@ export function cityActivityPose(activity,time,phase=0){
   else {pose.right=-.65+slow*.12;}
   return pose;
 }
-export function cityPetPose(time,phase=0){
-  const t=(time+phase)*.45;
-  return {x:.25+Math.sin(t)*.45,z:Math.cos(t)*1.7,angle:Math.atan2(.45*Math.cos(t),-1.7*Math.sin(t)),stride:Math.sin((time+phase)*9)*.32,tail:Math.sin((time+phase)*5)*.3};
-}
-
 // Trigger just before solid collision, including glancing contact and approaches
 // that start near the edge. Movement away from furniture must not sit you down.
 export function cityFurnitureAt(obstacles,from,to){

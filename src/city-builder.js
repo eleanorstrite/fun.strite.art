@@ -1,5 +1,7 @@
+import { createCityAudio } from './city-audio.js';
+import { cityBedReaction } from './city-life.js';
 import { CITY_FOOD, CITY_SHOPS, CITY_HOLD_SECONDS, createCityShop, cityAtRegister, cityCarriedFood, cityOrderFood, cityPickUpFood, cityPlaceFood, cityEatOrderedFood, cityCanLeaveShop } from './city-shop.js';
-import { cityFurnitureAt, cityNearbyMealSeat } from './city-interiors.js';
+import { cityFurnitureAt, cityNearbyMealSeat, cityHomeStyle } from './city-interiors.js';
 export const CITY_SIZE = 12;
 export const CITY_KEY = 'sidequest.city.v1';
 export const CITY_CATEGORIES = {
@@ -149,7 +151,8 @@ export function createCityBuilder({canvas,onHud,loadScene=()=>import('./city-3d.
   try{storage=window.localStorage;state=createCityState(storage.getItem(CITY_KEY));}catch{state=createCityState();saveError=true;}
   const abort=new AbortController(),options={signal:abort.signal},panel=document.querySelector('#city-controls'),$=id=>panel.querySelector('#city-'+id);
   const shopMenu=$('shop-menu'),shopChoices=$('shop-choices'),shopTitle=$('shop-title'),shopStatus=$('shop-status');
-  let shop=null,shopMessage='',hold=null;
+  const audio=createCityAudio();
+  let focused=true,roomTheme=null,shop=null,shopMessage='',hold=null;
   let category='homes',tool='cottage',active=false,paused=false,hover=null,pointer=null,last=null,frame=0,previous=0,view=null,destroyed=false,mode='build',interior=null,obstacles=null,resting=null,standOrigin=null,path=[],destinationBuilding=null,moving=false;
   const keys=new Set(),player={x:.5,z:.5,angle:0};let nearby=null;
   function report(){const count=state.tiles.filter(Boolean).length;$('status').textContent=saveError?'Saving unavailable in this browser. Keep this game open to keep your city.':`${count} / ${state.size*state.size} plots used · Saved on this device`;onHud({text:`City Builder · ${mode==='walk'?(interior?CITY_ITEMS[state.tiles[interior.index]].name:'Exploring your '+state.theme):'Build your '+state.theme} · ${count} plots`});$('undo').disabled=!state.history.length||mode!=='build';}
@@ -166,11 +169,13 @@ export function createCityBuilder({canvas,onHud,loadScene=()=>import('./city-3d.
   $('theme').addEventListener('change',()=>{state.theme=$('theme').value==='country'?'country':'city';refresh();},options);
   for(const key of Object.keys(CITY_PERSON)){const input=$('person-'+key);input.value=state.person[key];input.addEventListener('input',()=>{state.person[key]=input.value;view?.person();if(view)view.portrait($('portrait'));save();},options);}
   function resetTravel(){path=[];destinationBuilding=null;moving=false;}
-  function resetInput(){keys.clear();hold=null;pointer=null;last=null;resetTravel();}
+  function resetInput(){audio.stop();keys.clear();hold=null;pointer=null;last=null;resetTravel();}
   function shopNotice(message){shopMessage=message;shopStatus.textContent=message;updateRestControls(message);}
   function syncShopUI(){
     const visible=Boolean(active&&!paused&&mode==='walk'&&shop&&interior);
-    shopMenu.hidden=!visible||!cityAtRegister(shop,player);shopStatus.hidden=!visible;
+    shopMenu.hidden=!visible||!cityAtRegister(shop,player);
+    const bedCue=active&&!paused&&mode==='walk'&&interior?cityBedReaction(roomTheme,resting):null;shopStatus.hidden=!visible&&!bedCue;
+    if(bedCue){shopStatus.textContent=bedCue==='dog'?'Woof! The dog is barking. Get out of the bed to calm it down.':bedCue==='cat'?'Meow! The cat is protesting. Get out of the bed to calm it down.':'Hey, get out of the bed!';return;}
     if(!visible)return;
     const carried=cityCarriedFood(shop),counterFull=shop.items.some(item=>!item.carried&&item.surface==='counter');
     for(const button of shopChoices.children)button.disabled=counterFull||shop.items.length>=6;
@@ -198,7 +203,7 @@ export function createCityBuilder({canvas,onHud,loadScene=()=>import('./city-3d.
     $('stand').hidden=!resting;$('eat').hidden=!interior;
     $('action').textContent=message||(resting?(resting.pose==='lie'?'Lying down. Move or tap Stand up to get up.':resting.mealId!==undefined?'Seated at a table. Press Space or Eat food. Move to stand up.':'Sitting. Move or tap Stand up to get up.'):'');
   }
-  function stand(){if(!resting)return;standOrigin={...resting.outside,seat:resting};Object.assign(player,resting.outside);resting=null;updateRestControls();}
+  function stand(){if(!resting)return;audio.stop();standOrigin={...resting.outside,seat:resting};Object.assign(player,resting.outside);resting=null;updateRestControls();}
   function sit(seat){
     resting={...seat,outside:{x:player.x,z:player.z,angle:player.angle}};
     player.x=seat.x;player.z=seat.z;player.angle=seat.angle;resetInput();updateRestControls();
@@ -217,27 +222,28 @@ export function createCityBuilder({canvas,onHud,loadScene=()=>import('./city-3d.
   $('play').disabled=true;$('play').addEventListener('click',()=>setMode(mode==='build'?'walk':'build'),options);
   function enter(index){
     if(index===null||!CITY_ITEMS[state.tiles[index]]?.height)return;
-    obstacles=view.furnish(state.tiles[index],index);
+    obstacles=view.furnish(state.tiles[index],index);roomTheme=CITY_ITEMS[state.tiles[index]].category==='homes'?cityHomeStyle(state.size,index).theme:null;
     interior={index,outside:cityDoor(state,index)};resting=null;standOrigin=null;updateRestControls();
     player.x=0;player.z=5;player.angle=Math.PI;view.faceDoor();
     prepareShop(state.tiles[index]);
     // Preserve held keys and touch buttons across the doorway.
     resetTravel();report();
   }
-  function interact(){if(!active||paused||mode!=='walk')return;if(interior){if(!mayLeave())return;shop=null;shopMessage='';syncShopUI();resting=null;standOrigin=null;updateRestControls();player.x=interior.outside.x;player.z=interior.outside.z;interior=null;obstacles=null;updateRestControls();resetTravel();report();}else if(nearby!==null)enter(nearby);canvas.focus({preventScroll:true});}
+  function interact(){if(!active||paused||mode!=='walk')return;if(interior){if(!mayLeave())return;audio.stop();shop=null;shopMessage='';syncShopUI();resting=null;standOrigin=null;updateRestControls();player.x=interior.outside.x;player.z=interior.outside.z;interior=null;obstacles=null;updateRestControls();resetTravel();report();}else if(nearby!==null)enter(nearby);canvas.focus({preventScroll:true});}
   $('enter').addEventListener('click',interact,options);
   for(const [id,action] of [['rotate-left',()=>view?.turn(-1)],['rotate-right',()=>view?.turn(1)],['zoom-in',()=>view?.zoom(-.15)],['zoom-out',()=>view?.zoom(.15)]])$(id).addEventListener('click',()=>{action();canvas.focus({preventScroll:true});},options);
   const keyName=key=>({w:'up',a:'left',s:'down',d:'right',ArrowUp:'up',ArrowLeft:'left',ArrowDown:'down',ArrowRight:'right'}[key.length===1?key.toLowerCase():key]);
   window.addEventListener('keydown',e=>{if(!active||paused||!view||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;
+    audio.unlock();
     if(e.target?.dataset?.food&&[' ','Enter'].includes(e.key))return;
     if(mode==='walk'){const name=keyName(e.key);if(name){e.preventDefault();if(resting&&e.repeat)return;stand();keys.add(name);path=[];destinationBuilding=null;}if(e.code==='Space'||e.key===' '){e.preventDefault();if(!e.repeat)eat();}if(e.key.toLowerCase()==='e'&&!e.repeat){e.preventDefault();interact();}}
     else if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)&&e.target===canvas){e.preventDefault();hover??={x:0,y:0};if(e.key==='ArrowUp')hover.y--;if(e.key==='ArrowDown')hover.y++;if(e.key==='ArrowLeft')hover.x--;if(e.key==='ArrowRight')hover.x++;hover.x=Math.max(0,Math.min(state.size-1,hover.x));hover.y=Math.max(0,Math.min(state.size-1,hover.y));if(e.key==='Enter'||e.key===' ')place(hover);}
   },options);
-  window.addEventListener('keyup',e=>keys.delete(keyName(e.key)),options);window.addEventListener('blur',resetInput,options);document.addEventListener('visibilitychange',()=>{if(document.hidden)resetInput();},options);
-  for(const direction of ['up','down','left','right']){const b=$('walk-'+direction);b.addEventListener('pointerdown',e=>{if(!active||paused)return;e.preventDefault();b.setPointerCapture(e.pointerId);stand();keys.add(direction);path=[];destinationBuilding=null;},options);for(const name of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(name,()=>keys.delete(direction),options);}
+  window.addEventListener('keyup',e=>keys.delete(keyName(e.key)),options);window.addEventListener('blur',()=>{focused=false;resetInput();},options);window.addEventListener('focus',()=>{focused=true;},options);document.addEventListener('visibilitychange',()=>{if(document.hidden)resetInput();},options);
+  for(const direction of ['up','down','left','right']){const b=$('walk-'+direction);b.addEventListener('pointerdown',e=>{if(!active||paused)return;e.preventDefault();audio.unlock();b.setPointerCapture(e.pointerId);stand();keys.add(direction);path=[];destinationBuilding=null;},options);for(const name of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(name,()=>keys.delete(direction),options);}
   function place(cell){if(!active||paused||mode!=='build')return;if(cityPlace(state,cell.x,cell.y,tool))refresh();}
   function hit(e){const p=view.pick(e.clientX,e.clientY,Boolean(interior));if(!p)return null;return {...p,cell:p.building!==undefined?{x:p.building%state.size,y:Math.floor(p.building/state.size)}:{x:Math.floor(p.x/5),y:Math.floor(p.z/5)}};}
-  function bindCanvas(){canvas.addEventListener('pointerdown',e=>{if(!active||paused||pointer!==null||e.button>0)return;e.preventDefault();canvas.focus({preventScroll:true});pointer=e.pointerId;canvas.setPointerCapture(pointer);const p=hit(e);if(!p)return;
+  function bindCanvas(){canvas.addEventListener('pointerdown',e=>{if(!active||paused||pointer!==null||e.button>0)return;e.preventDefault();audio.unlock();canvas.focus({preventScroll:true});pointer=e.pointerId;canvas.setPointerCapture(pointer);const p=hit(e);if(!p)return;
     if(mode==='walk'){if(shop&&(p.orderId!==undefined||(cityCarriedFood(shop)&&p.surfaceId!==undefined))){resetTravel();keys.clear();hold={hit:p,x:e.clientX,y:e.clientY,elapsed:0,done:false,cancelled:false};}else walkTo(p);}
     else{hover=p.cell;last=hover;place(hover);}},options);
     canvas.addEventListener('pointermove',e=>{if(hold&&e.pointerId===pointer){if(Math.hypot(e.clientX-hold.x,e.clientY-hold.y)>12)hold.cancelled=true;return;}if(mode!=='build')return;const p=hit(e);if(!p)return;hover=p.cell;if(e.pointerId!==pointer||!last)return;e.preventDefault();if(tool==='road'||tool===null){const dx=hover.x-last.x,dy=hover.y-last.y,steps=Math.max(Math.abs(dx),Math.abs(dy));for(let i=1;i<=Math.min(steps,state.size*2);i++)place({x:Math.round(last.x+dx*i/steps),y:Math.round(last.y+dy*i/steps)});}last=hover;},options);
@@ -253,8 +259,8 @@ export function createCityBuilder({canvas,onHud,loadScene=()=>import('./city-3d.
     nearby=null;if(!interior){let distance=2.6;state.tiles.forEach((id,index)=>{if(!CITY_ITEMS[id]?.height)return;const door=cityDoor(state,index),d=Math.hypot(player.x-door.x,player.z-door.z);if(d<distance){nearby=index;distance=d;}});if(destinationBuilding!==null&&!path.length&&nearby===destinationBuilding)enter(destinationBuilding);}
     const text=interior?'Exit building (or walk through door)':nearby!==null?'Enter '+CITY_ITEMS[state.tiles[nearby]].name:'Walk to a front door';if($('enter').textContent!==text)$('enter').textContent=text;$('enter').disabled=!interior&&nearby===null;
   }
-  function loop(now){const dt=Math.min(.04,(now-previous)/1000||0);previous=now;if(view&&!document.hidden){if(active&&!paused)advanceHold(dt);step(dt);syncShopUI();view.render({mode,player,hover,time:now/1000,moving,interior,resting,shop,dt:paused?0:dt});}frame=requestAnimationFrame(loop);}
+  function loop(now){const dt=Math.min(.04,(now-previous)/1000||0);previous=now;if(view&&!document.hidden){if(active&&!paused)advanceHold(dt);step(dt);if(active&&!paused&&focused)audio.tick(dt,cityBedReaction(roomTheme,resting));syncShopUI();view.render({mode,player,hover,time:now/1000,moving,interior,resting,shop,dt:paused?0:dt});}frame=requestAnimationFrame(loop);}
   canvas.closest('dialog').classList.remove('city-walking');$('build-tools').disabled=false;$('build-tools').hidden=false;$('walk-tools').hidden=true;$('person-customizer').open=true;$('play').textContent='Play — explore your city';$('play').setAttribute('aria-pressed','false');for(const id of ['zoom-in','zoom-out'])$(id).disabled=false;updateRestControls();renderItems();report();$('loading').hidden=false;$('loading').textContent='Preparing your 3D city…';
   loadScene().then(({createCityScene})=>{if(destroyed)return;view=createCityScene(canvas,state);canvas=view.canvas;canvas.parentElement?.append(shopMenu,shopStatus);bindCanvas();view.portrait($('portrait'));$('loading').hidden=true;$('play').disabled=!active;frame=requestAnimationFrame(loop);}).catch(error=>{if(destroyed)return;$('loading').hidden=false;$('loading').textContent='The 3D city could not load. Try reopening the game in a browser with WebGL enabled.';console.error(error);});
-  return {start(){active=true;paused=false;$('play').disabled=!view;canvas.focus({preventScroll:true});},pause(value){paused=value;resetInput();syncShopUI();},destroy(){canvas.closest('dialog')?.classList.remove('city-walking');destroyed=true;panel.append(shopMenu,shopStatus);shopMenu.hidden=true;shopStatus.hidden=true;abort.abort();cancelAnimationFrame(frame);view?.dispose();},setMuted(){}};
+  return {start(){audio.unlock();active=true;paused=false;$('play').disabled=!view;canvas.focus({preventScroll:true});},pause(value){paused=value;resetInput();syncShopUI();},destroy(){canvas.closest('dialog')?.classList.remove('city-walking');destroyed=true;audio.destroy();panel.append(shopMenu,shopStatus);shopMenu.hidden=true;shopStatus.hidden=true;abort.abort();cancelAnimationFrame(frame);view?.dispose();},setMuted(value){audio.setMuted(value);}};
 }
