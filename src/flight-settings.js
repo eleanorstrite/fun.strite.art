@@ -19,7 +19,7 @@ export const FLIGHT_BACKGROUNDS = {
   stars:{name:'Starlight valley',upgrade:'flight-stars'},
 };
 export const FLIGHT_VIEWS={side:'2D · Side view',firstperson:'3D · First-person view'};
-export const FLIGHT_DEFAULTS = { view:'side', animal:'dragon', color:'#d36a40', pipe:'classic', pipeColor:'#599b78', difficulty:'easy', background:'classic' };
+export const FLIGHT_DEFAULTS = { view:'side', animal:'dragon', color:'#d36a40', pipe:'classic', pipeColor:'#599b78', difficulty:'hard', background:'classic' };
 export function validateFlightSettings(value=FLIGHT_DEFAULTS){
   if(!value||typeof value!=='object'||Array.isArray(value))throw Error('Invalid flying game settings.');
   const settings={...FLIGHT_DEFAULTS,...value};
