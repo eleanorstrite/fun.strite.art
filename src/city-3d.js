@@ -1,5 +1,5 @@
 import * as T from './vendor/three/three.module.min.js';
-import { CITY_ITEMS } from './city-builder.js';
+import { CITY_ITEMS, cityWalkCamera } from './city-builder.js';
 
 export function createCityScene(original,state){
   const canvas=original.cloneNode();
@@ -13,7 +13,7 @@ export function createCityScene(original,state){
   const light=new T.DirectionalLight('#fff1d8',3.2);light.position.set(-35,65,35);light.castShadow=true;light.shadow.mapSize.set(2048,2048);light.shadow.radius=3;light.shadow.bias=-.0005;light.shadow.normalBias=.035;
   light.shadow.camera.left=-80;light.shadow.camera.right=80;light.shadow.camera.top=80;light.shadow.camera.bottom=-80;light.shadow.camera.far=240;scene.add(light,light.target,new T.HemisphereLight('#dbefff','#7b7658',2.1));
   const world=new T.Group(),room=new T.Group(),avatar=new T.Group();scene.add(world,room,avatar);room.visible=false;avatar.visible=false;
-  const materials=new Map(),geometries=new Map(),textures=new Set();let buildings=[],grid,selection,roomObstacles=[],yaw=.35,zoom=1,look=new T.Vector3(),initialized=false;
+  const materials=new Map(),geometries=new Map(),textures=new Set();let buildings=[],grid,selection,roomObstacles=[],doorFrame=[],yaw=.35,zoom=1,look=new T.Vector3(),initialized=false;
   const material=(key,opts)=>{if(!materials.has(key))materials.set(key,new T.MeshStandardMaterial(opts));return materials.get(key);};
   const solid=(color,roughness=.8)=>material(color+roughness,{color,roughness});
   function texture(key,paint){if(materials.has(key))return materials.get(key);const c=document.createElement('canvas');c.width=c.height=256;const ctx=c.getContext('2d');paint(ctx);const map=new T.CanvasTexture(c);map.colorSpace=T.SRGBColorSpace;map.anisotropy=4;textures.add(map);return material(key,{map,roughness:.87,bumpMap:map,bumpScale:.025});}
@@ -50,7 +50,7 @@ export function createCityScene(original,state){
   }
   function batch(group){
     group.updateMatrixWorld(true);const batches=new Map();
-    group.traverse(object=>{if(!object.isMesh||object===selection)return;const mats=Array.isArray(object.material)?object.material:[object.material],key=object.geometry.uuid+':'+mats.map(m=>m.uuid).join(',');if(!batches.has(key))batches.set(key,[]);batches.get(key).push(object);});
+    group.traverse(object=>{if(!object.isMesh||object===selection||doorFrame.includes(object))return;const mats=Array.isArray(object.material)?object.material:[object.material],key=object.geometry.uuid+':'+mats.map(m=>m.uuid).join(',');if(!batches.has(key))batches.set(key,[]);batches.get(key).push(object);});
     for(const objects of batches.values()){const instanced=new T.InstancedMesh(objects[0].geometry,objects[0].material,objects.length);objects.forEach((object,i)=>{instanced.setMatrixAt(i,object.matrixWorld);object.removeFromParent();});instanced.castShadow=true;instanced.receiveShadow=true;instanced.computeBoundingSphere();group.add(instanced);}
   }
   function clear(group){group.traverse(object=>{if(object.isInstancedMesh)object.dispose();});group.clear();}
@@ -93,10 +93,25 @@ export function createCityScene(original,state){
     if(p.accessory==='scarf'){cylinder(avatar,0,1.5,0,.18,.14,'#b56f4e');box(avatar,.1,1.28,.2,.13,.4,.05,'#b56f4e');}
     if(p.accessory==='glasses'){for(const x of [-.075,.075])box(avatar,x,1.8,.182,.12,.075,.025,'#252d2d');box(avatar,0,1.8,.19,.06,.02,.02,'#252d2d');}
   }
-  function furnish(id){clear(room);roomObstacles=[];const category=CITY_ITEMS[id].category;
+  function furnish(id){clear(room);roomObstacles=[];doorFrame=[];const category=CITY_ITEMS[id].category,accent=CITY_ITEMS[id].color;
+    const palette={cafe:'#386e64',bakery:'#c86a88',market:'#508953',school:'#dba638',hospital:'#65a8b9',fire:'#bb473a',cottage:'#b77b4b',townhouse:'#876899',apartments:'#437a96',glass:'#3b8797',skyline:'#675398',office:'#476960'};const color=palette[id]||accent;
     const add=(x,z,w,h,d,mat)=>{roomObstacles.push({x,z,w,d});return box(room,x,h/2,z,w,h,d,mat);};
     box(room,0,-.1,0,14,.2,12,category==='services'?tile:wood);
-    box(room,0,2,-6,14,4,.15,'#e7e0d2');box(room,-7,2,0,.15,4,12,'#dbd5c5');
+    box(room,0,2,-6,14,4,.15,accent);box(room,-7,2,0,.15,4,12,'#f0e8db');
+    box(room,0,.45,-5.88,14,.9,.08,color);box(room,-6.88,.45,0,.08,.9,12,color);
+    box(room,0,.08,5.65,1.7,.08,.65,'#429c80');
+    const frameStart=room.children.length;
+    for(const x of [-1,1])box(room,x,1.4,5.8,.16,2.8,.18,color);
+    box(room,0,2.85,5.8,2.2,.18,.18,color);
+    text(room,'EXIT → STREET',0,3.1,5.8,2); // Visible from both sides of the open doorway.
+    const sign=room.children.at(-1);sign.material.side=T.DoubleSide;doorFrame=room.children.slice(frameStart);
+    for(const x of [-4,4]){cylinder(room,x,3.65,-1,.025,.7,'#575b56');cylinder(room,x,3.25,-1,.4,.22,color);cylinder(room,x,3.12,-1,.32,.035,material('lamp-glow',{color:'#fff3c4',emissive:'#ffcf74',emissiveIntensity:1}));}
+    const resident=(x,z,shirt,seated=false,angle=0)=>{const g=new T.Group();room.add(g);g.position.set(x,0,z);g.rotation.y=angle;const skin=['#c58e68','#754c36','#e5b991'][Math.abs(Math.round(x))%3],hip=seated?.58:.85;
+      box(g,0,hip+.3,0,.46,.6,.3,shirt);ball(g,0,hip+.85,0,.18,.23,.18,skin);ball(g,0,hip+1,0,.19,.11,.19,'#49362d');
+      for(const side of [-1,1]){box(g,side*.3,hip+.22,.08,.12,.5,.14,skin);box(g,side*.13,seated?.5:.43,seated?.23:0,.17,seated?.16:.8,seated?.55:.18,'#344657');if(seated)box(g,side*.13,.27,.46,.17,.45,.17,'#344657');box(g,side*.13,.08,seated?.52:.08,.2,.14,.32,'#303638');ball(g,side*.065,hip+.88,.17,.018,.02,.015,'#252d30');}
+      if(!seated)roomObstacles.push({x,z,w:.65,d:.65});};
+    const art=(x,z,label,tint)=>{box(room,x,2.05,z,1.65,1.3,.12,wood);box(room,x,2.05,z+.08,1.45,1.1,.03,tint);text(room,label,x,2.05,z+.12,1.3);};
+
     for(const x of [-4,4]){box(room,x,2.3,-5.9,2.7,1.7,.06,material('window',{color:'#b0d2dd',emissive:'#89a8b2',emissiveIntensity:.3,roughness:.18}));for(const dx of [-1.4,0,1.4])box(room,x+dx,2.3,-5.8,.06,1.8,.06,'#faf6e8');}
     text(room,CITY_ITEMS[id].name,0,3.2,-5.85,3.7);
     const chair=(x,z)=>{roomObstacles.push({x,z,w:.65,d:.65});box(room,x,.48,z,.65,.1,.65,wood);box(room,x,.92,z-.28,.65,.85,.12,wood);for(const xx of [-.23,.23])for(const zz of [-.23,.23])box(room,x+xx,.22,z+zz,.06,.44,.06,wood);};
@@ -108,21 +123,47 @@ export function createCityScene(original,state){
       text(room,id==='cafe'?'Coffee · Tea · Cake':'Bread · Pastries',-3,2.3,-5.8,3.5);
       if(id==='bakery')for(let i=0;i<8;i++)ball(room,-4.8+i*.52,1.3,-3.3,.2,.12,.12,'#b8894b');
     }else if(category==='homes'){
-      add(-3,0,3.3,.65,1.2,'#817f6d');box(room,-3,1, -.45,3.3,.75,.3,'#817f6d');table(-3,2);add(3,-3,2.5,.5,3.4,wood);box(room,3,.65,-3,2.4,.25,3.3,'#ded8c7');box(room,3,.85,-4,2.1,.18,.65,'#f4f0e7');shelf(-4,-4.8);add(4,3,2,.85,1,wood);box(room,4,1.2,3,.9,.5,.2,'#414d4e');
+      add(-3,0,3.3,.65,1.2,color);box(room,-3,1, -.45,3.3,.75,.3,color);table(-3,2);add(3,-3,2.5,.5,3.4,wood);box(room,3,.65,-3,2.4,.25,3.3,'#ded8c7');box(room,3,.85,-4,2.1,.18,.65,'#f4f0e7');shelf(-4,-4.8);add(4,3,2,.85,1,wood);box(room,4,1.2,3,.9,.5,.2,'#414d4e');
     }else if(id==='market'){
       for(const x of [-4,0,4])for(const z of [-3,1])shelf(x,z,true);add(-4,4,3,1,1,wood);box(room,-4,1.25,4,.5,.4,.4,'#444e4e');
     }else if(id==='school'){
       box(room,0,2,-5.82,5,1.5,.1,'#325f54');text(room,'Learn · Imagine · Create',0,2,-5.7,4);
-      for(const x of [-4,0,4])for(const z of [-2,1,4]){table(x,z);chair(x,z+1);}shelf(-5,-4.9);
+      for(const x of [-4,0,4])for(const z of [-2,1,4]){if(x===0&&z===4)continue;table(x,z);chair(x,z+1);}shelf(-5,-4.9);
     }else if(id==='hospital'){
-      for(const x of [-4,3])for(const z of [-2,2]){add(x,z,1.8,.55,2.5,'#dfe3dc');box(room,x,.8,z,1.75,.25,2.4,'#a9c7c2');box(room,x,1,z-.8,1.5,.2,.5,'#f2f1e8');cylinder(room,x+1.1,1.1,z,.035,2.2,'#a7aeab');}
+      for(const x of [-4,3])for(const z of [-2,2]){add(x,z,1.8,.55,2.5,'#dfe3dc');box(room,x,.8,z,1.75,.25,2.4,color);box(room,x,1,z-.8,1.5,.2,.5,'#f2f1e8');cylinder(room,x+1.1,1.1,z,.035,2.2,'#a7aeab');}
       text(room,'Care & kindness',0,2,-5.7,3);
     }else if(id==='fire'){
       add(-2,-1,3,1.4,5,'#9d4238');box(room,-2,1.85,.5,2.8,.7,1.8,'#a34d40');box(room,-2,1.95,1.42,2.3,.5,.04,'#9bb6bb');for(const x of [-3.6,-.4])for(const z of [-2.5,.5])ball(room,x,.5,z,.25,.5,.5,'#303937');shelf(4,-4);text(room,'Ready to help',0,2.3,-5.7,3);
     }else{
       for(const x of [-4,0,4])for(const z of [-2,2]){table(x,z);chair(x,z+1);box(room,x,1.2,z,.75,.5,.08,'#3d5157');}shelf(-4,-4.8);
     }
-    tree(room,5.6,-4.7,.65);text(room,'EXIT',0,1.1,5.7,1.2);
+    // Purpose-specific details keep each visit recognizable from the doorway.
+    if(id==='cafe'||id==='bakery'){
+      resident(-3,-4.6,id==='cafe'?'#2d6857':'#faf0df');resident(2,-1,'#d38a36',true);resident(-3,2,'#7a67ad',true);
+      art(3,-5.78,id==='cafe'?'Fresh coffee':'Baked daily',color);
+      for(const x of [-3,2])for(const z of [0,3]){cylinder(room,x+.35,.96,z,.22,.025,'#fff2dc');ball(room,x+.35,1.03,z,.15,.07,.12,'#bf813d');}
+      if(id==='cafe'){for(const x of [-5,-4.5]){cylinder(room,x,1.32,-3.5,.13,.35,'#684332');}box(room,-4,1.55,-3.17,.7,.25,.05,'#bac5c1');}
+      else {shelf(4,-4.6,true);box(room,-1.2,1.5,-3.5,1.2,.6,.75,material('pastry-glass',{color:'#c5ebee',transparent:true,opacity:.25,roughness:.1,depthWrite:false}));}
+    }else if(category==='homes'){
+      box(room,-3,.015,1,4.7,.025,4,color);for(const x of [-4,-2])box(room,x,.85,0,.6,.38,.65,accent);
+      art(0,-5.78,id==='cottage'?'Home sweet home':id==='townhouse'?'City gallery':'Skyline living',color);
+      add(5,-1,1.3,1.9,.7,'#e8e4d9');box(room,5,1,-.61,.06,.5,.05,'#616d72');resident(-3,0,'#c58b54',true);
+    }else if(id==='market'){
+      resident(-4,5,'#4d8f55',false,Math.PI);text(room,'Produce · Pantry · Fresh food',0,2.5,-5.75,5);
+      for(const x of [-4,0,4])for(let i=0;i<5;i++)ball(room,x-.9+i*.43,2.03,-3,.16,.14,.15,['#e0aa38','#c5503b','#72a24e'][i%3]);
+    }else if(id==='school'){
+      resident(-4,2,'#db8444',true,Math.PI);resident(4,-1,'#6b79c1',true,Math.PI);resident(2,-4.5,'#498d76');art(5,-5.78,'A B C',color);
+      for(const x of [-4,0,4])for(const z of [-2,1,4])if(x!==0||z!==4)box(room,x,.96,z,.55,.04,.4,'#f4e4a6');
+    }else if(id==='hospital'){
+      resident(5,-3,'#f7faf4');for(const x of [-4,3]){box(room,x,1.7,-4.7,.8,.6,.12,'#334b57');text(room,'♥ 72',x,1.7,-4.6,.65);}art(0,-5.78,'First aid',color);
+    }else if(id==='fire'){
+      resident(4,1,'#d7a53d');for(const x of [3,4,5]){add(x,-4.8,.8,2.2,.6,'#b94135');box(room,x,1.4,-4.46,.35,.05,.05,'#d7c9ac');}box(room,-2,2.27,.5,1.5,.12,.3,'#4e8ed2');
+    }else{
+      resident(-4,3,'#6674a1',true,Math.PI);resident(4,-1,'#cb8559',true,Math.PI);
+      for(const x of [-4,0,4])for(const z of [-2,2]){box(room,x,1.2,z+.05,.65,.38,.025,'#75b7cb');box(room,x,.96,z+.35,.6,.04,.2,'#424e56');}
+      art(3,-5.78,id==='glass'?'Design studio':id==='skyline'?'Skyline HQ':'Team workspace',color);
+    }
+    cylinder(room,5.6,.25,-4.7,.38,.5,color);tree(room,5.6,-4.7,.65);
     batch(room);return roomObstacles;
   }
   function render({mode,player,hover,time,moving,interior,dt}){
@@ -130,15 +171,15 @@ export function createCityScene(original,state){
     if(selection){selection.visible=!inside&&mode==='build'&&hover&&hover.x>=0&&hover.y>=0&&hover.x<state.size&&hover.y<state.size;if(selection.visible)selection.position.set(hover.x*5+2.5,.07,hover.y*5+2.5);}
     if(avatar.visible){avatar.position.set(player.x,.07,player.z);avatar.rotation.y=player.angle||0;const swing=moving?Math.sin(time*9)*.5:0;limbs.forEach((limb,i)=>limb.rotation.x=swing*(i===0||i===3?1:-1));}
     const target=new T.Vector3(),position=new T.Vector3();
-    if(mode==='walk'){target.set(player.x,.9,player.z);if(inside){target.set(0,.8,0);position.set(0,10.5,12.5);}else position.set(player.x+Math.sin(yaw)*7.5,4.6,player.z+Math.cos(yaw)*7.5);}
+    if(mode==='walk'){const pose=cityWalkCamera(player,yaw);target.set(pose.target.x,pose.target.y,pose.target.z);position.set(pose.position.x,pose.position.y,pose.position.z);}
     else{target.set(state.size*2.5,0,state.size*2.5);const distance=state.size*5*1.1*zoom;position.set(target.x+Math.sin(yaw+.5)*distance,distance*.85,target.z+Math.cos(yaw+.5)*distance);}
-    if(mode==='walk'&&!inside){const direction=position.clone().sub(target).normalize(),obstruction=new T.Raycaster(target,direction,.2,target.distanceTo(position)).intersectObjects(buildings,false)[0];if(obstruction)position.copy(target).addScaledVector(direction,Math.max(1.6,obstruction.distance-.6));}
-    const ease=initialized?1-Math.exp(-dt*6):1;camera.position.lerp(position,ease);look.lerp(target,ease);camera.lookAt(look);initialized=true;
+    const ease=mode==='walk'||!initialized?1:1-Math.exp(-dt*6);camera.position.lerp(position,ease);look.lerp(target,ease);camera.lookAt(look);initialized=true;
+    for(const piece of doorFrame)piece.visible=position.z<5.6;
     scene.background.set(inside?'#d8d1c4':'#adcbdc');scene.fog.near=inside?200:110;renderer.render(scene,camera);
   }
   const ray=new T.Raycaster(),plane=new T.Plane(new T.Vector3(0,1,0),0);
   function pick(clientX,clientY,inside=false){const r=canvas.getBoundingClientRect();ray.setFromCamera(new T.Vector2((clientX-r.left)/r.width*2-1,-(clientY-r.top)/r.height*2+1),camera);const p=new T.Vector3();if(!ray.ray.intersectPlane(plane,p))return null;const hit=inside?null:ray.intersectObjects(buildings,false)[0];return {x:p.x,z:p.z,building:hit?.object.userData.building};}
   function portrait(target){const oldPosition=avatar.position.clone(),oldRotation=avatar.rotation.y,oldVisible=avatar.visible,oldWorld=world.visible,oldRoom=room.visible;world.visible=false;room.visible=false;avatar.visible=true;avatar.position.set(0,0,0);avatar.rotation.y=-.25;const cam=new T.PerspectiveCamera(30,1,.1,20);cam.position.set(0,1.3,4.5);cam.lookAt(0,1.05,0);renderer.setSize(200,200,false);renderer.render(scene,cam);const c=target.getContext('2d');c.drawImage(canvas,0,0,target.width,target.height);renderer.setSize(900,650,false);avatar.position.copy(oldPosition);avatar.rotation.y=oldRotation;avatar.visible=oldVisible;world.visible=oldWorld;room.visible=oldRoom;}
   rebuild();person();
-  return {canvas,rebuild,person,render,pick,furnish,portrait,turn(direction){yaw+=direction*.35;},zoom(value){zoom=Math.max(.65,Math.min(1.5,zoom+value));},yaw:()=>yaw,dispose(){clear(world);clear(room);for(const m of materials.values())m.dispose();for(const g of geometries.values())g.dispose();for(const t of textures)t.dispose();renderer.dispose();renderer.forceContextLoss();canvas.replaceWith(original);}};
+  return {canvas,rebuild,person,render,pick,furnish,portrait,faceDoor(){yaw=0;},turn(direction){yaw+=direction*.35;},zoom(value){zoom=Math.max(.65,Math.min(1.5,zoom+value));},yaw:()=>yaw,dispose(){clear(world);clear(room);for(const m of materials.values())m.dispose();for(const g of geometries.values())g.dispose();for(const t of textures)t.dispose();renderer.dispose();renderer.forceContextLoss();canvas.replaceWith(original);}};
 }
