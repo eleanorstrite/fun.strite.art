@@ -1,4 +1,4 @@
-export const CITY_POWER_SECONDS=60;
+export const CITY_POWER_SECONDS=30;
 export const CITY_FOOD_POWERS={galaxyShake:'flight',fruitCup:'speed',cake:'flowers'};
 export function createCityPowers(){return {flight:0,speed:0,flowers:0};}
 export function cityGrantPower(powers,food){const kind=CITY_FOOD_POWERS[food];if(kind)powers[kind]=CITY_POWER_SECONDS;return kind??null;}
