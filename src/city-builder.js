@@ -1,3 +1,4 @@
+import {cityNearTruck,createCityFireTrip,cityTickFireTrip} from './city-fire.js';
 import {createCityPowers,cityGrantPower,cityTickPowers,cityPowerMessage} from './city-powers.js';
 import { createCityAudio } from './city-audio.js';
 import { cityBedReaction } from './city-life.js';
@@ -156,7 +157,8 @@ export function createCityBuilder({canvas,onHud,wallet=null,openFoodShop=()=>{},
   let walletState=wallet?.snapshot()??{coins:0,upgrades:[]};
   const unsubscribeWallet=wallet?.subscribe(()=>{walletState=wallet.snapshot();syncShopUI();});
   const audio=createCityAudio(),powers=createCityPowers(),powerHud=$('power-hud'),powerText=$('power-text'),powerButton=$('power-button');
-  let flowerCooldown=0,flowerIndex=0,lastSafe=null;
+  let flowerCooldown=0,flowerIndex=0,lastSafe=null,fire=null;
+  const fireHud=$('fire-hud'),fireStatus=$('fire-status'),fireBoard=$('fire-board'),fireDrive=$('fire-drive'),fireReturn=$('fire-return'),fireSpray=$('fire-spray');
   let focused=true,roomTheme=null,shop=null,shopMessage='',hold=null;
   let category='homes',tool='cottage',active=false,paused=false,hover=null,pointer=null,last=null,frame=0,previous=0,view=null,destroyed=false,mode='build',interior=null,obstacles=null,resting=null,standOrigin=null,path=[],destinationBuilding=null,moving=false;
   const keys=new Set(),player={x:.5,z:.5,angle:0};let nearby=null;
@@ -177,7 +179,11 @@ export function createCityBuilder({canvas,onHud,wallet=null,openFoodShop=()=>{},
   function resetInput(){audio.stop();keys.clear();hold=null;pointer=null;last=null;resetTravel();}
   function shopNotice(message){shopMessage=message;shopStatus.textContent=message;updateRestControls(message);}
   function syncShopUI(){
-    const magicText=cityPowerMessage(powers);powerHud.hidden=!active||paused||mode!=='walk'||!magicText;powerText.textContent=magicText;powerButton.hidden=Boolean(interior)||!(powers.flight>0||powers.flowers>0);powerButton.textContent=powers.flight>0?'Hold to fly / Space':'Hold to grow flowers / Space';
+    const station=Boolean(interior&&state.tiles[interior.index]==='fire'&&mode==='walk'),nearTruck=station&&cityNearTruck(player);
+    fireHud.hidden=!active||paused||mode!=='walk'||(!station&&!fire);fireBoard.hidden=Boolean(fire)||!nearTruck;fireDrive.hidden=fire?.phase!=='cab';fireReturn.hidden=!fire;fireSpray.hidden=fire?.phase!=='drive';
+    fireStatus.textContent=fire?.phase==='drive'?`Firefighting · ${Math.ceil(fire.trip.remaining)}s · ${fire.trip.extinguished}/${fire.trip.fires.length} fires out. Arrows / WASD drive and steer. Hold Space or Spray water. Aim through the windshield at fires ahead.`:fire?'Inside the fire engine · Press Drive for a fresh one-minute firefighting trip.':nearTruck?'Enter the fire engine, then press Drive.':'Walk to the fire engine’s cab door to get in.';
+
+    const magicText=fire?'':cityPowerMessage(powers);powerHud.hidden=!active||paused||mode!=='walk'||!magicText;powerText.textContent=magicText;powerButton.hidden=Boolean(interior)||!(powers.flight>0||powers.flowers>0);powerButton.textContent=powers.flight>0?'Hold to fly / Space':'Hold to grow flowers / Space';
     walletBox.hidden=!active;walletBalance.textContent=walletState.unlimitedCoins?'∞ coins':`${walletState.coins} coins`;
     const visible=Boolean(active&&!paused&&mode==='walk'&&shop&&interior);
     shopMenu.hidden=!visible||!cityAtRegister(shop,player);
@@ -199,7 +205,7 @@ export function createCityBuilder({canvas,onHud,wallet=null,openFoodShop=()=>{},
       },options);shopChoices.append(button);}}
     syncShopUI();
   }
-  function mayLeave(){if(cityCanLeaveShop(shop))return true;resetInput();shopNotice('Please eat your food or put it on a table before leaving.');return false;}
+  function mayLeave(){if(fire)return false;if(cityCanLeaveShop(shop))return true;resetInput();shopNotice('Please eat your food or put it on a table before leaving.');return false;}
   function walkTo(p){stand();destinationBuilding=p.building??null;const target=destinationBuilding!==null?cityDoor(state,destinationBuilding):p;path=interior?[{x:Math.max(-6.5,Math.min(6.5,p.x)),z:Math.max(-5.5,Math.min(5.5,p.z))}]:cityPath(state,player,target);}
   function advanceHold(dt){
     if(!hold||hold.done||hold.cancelled)return;hold.elapsed+=dt;if(hold.elapsed<CITY_HOLD_SECONDS)return;hold.done=true;
@@ -219,6 +225,7 @@ export function createCityBuilder({canvas,onHud,wallet=null,openFoodShop=()=>{},
     player.x=seat.x;player.z=seat.z;player.angle=seat.angle;resetInput();updateRestControls();
   }
   function eat(){
+    if(fire)return;
     if(!active||paused||!interior)return;
     const ordered=cityEatOrderedFood(shop,player);if(ordered){hold=null;saveOrders();view.eatOrder?.(ordered.kind);const power=cityGrantPower(powers,ordered.kind);if(power)audio.magic?.(power);shopNotice(`Yum! You ate the ${CITY_FOOD[ordered.kind].name.toLowerCase()}.`);syncShopUI();return;}
     if(!resting){const seat=cityNearbyMealSeat(obstacles,player);if(seat)sit(seat);}
@@ -239,7 +246,11 @@ export function createCityBuilder({canvas,onHud,wallet=null,openFoodShop=()=>{},
     // Preserve held keys and touch buttons across the doorway.
     resetTravel();report();
   }
-  function interact(){if(!active||paused||mode!=='walk')return;if(interior){if(!mayLeave())return;audio.stop();shop=null;shopMessage='';syncShopUI();resting=null;standOrigin=null;updateRestControls();player.x=interior.outside.x;player.z=interior.outside.z;interior=null;obstacles=null;updateRestControls();resetTravel();report();}else if(nearby!==null)enter(nearby);canvas.focus({preventScroll:true});}
+  function interact(){if(!active||paused||mode!=='walk')return;if(fire)return;if(interior&&state.tiles[interior.index]==='fire'&&cityNearTruck(player)){boardTruck();return;}if(interior){if(!mayLeave())return;audio.stop();shop=null;shopMessage='';syncShopUI();resting=null;standOrigin=null;updateRestControls();player.x=interior.outside.x;player.z=interior.outside.z;interior=null;obstacles=null;updateRestControls();resetTravel();report();}else if(nearby!==null)enter(nearby);canvas.focus({preventScroll:true});}
+  function boardTruck(){if(!active||paused||fire||!interior||state.tiles[interior.index]!=='fire'||!cityNearTruck(player))return;resetInput();resting=null;fire={phase:'cab',trip:null};syncShopUI();canvas.focus({preventScroll:true});}
+  function returnTruck(){if(!fire)return;const count=fire.trip?.extinguished??0;fire=null;resetInput();player.x=0;player.z=3.6;player.altitude=0;player.angle=Math.PI;view.faceDoor();updateRestControls(`Back at the station · ${count} fires extinguished.`);syncShopUI();}
+  fireBoard.addEventListener('click',boardTruck,options);fireDrive.addEventListener('click',()=>{if(!active||paused||fire?.phase!=='cab')return;resetInput();fire={phase:'drive',trip:createCityFireTrip()};syncShopUI();canvas.focus({preventScroll:true});},options);fireReturn.addEventListener('click',()=>{if(active&&!paused)returnTruck();},options);
+  fireSpray.addEventListener('pointerdown',e=>{if(!active||paused||fire?.phase!=='drive')return;e.preventDefault();fireSpray.setPointerCapture(e.pointerId);keys.add('magic');},options);for(const event of ['pointerup','pointercancel','lostpointercapture'])fireSpray.addEventListener(event,()=>keys.delete('magic'),options);
   $('enter').addEventListener('click',interact,options);
   for(const [id,action] of [['rotate-left',()=>view?.turn(-1)],['rotate-right',()=>view?.turn(1)],['zoom-in',()=>view?.zoom(-.15)],['zoom-out',()=>view?.zoom(.15)]])$(id).addEventListener('click',()=>{action();canvas.focus({preventScroll:true});},options);
   const keyName=key=>({w:'up',a:'left',s:'down',d:'right',ArrowUp:'up',ArrowLeft:'left',ArrowDown:'down',ArrowRight:'right'}[key.length===1?key.toLowerCase():key]);
@@ -255,7 +266,7 @@ export function createCityBuilder({canvas,onHud,wallet=null,openFoodShop=()=>{},
   function place(cell){if(!active||paused||mode!=='build')return;if(cityPlace(state,cell.x,cell.y,tool))refresh();}
   function hit(e){const p=view.pick(e.clientX,e.clientY,Boolean(interior));if(!p)return null;return {...p,cell:p.building!==undefined?{x:p.building%state.size,y:Math.floor(p.building/state.size)}:{x:Math.floor(p.x/5),y:Math.floor(p.z/5)}};}
   function bindCanvas(){canvas.addEventListener('pointerdown',e=>{if(!active||paused||pointer!==null||e.button>0)return;e.preventDefault();audio.unlock();canvas.focus({preventScroll:true});pointer=e.pointerId;canvas.setPointerCapture(pointer);const p=hit(e);if(!p)return;
-    if(mode==='walk'){if(shop&&(p.orderId!==undefined||(cityCarriedFood(shop)&&p.surfaceId!==undefined))){resetTravel();keys.clear();hold={hit:p,x:e.clientX,y:e.clientY,elapsed:0,done:false,cancelled:false};}else walkTo(p);}
+    if(fire)return;if(mode==='walk'){if(shop&&(p.orderId!==undefined||(cityCarriedFood(shop)&&p.surfaceId!==undefined))){resetTravel();keys.clear();hold={hit:p,x:e.clientX,y:e.clientY,elapsed:0,done:false,cancelled:false};}else walkTo(p);}
     else{hover=p.cell;last=hover;place(hover);}},options);
     canvas.addEventListener('pointermove',e=>{if(hold&&e.pointerId===pointer){if(Math.hypot(e.clientX-hold.x,e.clientY-hold.y)>12)hold.cancelled=true;return;}if(mode!=='build')return;const p=hit(e);if(!p)return;hover=p.cell;if(e.pointerId!==pointer||!last)return;e.preventDefault();if(tool==='road'||tool===null){const dx=hover.x-last.x,dy=hover.y-last.y,steps=Math.max(Math.abs(dx),Math.abs(dy));for(let i=1;i<=Math.min(steps,state.size*2);i++)place({x:Math.round(last.x+dx*i/steps),y:Math.round(last.y+dy*i/steps)});}last=hover;},options);
     const release=e=>{if(pointer===e.pointerId){const gesture=hold;hold=null;pointer=null;last=null;if(e.type==='pointerup'&&gesture&&!gesture.done&&!gesture.cancelled)walkTo(gesture.hit);}};for(const name of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(name,release,options);
@@ -269,6 +280,7 @@ export function createCityBuilder({canvas,onHud,wallet=null,openFoodShop=()=>{},
     return (player.altitude||0)>(item?.height?Math.max(2.6,item.height*.1)+2.4:.7);
   }
   function step(dt){moving=false;if(!active||paused||!focused||mode!=='walk')return;
+    if(fire){if(fire.phase==='drive'){cityTickFireTrip(fire.trip,dt,{up:keys.has('up'),down:keys.has('down'),left:keys.has('left'),right:keys.has('right'),spray:keys.has('magic')});if(fire.trip.remaining<=0)returnTruck();}return;}
     cityTickPowers(powers,dt);flowerCooldown=Math.max(0,flowerCooldown-dt);
     if(!interior){
       if(cityCanWalk(state,player.x,player.z))lastSafe={x:player.x,z:player.z};
@@ -281,12 +293,13 @@ export function createCityBuilder({canvas,onHud,wallet=null,openFoodShop=()=>{},
     if(path.length){const target=path[0],distance=Math.hypot(target.x-player.x,target.z-player.z);if(distance<.14)path.shift();else{dx=(target.x-player.x)/distance;dz=(target.z-player.z)/distance;}}
     else{const right=Number(keys.has('right'))-Number(keys.has('left')),forward=Number(keys.has('up'))-Number(keys.has('down')),yaw=view.yaw();dx=right*Math.cos(yaw)-forward*Math.sin(yaw);dz=-right*Math.sin(yaw)-forward*Math.cos(yaw);const length=Math.hypot(dx,dz);if(length){dx/=length;dz/=length;}}
     if(dx||dz){const beforeX=player.x,beforeZ=player.z,speed=interior?3.1:powers.speed>0?10.5:(player.altitude||0)>.1?7:4.2;const nx=player.x+dx*speed*dt,nz=player.z+dz*speed*dt;if(interior&&cityLeavingRoom(player,{x:nx,z:nz})){interact();return;}if(!interior&&(player.altitude||0)<.1&&dz<0){const index=state.tiles.findIndex((id,i)=>{if(!CITY_ITEMS[id]?.height)return false;const door=cityDoor(state,i);return Math.abs(nx-door.x)<.5&&player.z>=door.z-.15&&nz<door.z-.15;});if(index>=0){enter(index);return;}}const seat=interior?cityFurnitureAt(obstacles,player,{x:nx,z:nz}):null;if(seat&&!(standOrigin&&seat.x===standOrigin.seat.x&&seat.z===standOrigin.seat.z)){sit(seat);return;}if(interior?cityCanWalk(state,nx,player.z,obstacles):airCanWalk(nx,player.z))player.x=nx;if(interior?cityCanWalk(state,player.x,nz,obstacles):airCanWalk(player.x,nz))player.z=nz;moving=Math.hypot(player.x-beforeX,player.z-beforeZ)>.001;if(moving)player.angle=Math.atan2(dx,dz);else path=[];}
+    if(moving&&interior&&state.tiles[interior.index]==='fire'&&cityNearTruck(player)){boardTruck();return;}
     if(standOrigin&&Math.hypot(player.x-standOrigin.x,player.z-standOrigin.z)>.6)standOrigin=null;
     nearby=null;if(!interior&&(player.altitude||0)<.1){let distance=2.6;state.tiles.forEach((id,index)=>{if(!CITY_ITEMS[id]?.height)return;const door=cityDoor(state,index),d=Math.hypot(player.x-door.x,player.z-door.z);if(d<distance){nearby=index;distance=d;}});if(destinationBuilding!==null&&!path.length&&nearby===destinationBuilding)enter(destinationBuilding);}
     const text=interior?'Exit building (or walk through door)':nearby!==null?'Enter '+CITY_ITEMS[state.tiles[nearby]].name:'Walk to a front door';if($('enter').textContent!==text)$('enter').textContent=text;$('enter').disabled=!interior&&nearby===null;
   }
-  function loop(now){const dt=Math.min(.04,(now-previous)/1000||0);previous=now;if(view&&!document.hidden){if(active&&!paused)advanceHold(dt);step(dt);if(active&&!paused&&focused)audio.tick(dt,cityBedReaction(roomTheme,resting));syncShopUI();view.render({mode,player,hover,time:now/1000,moving,interior,resting,shop,powers,dt:paused||!active||!focused?0:dt});}frame=requestAnimationFrame(loop);}
+  function loop(now){const dt=Math.min(.04,(now-previous)/1000||0);previous=now;if(view&&!document.hidden){if(active&&!paused)advanceHold(dt);step(dt);if(active&&!paused&&focused)audio.tick(dt,cityBedReaction(roomTheme,resting));syncShopUI();view.render({mode,player,hover,time:now/1000,moving,interior,resting,shop,powers,fire,dt:paused||!active||!focused?0:dt});}frame=requestAnimationFrame(loop);}
   canvas.closest('dialog').classList.remove('city-walking');$('build-tools').disabled=false;$('build-tools').hidden=false;$('walk-tools').hidden=true;$('person-customizer').open=true;$('play').textContent='Play — explore your city';$('play').setAttribute('aria-pressed','false');for(const id of ['zoom-in','zoom-out'])$(id).disabled=false;updateRestControls();renderItems();report();$('loading').hidden=false;$('loading').textContent='Preparing your 3D city…';
-  loadScene().then(({createCityScene})=>{if(destroyed)return;view=createCityScene(canvas,state);canvas=view.canvas;canvas.parentElement?.append(shopMenu,shopStatus,walletBox,powerHud);bindCanvas();view.portrait($('portrait'));$('loading').hidden=true;$('play').disabled=!active;frame=requestAnimationFrame(loop);}).catch(error=>{if(destroyed)return;$('loading').hidden=false;$('loading').textContent='The 3D city could not load. Try reopening the game in a browser with WebGL enabled.';console.error(error);});
-  return {start(){audio.unlock();active=true;paused=false;$('play').disabled=!view;canvas.focus({preventScroll:true});},pause(value){paused=value;resetInput();syncShopUI();},destroy(){canvas.closest('dialog')?.classList.remove('city-walking');destroyed=true;unsubscribeWallet?.();audio.destroy();walletBox.hidden=true;powerHud.hidden=true;panel.append(shopMenu,shopStatus,walletBox,powerHud);shopMenu.hidden=true;shopStatus.hidden=true;abort.abort();cancelAnimationFrame(frame);view?.dispose();},setMuted(value){audio.setMuted(value);}};
+  loadScene().then(({createCityScene})=>{if(destroyed)return;view=createCityScene(canvas,state);canvas=view.canvas;canvas.parentElement?.append(shopMenu,shopStatus,walletBox,powerHud,fireHud);bindCanvas();view.portrait($('portrait'));$('loading').hidden=true;$('play').disabled=!active;frame=requestAnimationFrame(loop);}).catch(error=>{if(destroyed)return;$('loading').hidden=false;$('loading').textContent='The 3D city could not load. Try reopening the game in a browser with WebGL enabled.';console.error(error);});
+  return {start(){audio.unlock();active=true;paused=false;$('play').disabled=!view;canvas.focus({preventScroll:true});},pause(value){paused=value;resetInput();syncShopUI();},destroy(){canvas.closest('dialog')?.classList.remove('city-walking');destroyed=true;unsubscribeWallet?.();audio.destroy();walletBox.hidden=true;powerHud.hidden=true;fireHud.hidden=true;panel.append(shopMenu,shopStatus,walletBox,powerHud,fireHud);shopMenu.hidden=true;shopStatus.hidden=true;abort.abort();cancelAnimationFrame(frame);view?.dispose();},setMuted(value){audio.setMuted(value);}};
 }
