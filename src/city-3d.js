@@ -295,9 +295,24 @@ export function createCityScene(original,state){
     const food=CITY_FOOD[kind],g=new T.Group();room.add(g);
     const bread=solid('#e6bd7c'),green=solid('#71a35c'),red=solid('#bd5143');
     if(food.shape==='cake'){
-      cylinder(g,0,.03,0,.44,.06,'#eac873');
-      for(const [y,r,h] of [[.2,.35,.3],[.46,.24,.22]]){cylinder(g,0,y,0,r,h,food.color);cylinder(g,0,y+h/2,0,r+.015,.035,'#fff3e4');for(let i=0;i<12;i++)ball(g,Math.sin(i*Math.PI/6)*r,y+h/2,Math.cos(i*Math.PI/6)*r,.045,.04,.045,'#fff3e4');}
-      for(const x of [-.12,0,.12]){cylinder(g,x,.66,0,.018,.2,'#7dcac7');ball(g,x,.79,0,.027,.055,.027,'#ffd262');}
+      const rainbow=['#fc3588','#ff982b','#ffe52c','#32d05b','#28cfe7','#9550dc'];
+      cylinder(g,0,.025,0,.47,.05,'#e82fbc');cylinder(g,0,.4,0,.38,.72,'#fff0c9');
+      // Rainbow ganache sectors and rounded drips around the vanilla sides.
+      for(let c=0;c<6;c++){
+        mesh(g,geo('cake-icing-'+c,()=>new T.CylinderGeometry(.385,.385,.025,12,1,false,c*Math.PI/3,Math.PI/3)),solid(rainbow[c]),0,.77,0);
+        for(let j=0;j<2;j++){const a=c*Math.PI/3+j*.36+.12,h=.16+((c*3+j*5)%7)*.055,x=Math.sin(a)*.378,z=Math.cos(a)*.378;cylinder(g,x,.76-h/2,z,.025,h,rainbow[c]);ball(g,x,.76-h,z,.025,.03,.025,rainbow[c]);}
+      }
+      function rosette(x,y,z,angle,top=false,scale=1){
+        const rose=new T.Group();g.add(rose);rose.position.set(x,y,z);if(top)rose.rotation.x=-Math.PI/2;else rose.rotation.y=angle;rose.scale.setScalar(scale);
+        for(let c=0;c<6;c++){
+          const geometry=geo('cake-rosette-'+c,()=>{const points=[];for(let j=0;j<=32;j++){const t=(c+j/32)/6,a=t*Math.PI*4.7,r=.012+t*.088;points.push(new T.Vector3(Math.cos(a)*r,Math.sin(a)*r,.025+Math.sin(t*Math.PI)*.025));}return new T.TubeGeometry(new T.CatmullRomCurve3(points),32,.013,5,false);});
+          mesh(rose,geometry,solid(rainbow[c]),0,0,0);
+        }
+      }
+      // A cascading bank of piped rainbow roses, like the reference cake.
+      for(let row=0;row<3;row++)for(let col=0;col<6;col++){const a=-.45+col*.4+row*.12;rosette(Math.sin(a)*.386,.17+row*.205,Math.cos(a)*.386,a,false,.85+(col%2)*.15);}
+      for(let i=0;i<7;i++){const a=i*.48-.6;rosette(Math.sin(a)*.27,.79,Math.cos(a)*.27,0,true,.95);}
+      for(let i=0;i<65;i++){const a=i*2.399,r=Math.sqrt((i+.5)/65)*.35;ball(g,Math.sin(a)*r,.795,Math.cos(a)*r,.009,.008,.012,rainbow[i%6]);}
     }else if(food.shape==='galaxy'){
       for(let i=0;i<4;i++)cylinder(g,0,.07+i*.11,0,.17,.11,['#6352a6','#9e7dde','#8ebddd','#ecb2e3'][i]);
       ball(g,0,.5,0,.18,.1,.18,'#fff2ee');cylinder(g,.07,.65,0,.016,.3,'#e8c563');
@@ -346,7 +361,7 @@ export function createCityScene(original,state){
     return true;
   }
   function render({mode,player,hover,time,moving,interior,resting=null,shop=null,dt}){
-    if(celebration){const age=roomTime-celebration.userData.start;celebration.visible=age<2.4;if(age>=2.4){celebration.removeFromParent();celebration=null;}else for(const [i,p] of celebration.children.entries()){const a=i*2.4;p.position.set(Math.sin(a)*age*.8,.6+age*1.7-age*age*.6,Math.cos(a)*age*.8);p.rotation.set(age*3+i,age*2,age);p.scale.setScalar(Math.max(.1,1-age/2.4));}}
+    if(celebration){const age=roomTime-celebration.userData.start;if(age>=3.2){celebration.removeFromParent();celebration=null;}else for(const [i,p] of celebration.children.entries()){const t=Math.max(0,age-(i%3)*.22),a=i*2.399;const radius=t*(.65+(i%5)*.15);p.visible=age>=(i%3)*.22;p.position.set(Math.sin(a+t*.6)*radius,1+t*(1.8+(i%4)*.22)-t*t*.8,Math.cos(a+t*.6)*radius);p.rotation.set(t*3+i,t*2,t);p.scale.setScalar(Math.max(0,1-t/3.2));}}
     const inside=Boolean(interior);currentRest=resting;bedAlert=inside?cityBedReaction(roomHome?.theme,resting):null;syncOrders(inside?shop:null,player);if(inside){reactionTarget=player;roomTime+=dt;for(const update of roomAnimations)update(roomTime,dt);for(const item of roomObstacles)if(item.use)item.use.occupied=residents.some(r=>r.seated&&Math.hypot(r.x-item.use.x,r.z-item.use.z)<.6);}world.visible=!inside;room.visible=inside;avatar.visible=mode==='walk';grid.visible=mode==='build';
     if(selection){selection.visible=!inside&&mode==='build'&&hover&&hover.x>=0&&hover.y>=0&&hover.x<state.size&&hover.y<state.size;if(selection.visible)selection.position.set(hover.x*5+2.5,.07,hover.y*5+2.5);}
     if(avatar.visible){
@@ -378,5 +393,5 @@ export function createCityScene(original,state){
   }
   function portrait(target){const oldPosition=avatar.position.clone(),oldRotation=avatar.rotation.clone(),oldVisible=avatar.visible,oldWorld=world.visible,oldRoom=room.visible;world.visible=false;room.visible=false;avatar.visible=true;avatar.position.set(0,0,0);avatar.rotation.set(0,-.25,0);const cam=new T.PerspectiveCamera(30,1,.1,20);cam.position.set(0,1.3,4.5);cam.lookAt(0,1.05,0);renderer.setSize(200,200,false);renderer.render(scene,cam);const c=target.getContext('2d');c.drawImage(canvas,0,0,target.width,target.height);renderer.setSize(900,650,false);avatar.position.copy(oldPosition);avatar.rotation.copy(oldRotation);avatar.visible=oldVisible;world.visible=oldWorld;room.visible=oldRoom;}
   rebuild();person();
-  return {canvas,rebuild,person,render,pick,furnish,eat,shopSurfaces:()=>shopSurfaces,eatOrder(kind){biteUntil=roomTime+1.5;if(CITY_FOOD[kind]?.upgrade){celebration?.removeFromParent();celebration=new T.Group();celebration.name='food-celebration';celebration.position.set(reactionTarget.x,0,reactionTarget.z);celebration.userData.start=roomTime;room.add(celebration);for(let i=0;i<32;i++)mesh(celebration,geo(kind==='galaxyShake'?'food-star':'food-confetti',()=>kind==='galaxyShake'?new T.OctahedronGeometry(.035):new T.BoxGeometry(.07,.025,.04)),solid(['#f0b35b','#e680b1','#8ecbbd','#a69be3','#fff1b5'][i%5]),0,0,0);}},portrait,faceDoor(){yaw=0;},turn(direction){yaw+=direction*.35;},zoom(value){zoom=Math.max(.65,Math.min(1.5,zoom+value));},yaw:()=>yaw,dispose(){clear(world);clear(room);for(const m of materials.values())m.dispose();for(const g of geometries.values())g.dispose();for(const t of textures)t.dispose();renderer.dispose();renderer.forceContextLoss();canvas.replaceWith(original);}};
+  return {canvas,rebuild,person,render,pick,furnish,eat,shopSurfaces:()=>shopSurfaces,eatOrder(kind){biteUntil=roomTime+1.5;if(CITY_FOOD[kind]?.upgrade){celebration?.removeFromParent();celebration=new T.Group();celebration.name='food-celebration';celebration.position.set(reactionTarget.x,0,reactionTarget.z);celebration.userData.start=roomTime;room.add(celebration);for(let i=0;i<72;i++)mesh(celebration,geo(kind==='galaxyShake'?'food-star':'food-confetti',()=>kind==='galaxyShake'?new T.OctahedronGeometry(.035):new T.BoxGeometry(.07,.025,.04)),solid(['#ff3e93','#ffac32','#ffec49','#4be978','#38dbff','#be6bff'][i%6]),0,0,0);}},portrait,faceDoor(){yaw=0;},turn(direction){yaw+=direction*.35;},zoom(value){zoom=Math.max(.65,Math.min(1.5,zoom+value));},yaw:()=>yaw,dispose(){clear(world);clear(room);for(const m of materials.values())m.dispose();for(const g of geometries.values())g.dispose();for(const t of textures)t.dispose();renderer.dispose();renderer.forceContextLoss();canvas.replaceWith(original);}};
 }
