@@ -167,7 +167,7 @@ export function createCityBuilder({canvas,onHud,loadScene=()=>import('./city-3d.
   $('play').disabled=true;$('play').addEventListener('click',()=>setMode(mode==='build'?'walk':'build'),options);
   function enter(index){
     if(index===null||!CITY_ITEMS[state.tiles[index]]?.height)return;
-    obstacles=view.furnish(state.tiles[index]);
+    obstacles=view.furnish(state.tiles[index],index);
     interior={index,outside:cityDoor(state,index)};
     player.x=0;player.z=5;player.angle=Math.PI;view.faceDoor();
     // Preserve held keys and touch buttons across the doorway.
@@ -199,7 +199,7 @@ export function createCityBuilder({canvas,onHud,loadScene=()=>import('./city-3d.
     nearby=null;if(!interior){let distance=2.6;state.tiles.forEach((id,index)=>{if(!CITY_ITEMS[id]?.height)return;const door=cityDoor(state,index),d=Math.hypot(player.x-door.x,player.z-door.z);if(d<distance){nearby=index;distance=d;}});if(destinationBuilding!==null&&!path.length&&nearby===destinationBuilding)enter(destinationBuilding);}
     const text=interior?'Exit building (or walk through door)':nearby!==null?'Enter '+CITY_ITEMS[state.tiles[nearby]].name:'Walk to a front door';if($('enter').textContent!==text)$('enter').textContent=text;$('enter').disabled=!interior&&nearby===null;
   }
-  function loop(now){const dt=Math.min(.04,(now-previous)/1000||0);previous=now;if(view&&!document.hidden){step(dt);view.render({mode,player,hover,time:now/1000,moving,interior,dt});}frame=requestAnimationFrame(loop);}
+  function loop(now){const dt=Math.min(.04,(now-previous)/1000||0);previous=now;if(view&&!document.hidden){step(dt);view.render({mode,player,hover,time:now/1000,moving,interior,dt:paused?0:dt});}frame=requestAnimationFrame(loop);}
   canvas.closest('dialog').classList.remove('city-walking');$('build-tools').disabled=false;$('build-tools').hidden=false;$('walk-tools').hidden=true;$('person-customizer').open=true;$('play').textContent='Play — explore your city';$('play').setAttribute('aria-pressed','false');for(const id of ['zoom-in','zoom-out'])$(id).disabled=false;renderItems();report();$('loading').hidden=false;$('loading').textContent='Preparing your 3D city…';
   loadScene().then(({createCityScene})=>{if(destroyed)return;view=createCityScene(canvas,state);canvas=view.canvas;bindCanvas();view.portrait($('portrait'));$('loading').hidden=true;$('play').disabled=!active;frame=requestAnimationFrame(loop);}).catch(error=>{if(destroyed)return;$('loading').hidden=false;$('loading').textContent='The 3D city could not load. Try reopening the game in a browser with WebGL enabled.';console.error(error);});
   return {start(){active=true;paused=false;$('play').disabled=!view;canvas.focus({preventScroll:true});},pause(value){paused=value;resetInput();},destroy(){canvas.closest('dialog')?.classList.remove('city-walking');destroyed=true;abort.abort();cancelAnimationFrame(frame);view?.dispose();},setMuted(){}};

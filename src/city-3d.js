@@ -1,4 +1,5 @@
 import * as T from './vendor/three/three.module.min.js';
+import { cityHomeStyle, cityActivityPose, cityPetPose } from './city-interiors.js';
 import { CITY_ITEMS, cityWalkCamera } from './city-builder.js';
 
 export function createCityScene(original,state){
@@ -13,7 +14,7 @@ export function createCityScene(original,state){
   const light=new T.DirectionalLight('#fff1d8',3.2);light.position.set(-35,65,35);light.castShadow=true;light.shadow.mapSize.set(2048,2048);light.shadow.radius=3;light.shadow.bias=-.0005;light.shadow.normalBias=.035;
   light.shadow.camera.left=-80;light.shadow.camera.right=80;light.shadow.camera.top=80;light.shadow.camera.bottom=-80;light.shadow.camera.far=240;scene.add(light,light.target,new T.HemisphereLight('#dbefff','#7b7658',2.1));
   const world=new T.Group(),room=new T.Group(),avatar=new T.Group();scene.add(world,room,avatar);room.visible=false;avatar.visible=false;
-  const materials=new Map(),geometries=new Map(),textures=new Set();let buildings=[],grid,selection,roomObstacles=[],doorFrame=[],yaw=.35,zoom=1,look=new T.Vector3(),initialized=false;
+  const materials=new Map(),geometries=new Map(),textures=new Set();let buildings=[],grid,selection,roomObstacles=[],doorFrame=[],roomAnimations=[],roomTime=0,yaw=.35,zoom=1,look=new T.Vector3(),initialized=false;
   const material=(key,opts)=>{if(!materials.has(key))materials.set(key,new T.MeshStandardMaterial(opts));return materials.get(key);};
   const solid=(color,roughness=.8)=>material(color+roughness,{color,roughness});
   function texture(key,paint){if(materials.has(key))return materials.get(key);const c=document.createElement('canvas');c.width=c.height=256;const ctx=c.getContext('2d');paint(ctx);const map=new T.CanvasTexture(c);map.colorSpace=T.SRGBColorSpace;map.anisotropy=4;textures.add(map);return material(key,{map,roughness:.87,bumpMap:map,bumpScale:.025});}
@@ -50,7 +51,7 @@ export function createCityScene(original,state){
   }
   function batch(group){
     group.updateMatrixWorld(true);const batches=new Map();
-    group.traverse(object=>{if(!object.isMesh||object===selection||doorFrame.includes(object))return;const mats=Array.isArray(object.material)?object.material:[object.material],key=object.geometry.uuid+':'+mats.map(m=>m.uuid).join(',');if(!batches.has(key))batches.set(key,[]);batches.get(key).push(object);});
+    group.traverse(object=>{if(!object.isMesh||object===selection||object.userData.animated||doorFrame.includes(object))return;const mats=Array.isArray(object.material)?object.material:[object.material],key=object.geometry.uuid+':'+mats.map(m=>m.uuid).join(',');if(!batches.has(key))batches.set(key,[]);batches.get(key).push(object);});
     for(const objects of batches.values()){const instanced=new T.InstancedMesh(objects[0].geometry,objects[0].material,objects.length);objects.forEach((object,i)=>{instanced.setMatrixAt(i,object.matrixWorld);object.removeFromParent();});instanced.castShadow=true;instanced.receiveShadow=true;instanced.computeBoundingSphere();group.add(instanced);}
   }
   function clear(group){group.traverse(object=>{if(object.isInstancedMesh)object.dispose();});group.clear();}
@@ -93,8 +94,9 @@ export function createCityScene(original,state){
     if(p.accessory==='scarf'){cylinder(avatar,0,1.5,0,.18,.14,'#b56f4e');box(avatar,.1,1.28,.2,.13,.4,.05,'#b56f4e');}
     if(p.accessory==='glasses'){for(const x of [-.075,.075])box(avatar,x,1.8,.182,.12,.075,.025,'#252d2d');box(avatar,0,1.8,.19,.06,.02,.02,'#252d2d');}
   }
-  function furnish(id){clear(room);roomObstacles=[];doorFrame=[];const category=CITY_ITEMS[id].category,accent=CITY_ITEMS[id].color;
-    const palette={cafe:'#386e64',bakery:'#c86a88',market:'#508953',school:'#dba638',hospital:'#65a8b9',fire:'#bb473a',cottage:'#b77b4b',townhouse:'#876899',apartments:'#437a96',glass:'#3b8797',skyline:'#675398',office:'#476960'};const color=palette[id]||accent;
+  function furnish(id,index=0){clear(room);roomObstacles=[];doorFrame=[];roomAnimations=[];roomTime=0;const category=CITY_ITEMS[id].category,home=cityHomeStyle(state.size,index),accent=category==='homes'?home.accent:CITY_ITEMS[id].color;
+    const animate=(group,update)=>{group.traverse(object=>object.userData.animated=true);roomAnimations.push(update);};
+    const palette={cafe:'#386e64',bakery:'#c86a88',market:'#508953',school:'#dba638',hospital:'#65a8b9',fire:'#bb473a',cottage:'#b77b4b',townhouse:'#876899',apartments:'#437a96',glass:'#3b8797',skyline:'#675398',office:'#476960'};const color=category==='homes'?home.color:palette[id]||accent;
     const add=(x,z,w,h,d,mat)=>{roomObstacles.push({x,z,w,d});return box(room,x,h/2,z,w,h,d,mat);};
     box(room,0,-.1,0,14,.2,12,category==='services'?tile:wood);
     box(room,0,2,-6,14,4,.15,accent);box(room,-7,2,0,.15,4,12,'#f0e8db');
@@ -106,10 +108,43 @@ export function createCityScene(original,state){
     text(room,'EXIT → STREET',0,3.1,5.8,2); // Visible from both sides of the open doorway.
     const sign=room.children.at(-1);sign.material.side=T.DoubleSide;doorFrame=room.children.slice(frameStart);
     for(const x of [-4,4]){cylinder(room,x,3.65,-1,.025,.7,'#575b56');cylinder(room,x,3.25,-1,.4,.22,color);cylinder(room,x,3.12,-1,.32,.035,material('lamp-glow',{color:'#fff3c4',emissive:'#ffcf74',emissiveIntensity:1}));}
-    const resident=(x,z,shirt,seated=false,angle=0)=>{const g=new T.Group();room.add(g);g.position.set(x,0,z);g.rotation.y=angle;const skin=['#c58e68','#754c36','#e5b991'][Math.abs(Math.round(x))%3],hip=seated?.58:.85;
-      box(g,0,hip+.3,0,.46,.6,.3,shirt);ball(g,0,hip+.85,0,.18,.23,.18,skin);ball(g,0,hip+1,0,.19,.11,.19,'#49362d');
-      for(const side of [-1,1]){box(g,side*.3,hip+.22,.08,.12,.5,.14,skin);box(g,side*.13,seated?.5:.43,seated?.23:0,.17,seated?.16:.8,seated?.55:.18,'#344657');if(seated)box(g,side*.13,.27,.46,.17,.45,.17,'#344657');box(g,side*.13,.08,seated?.52:.08,.2,.14,.32,'#303638');ball(g,side*.065,hip+.88,.17,.018,.02,.015,'#252d30');}
-      if(!seated)roomObstacles.push({x,z,w:.65,d:.65});};
+    const resident=(x,z,shirt,seated=false,angle=0,activity=null)=>{
+      activity??=id==='cafe'?(seated?'drink':'serve'):id==='bakery'?(seated?'eat':'serve'):id==='school'?(seated?'write':'read'):id==='hospital'?'write':id==='market'?'serve':id==='fire'?'read':category==='towers'?'type':'read';
+      const g=new T.Group();room.add(g);g.position.set(x,0,z);g.rotation.y=angle;
+      const skin=['#c58e68','#754c36','#e5b991'][Math.abs(Math.round(x))%3],hip=seated?.58:.85;
+      box(g,0,hip+.3,0,.46,.6,.3,shirt);
+      const headGroup=new T.Group();g.add(headGroup);headGroup.position.y=hip+.85;
+      ball(headGroup,0,0,0,.18,.23,.18,skin);ball(headGroup,0,.15,0,.19,.11,.19,'#49362d');
+      const arms=[];
+      for(const side of [-1,1]){
+        const arm=new T.Group();g.add(arm);arm.position.set(side*.3,hip+.53,0);arms.push(arm);
+        box(arm,0,-.14,0,.15,.28,.18,shirt);box(arm,0,-.36,0,.12,.22,.14,skin);ball(arm,0,-.49,0,.07,.08,.07,skin);
+        box(g,side*.13,seated?.5:.43,seated?.23:0,.17,seated?.16:.8,seated?.55:.18,'#344657');
+        if(seated)box(g,side*.13,.27,.46,.17,.45,.17,'#344657');box(g,side*.13,.08,seated?.52:.08,.2,.14,.32,'#303638');ball(headGroup,side*.065,.03,.17,.018,.02,.015,'#252d30');
+      }
+      if(activity==='drink'){cylinder(arms[1],0,-.5,.08,.09,.16,'#fff2da');cylinder(arms[1],0,-.41,.08,.07,.01,'#67452e');}
+      if(activity==='eat'){box(arms[1],0,-.55,.03,.035,.25,.035,'#b9c9cf');ball(arms[1],0,-.68,.03,.05,.07,.025,'#d7b57c');}
+      if(['write','paint'].includes(activity))box(arms[1],0,-.55,.02,.035,.3,.035,activity==='paint'?'#b45e7d':'#dfb33f');
+      if(activity==='read'){box(g,0,hip+.22,.43,.48,.06,.32,'#c57652');box(g,0,hip+.26,.43,.44,.02,.29,'#fff1cf');}
+      if(activity==='write'&&!seated)box(g,-.1,hip+.15,.35,.4,.04,.5,'#e0d6b7');
+      if(activity==='watch')box(arms[1],0,-.5,.03,.1,.23,.05,'#343e47');
+      if(activity==='water'){cylinder(arms[1],0,-.55,.1,.16,.22,'#6ca898');box(arms[1],.2,-.52,.1,.3,.06,.06,'#6ca898');}
+      const phase=home.phase+x*.9+z*.3;
+      animate(g,time=>{const pose=cityActivityPose(activity,time,phase);arms[0].rotation.x=pose.left;arms[1].rotation.x=pose.right;headGroup.rotation.x=pose.head;g.rotation.z=pose.lean;});
+      if(!seated)roomObstacles.push({x,z,w:.65,d:.65});
+    };
+    const pet=kind=>{
+      const g=new T.Group();room.add(g);const cat=kind==='cat',fur=cat?'#c58752':'#b69a75',legs=[];
+      ball(g,0,.43,0,cat?.19:.25,.22,cat?.4:.46,fur);ball(g,0,.64,.34,.2,.21,.2,fur);
+      ball(g,0,.58,.51,.12,.09,.1,cat?'#ead5bb':'#684d37');
+      for(const side of [-1,1]){
+        const ear=box(g,side*.14,cat?.85:.62,.33,cat?.12:.12,cat?.19:.35,.12,fur);ear.rotation.z=side*(cat?.3:.15);
+        ball(g,side*.08,.69,.51,.025,.03,.02,'#2b3738');
+        for(const z of [-.25,.25]){const leg=new T.Group();g.add(leg);leg.position.set(side*.14,.38,z);box(leg,0,-.15,0,.1,.3,.12,fur);legs.push(leg);}
+      }
+      const tail=new T.Group();g.add(tail);tail.position.set(0,.48,-.36);const tuft=box(tail,0,.2,-.12,.09,cat?.5:.3,.09,fur);tuft.rotation.x=-.5;
+      animate(g,time=>{const pose=cityPetPose(time,home.phase);g.position.set(pose.x,0,pose.z);g.rotation.y=pose.angle;legs.forEach((leg,i)=>leg.rotation.x=pose.stride*(i%3===0?1:-1));tail.rotation.z=pose.tail;});
+    };
     const art=(x,z,label,tint)=>{box(room,x,2.05,z,1.65,1.3,.12,wood);box(room,x,2.05,z+.08,1.45,1.1,.03,tint);text(room,label,x,2.05,z+.12,1.3);};
 
     for(const x of [-4,4]){box(room,x,2.3,-5.9,2.7,1.7,.06,material('window',{color:'#b0d2dd',emissive:'#89a8b2',emissiveIntensity:.3,roughness:.18}));for(const dx of [-1.4,0,1.4])box(room,x+dx,2.3,-5.8,.06,1.8,.06,'#faf6e8');}
@@ -123,7 +158,7 @@ export function createCityScene(original,state){
       text(room,id==='cafe'?'Coffee · Tea · Cake':'Bread · Pastries',-3,2.3,-5.8,3.5);
       if(id==='bakery')for(let i=0;i<8;i++)ball(room,-4.8+i*.52,1.3,-3.3,.2,.12,.12,'#b8894b');
     }else if(category==='homes'){
-      add(-3,0,3.3,.65,1.2,color);box(room,-3,1, -.45,3.3,.75,.3,color);table(-3,2);add(3,-3,2.5,.5,3.4,wood);box(room,3,.65,-3,2.4,.25,3.3,'#ded8c7');box(room,3,.85,-4,2.1,.18,.65,'#f4f0e7');shelf(-4,-4.8);add(4,3,2,.85,1,wood);box(room,4,1.2,3,.9,.5,.2,'#414d4e');
+      add(-3,0,3.3,.65,1.2,color);box(room,-3,1, -.45,3.3,.75,.3,color);table(-3,2);add(3,-3,2.5,.5,3.4,wood);box(room,3,.65,-3,2.4,.25,3.3,'#ded8c7');box(room,3,.85,-4,2.1,.18,.65,'#f4f0e7');shelf(-4,-4.8);
     }else if(id==='market'){
       for(const x of [-4,0,4])for(const z of [-3,1])shelf(x,z,true);add(-4,4,3,1,1,wood);box(room,-4,1.25,4,.5,.4,.4,'#444e4e');
     }else if(id==='school'){
@@ -146,8 +181,27 @@ export function createCityScene(original,state){
       else {shelf(4,-4.6,true);box(room,-1.2,1.5,-3.5,1.2,.6,.75,material('pastry-glass',{color:'#c5ebee',transparent:true,opacity:.25,roughness:.1,depthWrite:false}));}
     }else if(category==='homes'){
       box(room,-3,.015,1,4.7,.025,4,color);for(const x of [-4,-2])box(room,x,.85,0,.6,.38,.65,accent);
-      art(0,-5.78,id==='cottage'?'Home sweet home':id==='townhouse'?'City gallery':'Skyline living',color);
-      add(5,-1,1.3,1.9,.7,'#e8e4d9');box(room,5,1,-.61,.06,.5,.05,'#616d72');resident(-3,0,'#c58b54',true);
+      const labels={cinema:'Movie night',cat:'A cat lives here',dog:'Best friends',artist:'Creative corner',reader:'One more chapter',gardener:'Plant lover'};
+      art(0,-5.78,labels[home.theme],color);text(room,'Home '+home.address,-4,3.45,-5.8,2.1);
+      add(5,-1,1.3,1.9,.7,'#e8e4d9');box(room,5,1,-.61,.06,.5,.05,'#616d72');
+      if(home.theme==='cinema'){
+        add(-3,4.5,3,.65,.6,wood);box(room,-3,1.5,4.45,2.6,1.4,.12,'#283743');box(room,-3,1.5,4.37,2.35,1.15,.025,'#679eb0');
+        for(let i=0;i<4;i++)box(room,-3.8+i*.5,1.3,4.34,.3,.3+i*.16,.02,['#e9bd6d','#8db7a0'][i%2]);
+        cylinder(room,-3,.99,2,.24,.22,'#e9ba59');for(let i=0;i<6;i++)ball(room,-3+Math.sin(i)*.15,1.15,2+Math.cos(i)*.15,.08,.07,.08,'#fff0b3');resident(-3,0,'#c58b54',true,0,'watch');
+      }else if(home.theme==='cat'){
+        add(4,2.6,1.5,.18,1.5,color);cylinder(room,4,1,2.6,.14,1.8,'#c7a57c');box(room,4,1.5,2.6,1.2,.14,1,color);box(room,4.4,2.1,2.6,.85,.14,.85,color);box(room,3.5,.6,2.6,.9,.7,.8,wood);
+        cylinder(room,4.5,.12,4,.25,.16,'#bd79a4');cylinder(room,4.5,.21,4,.19,.02,'#7cabb8');pet('cat');resident(-3,0,'#9c71ab',true,0,'read');
+      }else if(home.theme==='dog'){
+        add(4,2.5,2,.18,1.5,color);box(room,4,.25,2.5,1.7,.18,1.2,'#e5c9a1');for(const x of [3,5])box(room,x,.35,2.5,.2,.5,1.5,color);
+        ball(room,3.3,.14,4,.15,.15,.15,'#d8794d');cylinder(room,5,.12,4,.28,.18,'#639baa');box(room,4,.1,4,.4,.12,.12,'#f0d8b4');pet('dog');resident(-3,0,'#b18052',true,0,'read');
+      }else if(home.theme==='artist'){
+        add(4,2.8,1.8,.12,1.3,wood);for(const x of [3.4,4.6])box(room,x,1,2.8,.08,1.9,.1,wood);box(room,4,1.65,2.8,1.5,1.5,.12,'#f5e4c7');
+        for(let i=0;i<5;i++)ball(room,3.5+i*.25,1.4+Math.sin(i)*.35,2.89,.17,.25,.03,['#e28d57',color,'#7a9d66'][i%3]);resident(4,4.1,'#d78960',false,Math.PI,'paint');
+      }else if(home.theme==='reader'){
+        shelf(4,2.5);chair(3.5,4);resident(3.5,4,'#8278ae',true,0,'read');cylinder(room,5.5,1,3.5,.035,2,'#555d59');cylinder(room,5.5,2,3.5,.4,.4,'#eeddb5');
+      }else{
+        add(4,2.7,2.5,.7,1,wood);for(const x of [3.2,4,4.8]){cylinder(room,x,.88,2.7,.2,.3,'#bd7c53');for(let i=0;i<4;i++)ball(room,x+Math.sin(i)*.13,1.12+i*.09,2.7,.15,.25,.12,'#668c4e');}resident(4,4,'#6e9963',false,Math.PI,'water');
+      }
     }else if(id==='market'){
       resident(-4,5,'#4d8f55',false,Math.PI);text(room,'Produce · Pantry · Fresh food',0,2.5,-5.75,5);
       for(const x of [-4,0,4])for(let i=0;i<5;i++)ball(room,x-.9+i*.43,2.03,-3,.16,.14,.15,['#e0aa38','#c5503b','#72a24e'][i%3]);
@@ -167,7 +221,7 @@ export function createCityScene(original,state){
     batch(room);return roomObstacles;
   }
   function render({mode,player,hover,time,moving,interior,dt}){
-    const inside=Boolean(interior);world.visible=!inside;room.visible=inside;avatar.visible=mode==='walk';grid.visible=mode==='build';
+    const inside=Boolean(interior);if(inside){roomTime+=dt;for(const update of roomAnimations)update(roomTime);}world.visible=!inside;room.visible=inside;avatar.visible=mode==='walk';grid.visible=mode==='build';
     if(selection){selection.visible=!inside&&mode==='build'&&hover&&hover.x>=0&&hover.y>=0&&hover.x<state.size&&hover.y<state.size;if(selection.visible)selection.position.set(hover.x*5+2.5,.07,hover.y*5+2.5);}
     if(avatar.visible){avatar.position.set(player.x,.07,player.z);avatar.rotation.y=player.angle||0;const swing=moving?Math.sin(time*9)*.5:0;limbs.forEach((limb,i)=>limb.rotation.x=swing*(i===0||i===3?1:-1));}
     const target=new T.Vector3(),position=new T.Vector3();
