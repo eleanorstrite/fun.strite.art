@@ -21,3 +21,10 @@ export function cityPetPose(time,phase=0){
   const t=(time+phase)*.45;
   return {x:.25+Math.sin(t)*.45,z:Math.cos(t)*1.7,angle:Math.atan2(.45*Math.cos(t),-1.7*Math.sin(t)),stride:Math.sin((time+phase)*9)*.32,tail:Math.sin((time+phase)*5)*.3};
 }
+
+// Only a deliberate step into an available piece of furniture starts resting.
+export function cityFurnitureAt(obstacles,from,to){
+  return obstacles?.find(item=>item.use&&!item.use.occupied&&
+    Math.abs(to.x-item.x)<item.w/2+.22&&Math.abs(to.z-item.z)<item.d/2+.22&&
+    !(Math.abs(from.x-item.x)<item.w/2+.22&&Math.abs(from.z-item.z)<item.d/2+.22))?.use??null;
+}

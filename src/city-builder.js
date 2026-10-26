@@ -1,3 +1,4 @@
+import { cityFurnitureAt } from './city-interiors.js';
 export const CITY_SIZE = 12;
 export const CITY_KEY = 'sidequest.city.v1';
 export const CITY_CATEGORIES = {
@@ -146,7 +147,7 @@ export function createCityBuilder({canvas,onHud,loadScene=()=>import('./city-3d.
   let storage,state,saveError=false;
   try{storage=window.localStorage;state=createCityState(storage.getItem(CITY_KEY));}catch{state=createCityState();saveError=true;}
   const abort=new AbortController(),options={signal:abort.signal},panel=document.querySelector('#city-controls'),$=id=>panel.querySelector('#city-'+id);
-  let category='homes',tool='cottage',active=false,paused=false,hover=null,pointer=null,last=null,frame=0,previous=0,view=null,destroyed=false,mode='build',interior=null,obstacles=null,path=[],destinationBuilding=null,moving=false;
+  let category='homes',tool='cottage',active=false,paused=false,hover=null,pointer=null,last=null,frame=0,previous=0,view=null,destroyed=false,mode='build',interior=null,obstacles=null,resting=null,standOrigin=null,path=[],destinationBuilding=null,moving=false;
   const keys=new Set(),player={x:.5,z:.5,angle:0};let nearby=null;
   function report(){const count=state.tiles.filter(Boolean).length;$('status').textContent=saveError?'Saving unavailable in this browser. Keep this game open to keep your city.':`${count} / ${state.size*state.size} plots used · Saved on this device`;onHud({text:`City Builder · ${mode==='walk'?(interior?CITY_ITEMS[state.tiles[interior.index]].name:'Exploring your '+state.theme):'Build your '+state.theme} · ${count} plots`});$('undo').disabled=!state.history.length||mode!=='build';}
   function save(){try{if(!storage)throw Error();storage.setItem(CITY_KEY,citySerialize(state));saveError=false;}catch{saveError=true;}report();}
@@ -163,44 +164,56 @@ export function createCityBuilder({canvas,onHud,loadScene=()=>import('./city-3d.
   for(const key of Object.keys(CITY_PERSON)){const input=$('person-'+key);input.value=state.person[key];input.addEventListener('input',()=>{state.person[key]=input.value;view?.person();if(view)view.portrait($('portrait'));save();},options);}
   function resetTravel(){path=[];destinationBuilding=null;moving=false;}
   function resetInput(){keys.clear();pointer=null;last=null;resetTravel();}
-  function setMode(next){if(!active||paused||!view)return;resetInput();mode=next;canvas.closest('dialog').classList.toggle('city-walking',mode==='walk');interior=null;obstacles=null;Object.assign(player,citySpawn(state));$('build-tools').disabled=mode!=='build';$('build-tools').hidden=mode==='walk';$('person-customizer').open=mode==='build';$('walk-tools').hidden=mode!=='walk';$('play').textContent=mode==='walk'?'Back to building':'Play — explore your city';$('play').setAttribute('aria-pressed',String(mode==='walk'));for(const id of ['zoom-in','zoom-out'])$(id).disabled=mode==='walk';canvas.focus({preventScroll:true});canvas.closest('dialog').scrollTop=0;report();}
+  function updateRestControls(message=''){
+    $('stand').hidden=!resting;$('eat').hidden=!resting||resting.mealId===undefined;
+    $('action').textContent=message||(resting?(resting.pose==='lie'?'Lying down. Move or tap Stand up to get up.':resting.mealId!==undefined?'Seated at a table. Press Space or Eat food. Move to stand up.':'Sitting. Move or tap Stand up to get up.'):'');
+  }
+  function stand(){if(!resting)return;standOrigin={...resting.outside,seat:resting};Object.assign(player,resting.outside);resting=null;updateRestControls();}
+  function eat(){if(!active||paused||!resting||resting.mealId===undefined)return;
+    if(view.eat(resting.mealId))updateRestControls('Yum! Move to stand up.');
+    else updateRestControls('That plate is empty. Move to stand up.');
+  }
+  $('eat').addEventListener('click',()=>{eat();canvas.focus({preventScroll:true});},options);
+  $('stand').addEventListener('click',()=>{if(!active||paused)return;stand();resetInput();canvas.focus({preventScroll:true});},options);
+  function setMode(next){if(!active||paused||!view)return;resetInput();resting=null;standOrigin=null;updateRestControls();mode=next;canvas.closest('dialog').classList.toggle('city-walking',mode==='walk');interior=null;obstacles=null;Object.assign(player,citySpawn(state));$('build-tools').disabled=mode!=='build';$('build-tools').hidden=mode==='walk';$('person-customizer').open=mode==='build';$('walk-tools').hidden=mode!=='walk';$('play').textContent=mode==='walk'?'Back to building':'Play — explore your city';$('play').setAttribute('aria-pressed',String(mode==='walk'));for(const id of ['zoom-in','zoom-out'])$(id).disabled=mode==='walk';canvas.focus({preventScroll:true});canvas.closest('dialog').scrollTop=0;report();}
   $('play').disabled=true;$('play').addEventListener('click',()=>setMode(mode==='build'?'walk':'build'),options);
   function enter(index){
     if(index===null||!CITY_ITEMS[state.tiles[index]]?.height)return;
     obstacles=view.furnish(state.tiles[index],index);
-    interior={index,outside:cityDoor(state,index)};
+    interior={index,outside:cityDoor(state,index)};resting=null;standOrigin=null;updateRestControls();
     player.x=0;player.z=5;player.angle=Math.PI;view.faceDoor();
     // Preserve held keys and touch buttons across the doorway.
     resetTravel();report();
   }
-  function interact(){if(!active||paused||mode!=='walk')return;if(interior){player.x=interior.outside.x;player.z=interior.outside.z;interior=null;obstacles=null;resetTravel();report();}else if(nearby!==null)enter(nearby);canvas.focus({preventScroll:true});}
+  function interact(){if(!active||paused||mode!=='walk')return;if(interior){resting=null;standOrigin=null;updateRestControls();player.x=interior.outside.x;player.z=interior.outside.z;interior=null;obstacles=null;resetTravel();report();}else if(nearby!==null)enter(nearby);canvas.focus({preventScroll:true});}
   $('enter').addEventListener('click',interact,options);
   for(const [id,action] of [['rotate-left',()=>view?.turn(-1)],['rotate-right',()=>view?.turn(1)],['zoom-in',()=>view?.zoom(-.15)],['zoom-out',()=>view?.zoom(.15)]])$(id).addEventListener('click',()=>{action();canvas.focus({preventScroll:true});},options);
   const keyName=key=>({w:'up',a:'left',s:'down',d:'right',ArrowUp:'up',ArrowLeft:'left',ArrowDown:'down',ArrowRight:'right'}[key.length===1?key.toLowerCase():key]);
   window.addEventListener('keydown',e=>{if(!active||paused||!view||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;
-    if(mode==='walk'){const name=keyName(e.key);if(name){e.preventDefault();keys.add(name);path=[];destinationBuilding=null;}if(e.key.toLowerCase()==='e'&&!e.repeat){e.preventDefault();interact();}}
+    if(mode==='walk'){const name=keyName(e.key);if(name){e.preventDefault();if(resting&&e.repeat)return;stand();keys.add(name);path=[];destinationBuilding=null;}if(e.code==='Space'||e.key===' '){e.preventDefault();if(!e.repeat)eat();}if(e.key.toLowerCase()==='e'&&!e.repeat){e.preventDefault();interact();}}
     else if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)&&e.target===canvas){e.preventDefault();hover??={x:0,y:0};if(e.key==='ArrowUp')hover.y--;if(e.key==='ArrowDown')hover.y++;if(e.key==='ArrowLeft')hover.x--;if(e.key==='ArrowRight')hover.x++;hover.x=Math.max(0,Math.min(state.size-1,hover.x));hover.y=Math.max(0,Math.min(state.size-1,hover.y));if(e.key==='Enter'||e.key===' ')place(hover);}
   },options);
   window.addEventListener('keyup',e=>keys.delete(keyName(e.key)),options);window.addEventListener('blur',resetInput,options);document.addEventListener('visibilitychange',()=>{if(document.hidden)resetInput();},options);
-  for(const direction of ['up','down','left','right']){const b=$('walk-'+direction);b.addEventListener('pointerdown',e=>{if(!active||paused)return;e.preventDefault();b.setPointerCapture(e.pointerId);keys.add(direction);path=[];destinationBuilding=null;},options);for(const name of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(name,()=>keys.delete(direction),options);}
+  for(const direction of ['up','down','left','right']){const b=$('walk-'+direction);b.addEventListener('pointerdown',e=>{if(!active||paused)return;e.preventDefault();b.setPointerCapture(e.pointerId);stand();keys.add(direction);path=[];destinationBuilding=null;},options);for(const name of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(name,()=>keys.delete(direction),options);}
   function place(cell){if(!active||paused||mode!=='build')return;if(cityPlace(state,cell.x,cell.y,tool))refresh();}
   function hit(e){const p=view.pick(e.clientX,e.clientY,Boolean(interior));if(!p)return null;return {...p,cell:p.building!==undefined?{x:p.building%state.size,y:Math.floor(p.building/state.size)}:{x:Math.floor(p.x/5),y:Math.floor(p.z/5)}};}
   function bindCanvas(){canvas.addEventListener('pointerdown',e=>{if(!active||paused||pointer!==null||e.button>0)return;e.preventDefault();canvas.focus({preventScroll:true});pointer=e.pointerId;canvas.setPointerCapture(pointer);const p=hit(e);if(!p)return;
-    if(mode==='walk'){destinationBuilding=p.building??null;const target=destinationBuilding!==null?cityDoor(state,destinationBuilding):p;path=interior?[{x:Math.max(-6.5,Math.min(6.5,p.x)),z:Math.max(-5.5,Math.min(5.5,p.z))}]:cityPath(state,player,target);}
+    if(mode==='walk'){stand();destinationBuilding=p.building??null;const target=destinationBuilding!==null?cityDoor(state,destinationBuilding):p;path=interior?[{x:Math.max(-6.5,Math.min(6.5,p.x)),z:Math.max(-5.5,Math.min(5.5,p.z))}]:cityPath(state,player,target);}
     else{hover=p.cell;last=hover;place(hover);}},options);
     canvas.addEventListener('pointermove',e=>{if(mode!=='build')return;const p=hit(e);if(!p)return;hover=p.cell;if(e.pointerId!==pointer||!last)return;e.preventDefault();if(tool==='road'||tool===null){const dx=hover.x-last.x,dy=hover.y-last.y,steps=Math.max(Math.abs(dx),Math.abs(dy));for(let i=1;i<=Math.min(steps,state.size*2);i++)place({x:Math.round(last.x+dx*i/steps),y:Math.round(last.y+dy*i/steps)});}last=hover;},options);
     const release=e=>{if(pointer===e.pointerId){pointer=null;last=null;}};for(const name of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(name,release,options);
     canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();paused=true;resetInput();$('loading').hidden=false;$('loading').textContent='The 3D view was interrupted. Close and reopen City Builder to restore your saved city.';},options);
   }
-  function step(dt){moving=false;if(!active||paused||mode!=='walk')return;let dx=0,dz=0;
+  function step(dt){moving=false;if(!active||paused||mode!=='walk'||resting)return;let dx=0,dz=0;
     if(path.length){const target=path[0],distance=Math.hypot(target.x-player.x,target.z-player.z);if(distance<.14)path.shift();else{dx=(target.x-player.x)/distance;dz=(target.z-player.z)/distance;}}
     else{const right=Number(keys.has('right'))-Number(keys.has('left')),forward=Number(keys.has('up'))-Number(keys.has('down')),yaw=view.yaw();dx=right*Math.cos(yaw)-forward*Math.sin(yaw);dz=-right*Math.sin(yaw)-forward*Math.cos(yaw);const length=Math.hypot(dx,dz);if(length){dx/=length;dz/=length;}}
-    if(dx||dz){const beforeX=player.x,beforeZ=player.z,speed=interior?3.1:4.2;const nx=player.x+dx*speed*dt,nz=player.z+dz*speed*dt;if(interior&&cityLeavingRoom(player,{x:nx,z:nz})){interact();return;}if(!interior&&dz<0){const index=state.tiles.findIndex((id,i)=>{if(!CITY_ITEMS[id]?.height)return false;const door=cityDoor(state,i);return Math.abs(nx-door.x)<.5&&player.z>=door.z-.15&&nz<door.z-.15;});if(index>=0){enter(index);return;}}if(cityCanWalk(state,nx,player.z,obstacles))player.x=nx;if(cityCanWalk(state,player.x,nz,obstacles))player.z=nz;moving=Math.hypot(player.x-beforeX,player.z-beforeZ)>.001;if(moving)player.angle=Math.atan2(dx,dz);else path=[];}
+    if(dx||dz){const beforeX=player.x,beforeZ=player.z,speed=interior?3.1:4.2;const nx=player.x+dx*speed*dt,nz=player.z+dz*speed*dt;if(interior&&cityLeavingRoom(player,{x:nx,z:nz})){interact();return;}if(!interior&&dz<0){const index=state.tiles.findIndex((id,i)=>{if(!CITY_ITEMS[id]?.height)return false;const door=cityDoor(state,i);return Math.abs(nx-door.x)<.5&&player.z>=door.z-.15&&nz<door.z-.15;});if(index>=0){enter(index);return;}}const seat=interior?cityFurnitureAt(obstacles,player,{x:nx,z:nz}):null;if(seat&&!(standOrigin&&seat.x===standOrigin.seat.x&&seat.z===standOrigin.seat.z)){resting={...seat,outside:{x:player.x,z:player.z,angle:player.angle}};player.x=seat.x;player.z=seat.z;player.angle=seat.angle;resetInput();updateRestControls();return;}if(cityCanWalk(state,nx,player.z,obstacles))player.x=nx;if(cityCanWalk(state,player.x,nz,obstacles))player.z=nz;moving=Math.hypot(player.x-beforeX,player.z-beforeZ)>.001;if(moving)player.angle=Math.atan2(dx,dz);else path=[];}
+    if(standOrigin&&Math.hypot(player.x-standOrigin.x,player.z-standOrigin.z)>.6)standOrigin=null;
     nearby=null;if(!interior){let distance=2.6;state.tiles.forEach((id,index)=>{if(!CITY_ITEMS[id]?.height)return;const door=cityDoor(state,index),d=Math.hypot(player.x-door.x,player.z-door.z);if(d<distance){nearby=index;distance=d;}});if(destinationBuilding!==null&&!path.length&&nearby===destinationBuilding)enter(destinationBuilding);}
     const text=interior?'Exit building (or walk through door)':nearby!==null?'Enter '+CITY_ITEMS[state.tiles[nearby]].name:'Walk to a front door';if($('enter').textContent!==text)$('enter').textContent=text;$('enter').disabled=!interior&&nearby===null;
   }
-  function loop(now){const dt=Math.min(.04,(now-previous)/1000||0);previous=now;if(view&&!document.hidden){step(dt);view.render({mode,player,hover,time:now/1000,moving,interior,dt:paused?0:dt});}frame=requestAnimationFrame(loop);}
-  canvas.closest('dialog').classList.remove('city-walking');$('build-tools').disabled=false;$('build-tools').hidden=false;$('walk-tools').hidden=true;$('person-customizer').open=true;$('play').textContent='Play — explore your city';$('play').setAttribute('aria-pressed','false');for(const id of ['zoom-in','zoom-out'])$(id).disabled=false;renderItems();report();$('loading').hidden=false;$('loading').textContent='Preparing your 3D city…';
+  function loop(now){const dt=Math.min(.04,(now-previous)/1000||0);previous=now;if(view&&!document.hidden){step(dt);view.render({mode,player,hover,time:now/1000,moving,interior,resting,dt:paused?0:dt});}frame=requestAnimationFrame(loop);}
+  canvas.closest('dialog').classList.remove('city-walking');$('build-tools').disabled=false;$('build-tools').hidden=false;$('walk-tools').hidden=true;$('person-customizer').open=true;$('play').textContent='Play — explore your city';$('play').setAttribute('aria-pressed','false');for(const id of ['zoom-in','zoom-out'])$(id).disabled=false;updateRestControls();renderItems();report();$('loading').hidden=false;$('loading').textContent='Preparing your 3D city…';
   loadScene().then(({createCityScene})=>{if(destroyed)return;view=createCityScene(canvas,state);canvas=view.canvas;bindCanvas();view.portrait($('portrait'));$('loading').hidden=true;$('play').disabled=!active;frame=requestAnimationFrame(loop);}).catch(error=>{if(destroyed)return;$('loading').hidden=false;$('loading').textContent='The 3D city could not load. Try reopening the game in a browser with WebGL enabled.';console.error(error);});
   return {start(){active=true;paused=false;$('play').disabled=!view;canvas.focus({preventScroll:true});},pause(value){paused=value;resetInput();},destroy(){canvas.closest('dialog')?.classList.remove('city-walking');destroyed=true;abort.abort();cancelAnimationFrame(frame);view?.dispose();},setMuted(){}};
 }
