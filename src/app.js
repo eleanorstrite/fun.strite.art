@@ -11,7 +11,12 @@ let toastTimer;
 function notify(message) { $('#toast').textContent=message;$('#toast').classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('visible'),4000); }
 let storage;
 try { storage=window.localStorage; } catch { storage={getItem(){throw new Error();},setItem(){throw new Error();}}; }
-const system=createSystem(storage,()=>notify('Browser saving unavailable. Export a save to keep your progress.'));
+// A desk computer runs this exact app and shares the host's live progression API.
+let sharedSystem;try{if(new URLSearchParams(location.search).has('city-computer')&&window.parent!==window)sharedSystem=window.parent.__sidequestSystem;}catch{}
+const sourceSystem=sharedSystem||createSystem(storage,()=>notify('Browser saving unavailable. Export a save to keep your progress.'));
+const pageSubscriptions=new Set();
+const system={...sourceSystem,subscribe(listener){const off=sourceSystem.subscribe(listener);pageSubscriptions.add(off);return ()=>{off();pageSubscriptions.delete(off);};}};
+window.__sidequestSystem=sourceSystem;
 let selectedColor=system.snapshot().character.color,filter='all',engine=null,session=null,currentGame=null,running=false,paused=false;
 const dialog=$('#game-dialog');
 let mazeView='2d';
@@ -215,7 +220,7 @@ document.querySelectorAll('[data-direction]').forEach(button=>button.onclick=()=
 $('#close-game').onclick=()=>dialog.close();
 dialog.addEventListener('close',()=>{engine?.destroy();engine=null;session=null;running=false;});
 $('#game-character').onclick=()=>{if(currentGame?.airRace){if(running)notify('Finish this race to customize your airplane.');else $('#plane-color').focus();return;}if(currentGame?.flight){if(running)notify('Finish this flight to change your flyer or difficulty.');else $('#flight-animal').focus();return;}dialog.close();location.hash='workshop';$('#character-name').focus();};
-window.addEventListener('pagehide',()=>engine?.destroy());
+window.addEventListener('pagehide',()=>{engine?.destroy();engine=null;for(const off of pageSubscriptions)off();pageSubscriptions.clear();});
 $('#export').onclick=()=>{const url=URL.createObjectURL(new Blob([system.exportSave()],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download='sidequest-save.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);notify('Save exported. Keep it somewhere safe.');};
 $('#import-trigger').onclick=()=>$('#import').click();
 $('#import').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{if(file.size>100000)throw new Error('That save file is too large.');const raw=await file.text();if(!confirm('Replace your current character, coins, and upgrades with this save? Export your current save first if you want to keep it.'))return;system.importSave(raw);syncForm();notify('Welcome back. Your universe is restored.');}catch(err){notify(err instanceof SyntaxError?'That file is not valid JSON.':err.message);}finally{e.target.value='';}};

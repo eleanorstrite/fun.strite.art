@@ -156,6 +156,7 @@ export function createCityBuilder({canvas,onHud,wallet=null,openFoodShop=()=>{},
   const walletBox=$('wallet'),walletBalance=$('wallet-balance');
   let walletState=wallet?.snapshot()??{coins:0,upgrades:[]};
   const unsubscribeWallet=wallet?.subscribe(()=>{walletState=wallet.snapshot();syncShopUI();});
+  const computer={open:false,pulse:0,keys:0,zoom:0},computerPanel=$('computer'),computerScreen=$('computer-screen'),computerStatus=$('computer-status');let computerFrame=null,frameAbort=null,computerSave=null;
   const audio=createCityAudio(),powers=createCityPowers(),powerHud=$('power-hud'),powerText=$('power-text'),powerButton=$('power-button');
   let flowerCooldown=0,flowerIndex=0,lastSafe=null,fire=null;
   const fireHud=$('fire-hud'),fireStatus=$('fire-status'),fireBoard=$('fire-board'),fireDrive=$('fire-drive'),fireReturn=$('fire-return'),fireSpray=$('fire-spray');
@@ -205,7 +206,7 @@ export function createCityBuilder({canvas,onHud,wallet=null,openFoodShop=()=>{},
       },options);shopChoices.append(button);}}
     syncShopUI();
   }
-  function mayLeave(){if(fire)return false;if(cityCanLeaveShop(shop))return true;resetInput();shopNotice('Please eat your food or put it on a table before leaving.');return false;}
+  function mayLeave(){if(fire)return false;if(computer.open)closeComputer();if(cityCanLeaveShop(shop))return true;resetInput();shopNotice('Please eat your food or put it on a table before leaving.');return false;}
   function walkTo(p){stand();destinationBuilding=p.building??null;const target=destinationBuilding!==null?cityDoor(state,destinationBuilding):p;path=interior?[{x:Math.max(-6.5,Math.min(6.5,p.x)),z:Math.max(-5.5,Math.min(5.5,p.z))}]:cityPath(state,player,target);}
   function advanceHold(dt){
     if(!hold||hold.done||hold.cancelled)return;hold.elapsed+=dt;if(hold.elapsed<CITY_HOLD_SECONDS)return;hold.done=true;
@@ -215,17 +216,34 @@ export function createCityBuilder({canvas,onHud,wallet=null,openFoodShop=()=>{},
     }else if(cityPlaceFood(shop,hold.hit.surfaceId,hold.hit,player))shopNotice('Food placed on the table. Hold it to pick it up again, or press Space nearby to eat.');
     else shopNotice('Choose a clear spot near you, away from the table edge and other food.');saveOrders();
   }
-  function updateRestControls(message=''){
-    $('stand').hidden=!resting;$('eat').hidden=!interior;
-    $('action').textContent=message||(resting?(resting.pose==='lie'?'Lying down. Move or tap Stand up to get up.':resting.mealId!==undefined?'Seated at a table. Press Space or Eat food. Move to stand up.':'Sitting. Move or tap Stand up to get up.'):'');
+  function typeAtComputer(){
+    if(!active||paused||!resting?.computer)return;computer.pulse=.3;computer.keys++;computerStatus.textContent=`Typing · ${computer.keys} key presses · Click the website to play. Back to city returns to your desk.`;
+    if(computer.open)return;resetInput();computer.open=true;computer.zoom=0;
+    try{computerSave=storage?.getItem(CITY_KEY);}catch{}
+    computerFrame=document.createElement('iframe');computerFrame.title='Sidequest website on your office computer';computerFrame.src='./index.html?city-computer=1';computerFrame.className='city-computer-frame';frameAbort=new AbortController();
+    computerFrame.addEventListener('load',()=>{try{computerFrame.contentWindow.addEventListener('keydown',event=>{if(event.key===' '&&!event.repeat){computer.pulse=.3;computer.keys++;computerStatus.textContent=`Typing · ${computer.keys} key presses`;}if(event.key==='Escape'&&!computerFrame.contentDocument.querySelector('dialog[open]')){event.preventDefault();closeComputer();}}, {signal:frameAbort.signal});}catch{}},{signal:frameAbort.signal});computerScreen.append(computerFrame);
   }
-  function stand(){if(!resting)return;audio.stop();standOrigin={...resting.outside,seat:resting};Object.assign(player,resting.outside);resting=null;updateRestControls();}
+  function closeComputer(){
+    if(!computer.open)return;computer.open=false;computer.zoom=0;computerPanel.hidden=true;frameAbort?.abort();computerScreen.replaceChildren();computerFrame=null;resetInput();
+    // A nested visit to City Builder may have edited the same saved map.
+    try{const raw=storage?.getItem(CITY_KEY);if(raw&&raw!==computerSave){const restored=createCityState(raw),oldId=interior&&state.tiles[interior.index],x=interior?.index%state.size,z=Math.floor(interior?.index/state.size);Object.assign(state,restored);view.rebuild();if(interior&&x<state.size&&z<state.size&&state.tiles[z*state.size+x]===oldId){interior.index=z*state.size+x;interior.outside=cityDoor(state,interior.index);obstacles=view.furnish(oldId,interior.index);}else{interior=null;obstacles=null;resting=null;Object.assign(player,citySpawn(state));}}}catch{}
+    focused=true;canvas.focus({preventScroll:true});updateRestControls();report();
+  }
+  $('computer-close').addEventListener('click',closeComputer,options);
+  $('computer-type').addEventListener('click',()=>{typeAtComputer();canvas.focus({preventScroll:true});},options);
+  canvas.closest('dialog').addEventListener('cancel',event=>{if(computer.open){event.preventDefault();closeComputer();}},options);
+  function updateRestControls(message=''){
+    $('stand').hidden=!resting;$('eat').hidden=!interior;$('computer-type').hidden=!resting?.computer;
+    $('action').textContent=message||(resting?.computer?'Office desk · Press Space to use the computer. Tap Space repeatedly to type. Move to stand up.':resting?(resting.pose==='lie'?'Lying down. Move or tap Stand up to get up.':resting.mealId!==undefined?'Seated at a table. Press Space or Eat food. Move to stand up.':'Sitting. Move or tap Stand up to get up.'):'');
+  }
+  function stand(){if(!resting)return;closeComputer();if(!resting)return;audio.stop();standOrigin={...resting.outside,seat:resting};Object.assign(player,resting.outside);resting=null;updateRestControls();}
   function sit(seat){
     resting={...seat,outside:{x:player.x,z:player.z,angle:player.angle}};
     player.x=seat.x;player.z=seat.z;player.angle=seat.angle;resetInput();updateRestControls();
   }
   function eat(){
     if(fire)return;
+    if(resting?.computer){typeAtComputer();return;}
     if(!active||paused||!interior)return;
     const ordered=cityEatOrderedFood(shop,player);if(ordered){hold=null;saveOrders();view.eatOrder?.(ordered.kind);const power=cityGrantPower(powers,ordered.kind);if(power)audio.magic?.(power);shopNotice(`Yum! You ate the ${CITY_FOOD[ordered.kind].name.toLowerCase()}.`);syncShopUI();return;}
     if(!resting){const seat=cityNearbyMealSeat(obstacles,player);if(seat)sit(seat);}
@@ -256,6 +274,7 @@ export function createCityBuilder({canvas,onHud,wallet=null,openFoodShop=()=>{},
   const keyName=key=>({w:'up',a:'left',s:'down',d:'right',ArrowUp:'up',ArrowLeft:'left',ArrowDown:'down',ArrowRight:'right'}[key.length===1?key.toLowerCase():key]);
   window.addEventListener('keydown',e=>{if(!active||paused||!view||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;
     audio.unlock();
+    if(computer.open){if(e.key==='Escape'){e.preventDefault();closeComputer();}else if(e.key===' '){e.preventDefault();if(!e.repeat)typeAtComputer();}return;}
     if(e.target?.dataset?.food&&[' ','Enter'].includes(e.key))return;
     if(mode==='walk'){const name=keyName(e.key);if(name){e.preventDefault();if(resting&&e.repeat)return;stand();keys.add(name);path=[];destinationBuilding=null;}if(e.code==='Space'||e.key===' '){e.preventDefault();keys.add('magic');if(!e.repeat)eat();}if(e.key.toLowerCase()==='e'&&!e.repeat){e.preventDefault();interact();}}
     else if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)&&e.target===canvas){e.preventDefault();hover??={x:0,y:0};if(e.key==='ArrowUp')hover.y--;if(e.key==='ArrowDown')hover.y++;if(e.key==='ArrowLeft')hover.x--;if(e.key==='ArrowRight')hover.x++;hover.x=Math.max(0,Math.min(state.size-1,hover.x));hover.y=Math.max(0,Math.min(state.size-1,hover.y));if(e.key==='Enter'||e.key===' ')place(hover);}
@@ -266,7 +285,7 @@ export function createCityBuilder({canvas,onHud,wallet=null,openFoodShop=()=>{},
   function place(cell){if(!active||paused||mode!=='build')return;if(cityPlace(state,cell.x,cell.y,tool))refresh();}
   function hit(e){const p=view.pick(e.clientX,e.clientY,Boolean(interior));if(!p)return null;return {...p,cell:p.building!==undefined?{x:p.building%state.size,y:Math.floor(p.building/state.size)}:{x:Math.floor(p.x/5),y:Math.floor(p.z/5)}};}
   function bindCanvas(){canvas.addEventListener('pointerdown',e=>{if(!active||paused||pointer!==null||e.button>0)return;e.preventDefault();audio.unlock();canvas.focus({preventScroll:true});pointer=e.pointerId;canvas.setPointerCapture(pointer);const p=hit(e);if(!p)return;
-    if(fire)return;if(mode==='walk'){if(shop&&(p.orderId!==undefined||(cityCarriedFood(shop)&&p.surfaceId!==undefined))){resetTravel();keys.clear();hold={hit:p,x:e.clientX,y:e.clientY,elapsed:0,done:false,cancelled:false};}else walkTo(p);}
+    if(fire||computer.open)return;if(mode==='walk'){if(shop&&(p.orderId!==undefined||(cityCarriedFood(shop)&&p.surfaceId!==undefined))){resetTravel();keys.clear();hold={hit:p,x:e.clientX,y:e.clientY,elapsed:0,done:false,cancelled:false};}else walkTo(p);}
     else{hover=p.cell;last=hover;place(hover);}},options);
     canvas.addEventListener('pointermove',e=>{if(hold&&e.pointerId===pointer){if(Math.hypot(e.clientX-hold.x,e.clientY-hold.y)>12)hold.cancelled=true;return;}if(mode!=='build')return;const p=hit(e);if(!p)return;hover=p.cell;if(e.pointerId!==pointer||!last)return;e.preventDefault();if(tool==='road'||tool===null){const dx=hover.x-last.x,dy=hover.y-last.y,steps=Math.max(Math.abs(dx),Math.abs(dy));for(let i=1;i<=Math.min(steps,state.size*2);i++)place({x:Math.round(last.x+dx*i/steps),y:Math.round(last.y+dy*i/steps)});}last=hover;},options);
     const release=e=>{if(pointer===e.pointerId){const gesture=hold;hold=null;pointer=null;last=null;if(e.type==='pointerup'&&gesture&&!gesture.done&&!gesture.cancelled)walkTo(gesture.hit);}};for(const name of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(name,release,options);
@@ -280,6 +299,7 @@ export function createCityBuilder({canvas,onHud,wallet=null,openFoodShop=()=>{},
     return (player.altitude||0)>(item?.height?Math.max(2.6,item.height*.1)+2.4:.7);
   }
   function step(dt){moving=false;if(!active||paused||!focused||mode!=='walk')return;
+    if(computer.open)return;
     if(fire){if(fire.phase==='drive'){cityTickFireTrip(fire.trip,dt,{up:keys.has('up'),down:keys.has('down'),left:keys.has('left'),right:keys.has('right'),spray:keys.has('magic')});if(fire.trip.remaining<=0)returnTruck();}return;}
     cityTickPowers(powers,dt);flowerCooldown=Math.max(0,flowerCooldown-dt);
     if(!interior){
@@ -298,8 +318,8 @@ export function createCityBuilder({canvas,onHud,wallet=null,openFoodShop=()=>{},
     nearby=null;if(!interior&&(player.altitude||0)<.1){let distance=2.6;state.tiles.forEach((id,index)=>{if(!CITY_ITEMS[id]?.height)return;const door=cityDoor(state,index),d=Math.hypot(player.x-door.x,player.z-door.z);if(d<distance){nearby=index;distance=d;}});if(destinationBuilding!==null&&!path.length&&nearby===destinationBuilding)enter(destinationBuilding);}
     const text=interior?'Exit building (or walk through door)':nearby!==null?'Enter '+CITY_ITEMS[state.tiles[nearby]].name:'Walk to a front door';if($('enter').textContent!==text)$('enter').textContent=text;$('enter').disabled=!interior&&nearby===null;
   }
-  function loop(now){const dt=Math.min(.04,(now-previous)/1000||0);previous=now;if(view&&!document.hidden){if(active&&!paused)advanceHold(dt);step(dt);if(active&&!paused&&focused)audio.tick(dt,cityBedReaction(roomTheme,resting));syncShopUI();view.render({mode,player,hover,time:now/1000,moving,interior,resting,shop,powers,fire,dt:paused||!active||!focused?0:dt});}frame=requestAnimationFrame(loop);}
+  function loop(now){const dt=Math.min(.04,(now-previous)/1000||0);previous=now;if(view&&!document.hidden){if(active&&!paused)advanceHold(dt);step(dt);if(active&&!paused&&focused)audio.tick(dt,cityBedReaction(roomTheme,resting));syncShopUI();if(computer.open&&!paused){computer.zoom+=dt;computerPanel.hidden=computer.zoom<.25;computer.pulse=Math.max(0,computer.pulse-dt);computerPanel.dataset.typing=String(computer.pulse>0);}view.render({mode,player,hover,time:now/1000,moving,interior,resting,shop,powers,fire,computer,dt:paused||!active||(!focused&&!computer.open)?0:dt});}frame=requestAnimationFrame(loop);}
   canvas.closest('dialog').classList.remove('city-walking');$('build-tools').disabled=false;$('build-tools').hidden=false;$('walk-tools').hidden=true;$('person-customizer').open=true;$('play').textContent='Play — explore your city';$('play').setAttribute('aria-pressed','false');for(const id of ['zoom-in','zoom-out'])$(id).disabled=false;updateRestControls();renderItems();report();$('loading').hidden=false;$('loading').textContent='Preparing your 3D city…';
-  loadScene().then(({createCityScene})=>{if(destroyed)return;view=createCityScene(canvas,state);canvas=view.canvas;canvas.parentElement?.append(shopMenu,shopStatus,walletBox,powerHud,fireHud);bindCanvas();view.portrait($('portrait'));$('loading').hidden=true;$('play').disabled=!active;frame=requestAnimationFrame(loop);}).catch(error=>{if(destroyed)return;$('loading').hidden=false;$('loading').textContent='The 3D city could not load. Try reopening the game in a browser with WebGL enabled.';console.error(error);});
-  return {start(){audio.unlock();active=true;paused=false;$('play').disabled=!view;canvas.focus({preventScroll:true});},pause(value){paused=value;resetInput();syncShopUI();},destroy(){canvas.closest('dialog')?.classList.remove('city-walking');destroyed=true;unsubscribeWallet?.();audio.destroy();walletBox.hidden=true;powerHud.hidden=true;fireHud.hidden=true;panel.append(shopMenu,shopStatus,walletBox,powerHud,fireHud);shopMenu.hidden=true;shopStatus.hidden=true;abort.abort();cancelAnimationFrame(frame);view?.dispose();},setMuted(value){audio.setMuted(value);}};
+  loadScene().then(({createCityScene})=>{if(destroyed)return;view=createCityScene(canvas,state);canvas=view.canvas;canvas.parentElement?.append(shopMenu,shopStatus,walletBox,powerHud,fireHud,computerPanel);bindCanvas();view.portrait($('portrait'));$('loading').hidden=true;$('play').disabled=!active;frame=requestAnimationFrame(loop);}).catch(error=>{if(destroyed)return;$('loading').hidden=false;$('loading').textContent='The 3D city could not load. Try reopening the game in a browser with WebGL enabled.';console.error(error);});
+  return {start(){audio.unlock();active=true;paused=false;$('play').disabled=!view;canvas.focus({preventScroll:true});},pause(value){if(value)closeComputer();paused=value;resetInput();syncShopUI();},destroy(){canvas.closest('dialog')?.classList.remove('city-walking');destroyed=true;frameAbort?.abort();computerScreen.replaceChildren();computerPanel.hidden=true;unsubscribeWallet?.();audio.destroy();walletBox.hidden=true;powerHud.hidden=true;fireHud.hidden=true;panel.append(shopMenu,shopStatus,walletBox,powerHud,fireHud,computerPanel);shopMenu.hidden=true;shopStatus.hidden=true;abort.abort();cancelAnimationFrame(frame);view?.dispose();},setMuted(value){audio.setMuted(value);}};
 }

@@ -201,7 +201,7 @@ export function createCityScene(original,state){
     text(room,CITY_ITEMS[id].name,0,3.2,-5.85,3.7);
     const chair=(x,z)=>{
       const table=tables.find(t=>Math.hypot(t.x-x,t.z-z)<1.4),angle=table?Math.atan2(table.x-x,table.z-z):0;
-      roomObstacles.push({x,z,w:.65,d:.65,use:{pose:'sit',x,z,angle,height:.53}});
+      roomObstacles.push({x,z,w:.65,d:.65,use:{pose:'sit',x,z,angle,height:.53,...(category==='towers'&&table?{computer:{x:table.x,z:table.z}}:{})}});
       const g=new T.Group();room.add(g);g.position.set(x,0,z);g.rotation.y=angle;
       box(g,0,.48,0,.65,.1,.65,wood);box(g,0,.92,-.28,.65,.85,.12,wood);for(const xx of [-.23,.23])for(const zz of [-.23,.23])box(g,xx,.22,zz,.06,.44,.06,wood);
     };
@@ -390,7 +390,7 @@ export function createCityScene(original,state){
     if(meal.owner)meal.owner.shockUntil=roomTime+4;
     return true;
   }
-  function render({mode,player,hover,time,moving,interior,resting=null,shop=null,powers={},fire=null,dt}){
+  function render({mode,player,hover,time,moving,interior,resting=null,shop=null,powers={},fire=null,computer=null,dt}){
     if(celebration){const age=roomTime-celebration.userData.start;if(age>=3.2){celebration.removeFromParent();celebration=null;}else for(const [i,p] of celebration.children.entries()){const t=Math.max(0,age-(i%3)*.22),a=i*2.399;const radius=t*(.65+(i%5)*.15);p.visible=age>=(i%3)*.22;p.position.set(Math.sin(a+t*.6)*radius,1+t*(1.8+(i%4)*.22)-t*t*.8,Math.cos(a+t*.6)*radius);p.rotation.set(t*3+i,t*2,t);p.scale.setScalar(Math.max(0,1-t/3.2));}}
     magic?.render({player,powers,moving,interior,mode:fire?'fire':mode,dt});
     const inside=Boolean(interior);currentRest=resting;bedAlert=inside?cityBedReaction(roomHome?.theme,resting):null;syncOrders(inside?shop:null,player);if(inside){reactionTarget=player;roomTime+=dt;for(const update of roomAnimations)update(roomTime,dt);for(const item of roomObstacles)if(item.use)item.use.occupied=residents.some(r=>r.seated&&Math.hypot(r.x-item.use.x,r.z-item.use.z)<.6);}world.visible=!inside;room.visible=inside;avatar.visible=mode==='walk';grid.visible=mode==='build';
@@ -402,13 +402,15 @@ export function createCityScene(original,state){
       limbs.forEach((limb,i)=>limb.rotation.x=seated?(i%2===0?-Math.PI/2:-.4):swing*(i===0||i===3?1:-1));
       knees.forEach(knee=>knee.rotation.x=seated?Math.PI/2:0);
       for(const [i,limb] of limbs.entries()){limb.rotation.z=(player.altitude||0)>.1?(i%2?(i===1?.35:-.35):0):0;if((player.altitude||0)>.1)limb.rotation.x=i%2?-.35:.25;}
+      if(resting?.computer&&computer?.pulse>0){limbs[1].rotation.x=-1.15+Math.sin(roomTime*38)*.12;limbs[3].rotation.x=-1.15-Math.sin(roomTime*38)*.12;}
       if(shop?.items.some(item=>item.carried)){limbs[1].rotation.x=-1.1;limbs[3].rotation.x=-1.1;}
       bite.visible=eating;if(eating){const lift=Math.sin(Math.min(1,(1.5-biteUntil+roomTime)/.7)*Math.PI/2);limbs[3].rotation.x=-1.3-lift*.8;const drink=['milk','milkshake','galaxyShake'].includes(bite.userData.kind);bite.position.set(.28-.02*lift,1.15+lift*(drink?.23:.5),.36);bite.rotation.set(drink?-lift*.45:0,0,0);}
     }
     const target=new T.Vector3(),position=new T.Vector3();
     if(mode==='walk'){const pose=cityWalkCamera(player,yaw);target.set(pose.target.x,pose.target.y,pose.target.z);position.set(pose.position.x,pose.position.y,pose.position.z);}
     else{target.set(state.size*2.5,0,state.size*2.5);const distance=state.size*5*1.1*zoom;position.set(target.x+Math.sin(yaw+.5)*distance,distance*.85,target.z+Math.cos(yaw+.5)*distance);}
-    const ease=mode==='walk'||!initialized?1:1-Math.exp(-dt*6);camera.position.lerp(position,ease);look.lerp(target,ease);camera.lookAt(look);initialized=true;
+    if(computer?.open&&resting?.computer){const desk=resting.computer;target.set(desk.x,1.25,desk.z+.05);position.set(desk.x,1.45,desk.z+1.25);}
+    const ease=computer?.open?1-Math.exp(-dt*10):mode==='walk'||!initialized?1:1-Math.exp(-dt*6);camera.position.lerp(position,ease);look.lerp(target,ease);camera.lookAt(look);initialized=true;
     for(const piece of doorFrame)piece.visible=position.z<5.6;
     scene.background.set(inside?'#d8d1c4':'#adcbdc');scene.fog.near=inside?200:110;if(fireGraphics.render(fire)){avatar.visible=false;world.visible=false;room.visible=fire.phase==='cab';scene.background.set(fire.phase==='drive'?'#a5d4e8':'#d8d1c4');}renderer.render(scene,camera);
   }
