@@ -26,3 +26,11 @@ test('routing cannot cross a wall and bed protests apply only while resting in a
   for(const [theme,cue] of [['dog','dog'],['cat','cat'],['artist','owner']]){assert.equal(cityBedReaction(theme,{pose:'lie'}),cue);assert.equal(cityBedReaction(theme,{pose:'sit'}),null);assert.equal(cityBedReaction(theme,null),null);}
   assert.equal(cityBedReaction(null,{pose:'lie'}),null);
 });
+
+test('firefighter walks clear routes through truck, equipment, checklist, and greeting duties',async()=>{
+ const {createCityFirefighter,cityTickFirefighter,cityRoomClear}=await import('../src/city-life.js');
+ const obstacles=[{x:-2,z:-1,w:2.8,d:5.6},{x:4,z:-4,w:2.7,d:.7},...[3,4,5].map(x=>({x,z:-4.8,w:.8,d:.6}))],actor=createCityFirefighter(),stages=new Set();let moved=false;
+ const paused=structuredClone(actor);cityTickFirefighter(actor,0,obstacles);assert.deepEqual(actor,paused);
+ for(let i=0;i<3000;i++){cityTickFirefighter(actor,.04,obstacles,[{x:0,z:5}]);stages.add(actor.stage);moved ||= actor.moving;assert.ok(cityRoomClear(actor,obstacles));}
+ assert.ok(moved);for(const stage of ['greeting','walking','checking-truck','checking-gear','reading-checklist'])assert.ok(stages.has(stage),stage);
+});

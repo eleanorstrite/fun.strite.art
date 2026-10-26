@@ -1,6 +1,6 @@
 import {createFireGraphics} from './city-fire-3d.js';
 import {createCityMagic} from './city-magic-3d.js';
-import { citySip, cityBedReaction, createCityRoutine, cityTickRoutine, createCityRoamer, cityRoam } from './city-life.js';
+import { createCityFirefighter, cityTickFirefighter, citySip, cityBedReaction, createCityRoutine, cityTickRoutine, createCityRoamer, cityRoam } from './city-life.js';
 import { CITY_FOOD, CITY_SHOPS } from './city-shop.js';
 import * as T from './vendor/three/three.module.min.js';
 import { cityHomeStyle, cityActivityPose } from './city-interiors.js';
@@ -120,12 +120,20 @@ export function createCityScene(original,state){
       activity??=id==='cafe'?(seated?'drink':'serve'):id==='bakery'?(seated?'eat':'serve'):id==='school'?(seated?'write':'read'):id==='hospital'?'write':id==='market'?'serve':id==='fire'?'read':category==='towers'?'type':'read';
       const g=new T.Group(),body=new T.Group();room.add(g);g.add(body);g.position.set(x,0,z);g.rotation.y=angle;
       const skin=['#c58e68','#754c36','#e5b991'][Math.abs(Math.round(x))%3],hip=seated?.58:.85;
-      const routine=category==='homes'&&seated&&x<0?createCityRoutine('home',{x,z,angle},home.phase):(id==='cafe'||id==='bakery')&&seated?createCityRoutine(x>0?'laptop':'leave',{x,z,angle},home.phase):null;
+      const firefighter=id==='fire';
+      const routine=firefighter?createCityFirefighter(x,z):category==='homes'&&seated&&x<0?createCityRoutine('home',{x,z,angle},home.phase):(id==='cafe'||id==='bakery')&&seated?createCityRoutine(x>0?'laptop':'leave',{x,z,angle},home.phase):null;
       const blocker={x,z,w:.45,d:.45,actor:true};roomObstacles.push(blocker);
       const residentState={x,z,seated,shockUntil:0,routine};residents.push(residentState);g.name='city-resident';g.userData.resident=residentState;
       box(body,0,hip+.3,0,.46,.6,.3,shirt);
       const headGroup=new T.Group();body.add(headGroup);headGroup.position.y=hip+.85;
       ball(headGroup,0,0,0,.18,.23,.18,skin);ball(headGroup,0,.15,0,.19,.11,.19,'#49362d');
+      if(firefighter){
+        cylinder(headGroup,0,.18,0,.25,.055,'#deb331');ball(headGroup,0,.26,0,.2,.14,.2,'#e8c443');box(headGroup,0,.28,.18,.09,.12,.025,'#fff2aa');
+        for(const y of [hip+.12,hip+.45])box(body,0,y,.16,.47,.045,.02,'#eeef99');
+        const key='firefighter-invitation';let bubbleMat=materials.get(key);
+        if(!bubbleMat){const c=document.createElement('canvas');c.width=512;c.height=160;const ctx=c.getContext('2d');ctx.fillStyle='#fff8e9';ctx.strokeStyle='#8f6849';ctx.lineWidth=4;ctx.beginPath();ctx.roundRect(5,5,502,132,22);ctx.fill();ctx.stroke();ctx.beginPath();ctx.moveTo(417,134);ctx.lineTo(435,158);ctx.lineTo(454,134);ctx.fill();ctx.fillStyle='#3c3830';ctx.font='600 34px sans-serif';ctx.textAlign='center';ctx.fillText('Do you want to drive it?',256,83);const map=new T.CanvasTexture(c);map.colorSpace=T.SRGBColorSpace;textures.add(map);bubbleMat=new T.SpriteMaterial({map,depthTest:true});materials.set(key,bubbleMat);}
+        const invitation=new T.Sprite(bubbleMat);invitation.center.set(.85,.5);invitation.name='firefighter-speech-bubble';invitation.userData.text='Do you want to drive it?';invitation.position.set(0,2.55,0);invitation.scale.set(3.1,.97,1);g.add(invitation);
+      }
       const arms=[],eyes=[],legs=[];
       for(const side of [-1,1]){
         const arm=new T.Group(),elbow=new T.Group(),hand=new T.Group();body.add(arm);arm.position.set(side*.3,hip+.53,0);arm.name='city-upper-arm';elbow.name='city-elbow';arm.add(elbow);elbow.position.y=-.28;elbow.add(hand);hand.position.y=-.28;arms.push({arm,elbow,hand,side});
@@ -153,18 +161,19 @@ export function createCityScene(original,state){
       const phase=home.phase+x*.9+z*.3;g.userData.phase=phase;
       animate(g,(time,dt)=>{
         const complaining=bedAlert==='owner',shocked=time<residentState.shockUntil;
-        if(routine&&!complaining){const taken=Boolean(currentRest&&Math.hypot(currentRest.x-x,currentRest.z-z)<.7);cityTickRoutine(routine,dt,roomObstacles,[reactionTarget,...residents.filter(r=>r!==residentState),...roomPets],taken);residentState.x=routine.x;residentState.z=routine.z;}
+        if(routine&&!complaining){const taken=Boolean(currentRest&&Math.hypot(currentRest.x-x,currentRest.z-z)<.7);if(firefighter)cityTickFirefighter(routine,dt,roomObstacles,[reactionTarget,...residents.filter(r=>r!==residentState)]);else cityTickRoutine(routine,dt,roomObstacles,[reactionTarget,...residents.filter(r=>r!==residentState),...roomPets],taken);residentState.x=routine.x;residentState.z=routine.z;}
         const stage=routine?.stage,walking=Boolean(routine?.moving),sitting=seated&&(!routine||stage==='seated'||stage==='typing');residentState.seated=sitting||stage==='standing'||stage==='sitting';
         g.visible=stage!=='away';g.position.set(residentState.x,0,residentState.z);blocker.x=g.visible?residentState.x:100;blocker.z=g.visible?residentState.z:100;
         const rise=!seated?0:sitting?0:stage==='standing'?Math.min(1,routine.clock/.8):stage==='sitting'?1-Math.min(1,routine.clock/.8):1;body.position.y=rise*.27;
-        const facing=stage==='fridge'?Math.PI/2:walking?routine.angle:sitting?angle:g.rotation.y;g.rotation.y+=Math.atan2(Math.sin(facing-g.rotation.y),Math.cos(facing-g.rotation.y))*Math.min(1,dt*9);
-        let action=sitting&&routine?.hasSnack?'eat':stage==='typing'?'type':stage==='fridge'?'serve':stage==='returning'?'eat':activity;
+        const facing=firefighter?(stage==='greeting'?Math.atan2(reactionTarget.x-residentState.x,reactionTarget.z-residentState.z):routine.angle):stage==='fridge'?Math.PI/2:walking?routine.angle:sitting?angle:g.rotation.y;g.rotation.y+=Math.atan2(Math.sin(facing-g.rotation.y),Math.cos(facing-g.rotation.y))*Math.min(1,dt*9);
+        let action=firefighter?(stage==='reading-checklist'?'read':'serve'):sitting&&routine?.hasSnack?'eat':stage==='typing'?'type':stage==='fridge'?'serve':stage==='returning'?'eat':activity;
         const pose=cityActivityPose(action,time,phase),sip=citySip(time,phase),canSip=!walking&&(sitting||!routine)&&!complaining&&!shocked;
         for(let i=0;i<2;i++){const limb=arms[i],a=walking?Math.sin(time*7+i*Math.PI)*.4:i?pose.right:pose.left;limb.arm.rotation.set(shocked||complaining?-1.4:a*.45,0,0);limb.elbow.rotation.set(shocked||complaining?-1:a*.55,0,0);const leg=legs[i];leg.leg.rotation.x=sitting?-Math.PI/2:walking?Math.sin(time*7+i*Math.PI)*.4:0;leg.knee.rotation.x=sitting?Math.PI/2:walking?Math.max(0,-Math.sin(time*7+i*Math.PI))*.3:0;}
         cup.visible=action==='drink'&&canSip;book.visible=action==='read'&&!walking&&!complaining&&!shocked;laptop.visible=stage==='typing';snack.visible=(action==='eat'||stage==='fridge')&&!complaining&&!shocked;tool.visible=!walking&&!complaining&&!shocked;
         if(cup.visible){cup.position.set(.2*(1-sip),hip+.52+.24*sip,.4-.195*sip);cup.rotation.x=-.25*sip;const handTarget=new T.Vector3(.14,-.07,.09).applyQuaternion(cup.quaternion).add(cup.position);aim(arms[1],handTarget);}
         if(action==='eat'&&canSip)aim(arms[1],new T.Vector3(.14*(1-sip),hip+.3+.46*sip,.4-.21*sip));
         if(stage==='typing'){aim(arms[0],new T.Vector3(-.16,hip+.4+Math.sin(time*8)*.02,.53));aim(arms[1],new T.Vector3(.16,hip+.4-Math.sin(time*8)*.02,.53));}
+        if(firefighter&&stage?.startsWith('checking-')){aim(arms[0],new T.Vector3(-.17,hip+.4+Math.sin(time*3)*.06,.4));aim(arms[1],new T.Vector3(.17,hip+.35+Math.cos(time*3)*.06,.43));}
         if(stage==='fridge')aim(arms[1],new T.Vector3(.1,hip+.4,.5));
         headGroup.rotation.x=complaining||shocked||cup.visible?0:pose.head;headGroup.rotation.y=complaining||shocked?Math.atan2(reactionTarget.x-residentState.x,reactionTarget.z-residentState.z)-g.rotation.y:0;
         for(const eye of eyes)eye.scale.set(shocked?.03:.018,shocked?.045:.02,.015);mouth.visible=shocked||complaining||(cup.visible&&sip>.8);mouth.scale.set(.045,complaining?.04+Math.sin(time*12)*.02:shocked?.065:.018,.02);

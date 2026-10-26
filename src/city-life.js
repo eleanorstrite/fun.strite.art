@@ -62,3 +62,20 @@ export function cityTickRoutine(actor,dt,obstacles,blockers=[],seatTaken=false){
     if(u===1){actor.stage='seated';actor.clock=0;actor.angle=actor.origin.angle;}
   }
 }
+// Firefighter duties follow clear walking routes around the engine and lockers.
+export function createCityFirefighter(x=4,z=1){return {x,z,angle:0,path:[],radius:.24,moving:false,clock:0,task:0,stage:'greeting'};}
+export const CITY_FIREFIGHTER_DUTIES=[
+ {x:.15,z:-1,stage:'checking-truck',angle:-Math.PI/2,duration:5},
+ {x:4,z:-3.1,stage:'checking-gear',angle:Math.PI,duration:5},
+ {x:3.5,z:1.5,stage:'reading-checklist',angle:0,duration:6},
+ {x:4,z:1,stage:'greeting',angle:0,duration:4}
+];
+export function cityTickFirefighter(actor,dt,obstacles,blockers=[]){
+ if(dt<=0)return;actor.clock+=dt;actor.moving=false;
+ if(actor.stage==='walking'){
+  if(cityAdvanceWalker(actor,dt,obstacles,blockers,.95)){const duty=CITY_FIREFIGHTER_DUTIES[actor.task];actor.stage=duty.stage;actor.angle=duty.angle;actor.clock=0;actor.task=(actor.task+1)%CITY_FIREFIGHTER_DUTIES.length;}
+  return;
+ }
+ const duration=CITY_FIREFIGHTER_DUTIES.find(d=>d.stage===actor.stage)?.duration??4;
+ if(actor.clock>=duration){const target=CITY_FIREFIGHTER_DUTIES[actor.task],route=cityRoomRoute(actor,target,obstacles);if(route.length){actor.path=route;actor.stage='walking';actor.clock=0;}}
+}

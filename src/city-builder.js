@@ -181,7 +181,7 @@ export function createCityBuilder({canvas,onHud,wallet=null,openFoodShop=()=>{},
   function shopNotice(message){shopMessage=message;shopStatus.textContent=message;updateRestControls(message);}
   function syncShopUI(){
     const station=Boolean(interior&&state.tiles[interior.index]==='fire'&&mode==='walk'),nearTruck=station&&cityNearTruck(player);
-    fireHud.hidden=!active||paused||mode!=='walk'||(!station&&!fire);fireBoard.hidden=Boolean(fire)||!nearTruck;fireDrive.hidden=fire?.phase!=='cab';fireReturn.hidden=!fire;fireSpray.hidden=fire?.phase!=='drive';
+    fireHud.dataset.station=String(!fire);fireHud.hidden=!active||paused||mode!=='walk'||(!station&&!fire);fireBoard.hidden=Boolean(fire)||!nearTruck;fireDrive.hidden=fire?.phase!=='cab';fireReturn.hidden=!fire;fireSpray.hidden=fire?.phase!=='drive';
     fireStatus.textContent=fire?.phase==='drive'?`Firefighting · ${Math.ceil(fire.trip.remaining)}s · ${fire.trip.extinguished}/${fire.trip.fires.length} fires out. Arrows / WASD drive and steer. Hold Space or Spray water. Aim through the windshield at fires ahead.`:fire?'Inside the fire engine · Press Drive for a fresh one-minute firefighting trip.':nearTruck?'Enter the fire engine, then press Drive.':'Walk to the fire engine’s cab door to get in.';
 
     const magicText=fire?'':cityPowerMessage(powers);powerHud.hidden=!active||paused||mode!=='walk'||!magicText;powerText.textContent=magicText;powerButton.hidden=Boolean(interior)||!(powers.flight>0||powers.flowers>0);powerButton.textContent=powers.flight>0?'Hold to fly / Space':'Hold to grow flowers / Space';
