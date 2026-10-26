@@ -216,8 +216,8 @@ export function createCityBuilder({canvas,onHud,wallet=null,openFoodShop=()=>{},
     }else if(cityPlaceFood(shop,hold.hit.surfaceId,hold.hit,player))shopNotice('Food placed on the table. Hold it to pick it up again, or press Space nearby to eat.');
     else shopNotice('Choose a clear spot near you, away from the table edge and other food.');saveOrders();
   }
-  function typeAtComputer(){
-    if(!active||paused||!resting?.computer)return;computer.pulse=.3;computer.keys++;computerStatus.textContent=`Typing · ${computer.keys} key presses · Click the website to play. Back to city returns to your desk.`;
+  function typeAtComputer(typed=true){
+    if(!active||paused||!resting?.computer)return;if(typed){computer.pulse=.3;computer.keys++;}computerStatus.textContent=typed?`Typing · ${computer.keys} key presses · Click the website to play. Back to city returns to your desk.`:'Choose a game on your website to play here. Back to city returns to your desk.';
     if(computer.open)return;resetInput();computer.open=true;computer.zoom=0;
     try{computerSave=storage?.getItem(CITY_KEY);}catch{}
     computerFrame=document.createElement('iframe');computerFrame.title='Sidequest website on your office computer';computerFrame.src='./index.html?city-computer=1';computerFrame.className='city-computer-frame';frameAbort=new AbortController();
@@ -234,12 +234,12 @@ export function createCityBuilder({canvas,onHud,wallet=null,openFoodShop=()=>{},
   canvas.closest('dialog').addEventListener('cancel',event=>{if(computer.open){event.preventDefault();closeComputer();}},options);
   function updateRestControls(message=''){
     $('stand').hidden=!resting;$('eat').hidden=!interior;$('computer-type').hidden=!resting?.computer;
-    $('action').textContent=message||(resting?.computer?'Office desk · Press Space to use the computer. Tap Space repeatedly to type. Move to stand up.':resting?(resting.pose==='lie'?'Lying down. Move or tap Stand up to get up.':resting.mealId!==undefined?'Seated at a table. Press Space or Eat food. Move to stand up.':'Sitting. Move or tap Stand up to get up.'):'');
+    $('action').textContent=message||(resting?.computer?'Office desk · Your website opens when you sit down. Press Space to reopen it or type. Move to stand up.':resting?(resting.pose==='lie'?'Lying down. Move or tap Stand up to get up.':resting.mealId!==undefined?'Seated at a table. Press Space or Eat food. Move to stand up.':'Sitting. Move or tap Stand up to get up.'):'');
   }
   function stand(){if(!resting)return;closeComputer();if(!resting)return;audio.stop();standOrigin={...resting.outside,seat:resting};Object.assign(player,resting.outside);resting=null;updateRestControls();}
   function sit(seat){
     resting={...seat,outside:{x:player.x,z:player.z,angle:player.angle}};
-    player.x=seat.x;player.z=seat.z;player.angle=seat.angle;resetInput();updateRestControls();
+    player.x=seat.x;player.z=seat.z;player.angle=seat.angle;resetInput();updateRestControls();if(seat.computer)typeAtComputer(false);
   }
   function eat(){
     if(fire)return;
