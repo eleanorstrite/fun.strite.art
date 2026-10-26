@@ -53,3 +53,12 @@ test('saved orders follow their plot when resizing and clear when the building i
  state.shopOrders['2,2']={id:'bakery',items:[{kind:'cake',surface:'counter',x:-2,z:-3.1}]};cityResize(state,20);
  const restored=createCityState(citySerialize(state));assert.equal(restored.shopOrders['2,2'].items[0].kind,'cake');cityPlace(restored,2,2,'cafe');assert.equal(restored.shopOrders['2,2'],undefined);
 });
+test('only the three fancy recipes need shop unlocks; everyday foods stay available',async()=>{
+ const {CITY_FOOD,CITY_FOOD_UNLOCKS,cityFoodUnlocked}=await import('../src/city-shop.js');
+ assert.deepEqual(CITY_FOOD_UNLOCKS.map(item=>item.id).sort(),['city-cake','city-fruit-cup','city-galaxy-shake']);
+ for(const [kind,food] of Object.entries(CITY_FOOD)){
+   assert.equal(cityFoodUnlocked(kind),!food.upgrade);
+   assert.equal(cityFoodUnlocked(kind,CITY_FOOD_UNLOCKS.map(item=>item.id)),true);
+   if(food.upgrade)assert.equal(food.price,5);else assert.ok(food.price===1||food.price===2);
+ }
+});

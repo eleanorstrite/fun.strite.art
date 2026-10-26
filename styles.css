@@ -108,3 +108,5 @@ html[data-background="aurora"]{--home-scene:url('./assets/backgrounds/aurora.svg
 .city-wallet{position:absolute;top:10px;left:10px;z-index:4;display:flex;align-items:center;gap:8px;max-width:44%;padding:9px 12px;background:#fff9ebf5;border:1px solid #a8bba6;border-radius:12px;color:#314b40;pointer-events:none}.city-wallet[hidden]{display:none}.city-wallet small,.city-wallet strong{display:block}.city-wallet small{font-size:10px}.city-wallet strong{font-size:16px}#city-food-shop{font-size:11px;margin-top:10px;padding:8px;width:100%}
 
 #city-shop-choices button{white-space:pre-line}
+
+#city-shop-choices button{display:flex;flex-direction:column;align-items:center;gap:4px;white-space:normal}.city-food-name{font-weight:700}.city-food-price{font-size:13px;color:#395d48}.city-food-type,.city-food-lock{font-size:10px;line-height:1.25}.city-food-lock:empty{display:none}
