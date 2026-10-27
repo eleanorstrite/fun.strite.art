@@ -65,7 +65,7 @@ test('only the fancy recipes need shop unlocks; everyday foods stay available',a
 
 test('new everyday foods can be bought and eaten as their own food in every listed shop',async()=>{
  const {CITY_FOOD}=await import('../src/city-shop.js');
- for(const kind of ['chocolateDoughnut','vanillaDoughnut','strawberries','tacos','waffles','pancakes']){
+ for(const kind of ['chocolateDoughnut','vanillaDoughnut','strawberries','tacos','waffles','pancakes','chips']){
   assert.ok(CITY_FOOD[kind].photo);assert.equal(CITY_FOOD[kind].upgrade,undefined);
   for(const [id,config] of Object.entries(CITY_SHOPS).filter(([,s])=>s.menu.includes(kind))){
    const shop=createCityShop(id),player=config.register;let paid;

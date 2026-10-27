@@ -211,3 +211,7 @@ test('City food honors an unlocked unlimited wallet without changing saved coins
 test('white celebration cake recipe persists and each serving costs five shared coins',()=>{
  const storage=memory(),system=createSystem(storage);system.beginSession('test').finish(40);assert.throws(()=>system.buyCityFood('whiteCake'));system.buy('city-white-cake');assert.equal(system.snapshot().coins,10);const reopened=createSystem(storage);reopened.buyCityFood('whiteCake');assert.equal(reopened.snapshot().coins,5);reopened.buyCityFood('whiteCake');assert.equal(reopened.snapshot().coins,0);assert.throws(()=>reopened.buyCityFood('whiteCake'));
 });
+
+test('potato chips are available without a recipe and cost exactly two shared coins',()=>{
+ const storage=memory(),system=createSystem(storage);system.beginSession('test').finish(3);system.buyCityFood('chips');assert.equal(system.snapshot().coins,1);assert.equal(createSystem(storage).snapshot().coins,1);assert.throws(()=>system.buyCityFood('chips'));assert.equal(system.snapshot().coins,1);
+});

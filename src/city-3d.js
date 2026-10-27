@@ -86,7 +86,7 @@ export function createCityScene(original,state){
   }
   let limbs=[],knees=[],head,bite,magic;
   const fireGraphics=createFireGraphics(scene,camera,material,geo);
-  function showBite(kind){bite.clear();const food=orderModel(kind);food.removeFromParent();food.name='eating-'+kind;food.scale.setScalar(['galaxyShake','fruitCup','cake'].includes(kind)?.33:.55);bite.add(food);bite.userData.kind=kind;}
+  function showBite(kind){bite.clear();const food=orderModel(kind);food.removeFromParent();if(kind==='chips')food.getObjectByName('chip-packaging').visible=false;food.name='eating-'+kind;food.scale.setScalar(['galaxyShake','fruitCup','cake'].includes(kind)?.33:.55);bite.add(food);bite.userData.kind=kind;}
   function person(){avatar.clear();limbs=[];knees=[];const p=state.person,skin=solid(p.skin),jacket=solid(p.jacket),pants=solid(p.pants),hair=solid(p.hair);
     const torso=mesh(avatar,geo('torso',()=>new T.CapsuleGeometry(.24,.38,6,12)),jacket,0,1.15,0);torso.scale.z=.65;
     if(p.outfit==='coat')box(avatar,0,.82,0,.53,.55,.36,jacket);
@@ -322,7 +322,16 @@ export function createCityScene(original,state){
     function berry(x,y,z,scale=1){const fruit=smooth(x,y,z,.095*scale,.13*scale,.095*scale,solid('#d52c33',.26));for(let i=0;i<36;i++){const t=(i+.5)/36,a=i*2.399,r=Math.sqrt(1-(2*t-1)**2)*.096*scale;smooth(x+Math.sin(a)*r,y+(2*t-1)*.12*scale,z+Math.cos(a)*r,.003*scale,.006*scale,.003*scale,'#f5c77b');}for(let i=0;i<5;i++){const a=i*Math.PI*2/5;const l=smooth(x+Math.sin(a)*.035*scale,y+.125*scale,z+Math.cos(a)*.035*scale,.025*scale,.008*scale,.055*scale,'#478432');l.rotation.y=a;}return fruit;}
 
 
-    if(food.shape==='white-cake'){
+    if(food.shape==='chips'){
+      const packaging=new T.Group();packaging.name='chip-packaging';g.add(packaging);
+      const bag=mesh(packaging,geo('chip-bag',()=>{const geometry=new T.SphereGeometry(1,40,28),p=geometry.attributes.position;for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i),crease=1+.045*Math.sin(y*35+x*17);p.setXYZ(i,x*.22*(1-Math.abs(y)*.08),.34+y*.31,z*.115*crease);}geometry.computeVertexNormals();return geometry;}),solid('#32928c',.3));
+      for(const y of [.045,.635]){box(packaging,0,y,0,.43,.035,.055,'#236b67');for(let i=0;i<27;i++)box(packaging,(i-13)*.015,y,.03,.004,.031,.005,'#8cc8b8');}
+      const label=texture('chips-label',ctx=>{ctx.fillStyle='#32928c';ctx.fillRect(0,0,256,256);ctx.fillStyle='#fff6ce';ctx.font='bold 28px sans-serif';ctx.textAlign='center';ctx.fillText('POTATO',128,45);ctx.fillStyle='#ffdf57';ctx.font='bold 64px sans-serif';ctx.fillText('CHIPS',128,115);ctx.strokeStyle='#f7d45b';ctx.lineWidth=5;ctx.beginPath();ctx.ellipse(128,180,85,48,0,0,Math.PI*2);ctx.stroke();for(let i=0;i<3;i++){ctx.fillStyle=['#e9b643','#ffe291','#e7bd54'][i];ctx.beginPath();ctx.ellipse(92+i*37,173+i*9,43,20,-.35+i*.35,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#ba8736';ctx.lineWidth=1;for(let j=0;j<5;j++){ctx.beginPath();ctx.moveTo(70+i*37+j*9,168+i*9);ctx.lineTo(75+i*37+j*9,180+i*9);ctx.stroke();}}});label.roughness=.32;label.bumpScale=.001;
+      mesh(packaging,geo('chip-label-panel',()=>{const geometry=new T.PlaneGeometry(.31,.38,16,16),p=geometry.attributes.position;for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i);p.setZ(i,.125-.09*(x/.22)**2-.025*(y/.3)**2);}geometry.computeVertexNormals();return geometry;}),label,0,.35,0);
+      const crisp=texture('potato-crisp',ctx=>{ctx.fillStyle='#ecc466';ctx.fillRect(0,0,256,256);for(let i=0;i<1600;i++){const x=(i*73)%256,y=(i*137)%256;ctx.fillStyle=i%5?'#c99239':'#fff1bd';ctx.globalAlpha=i%5?.22:.7;ctx.beginPath();ctx.arc(x,y,i%3+1,0,Math.PI*2);ctx.fill();}ctx.globalAlpha=1;});crisp.side=T.DoubleSide;crisp.bumpScale=.008;crisp.roughness=.55;crisp.vertexColors=true;
+      const chipGeo=geo('curved-potato-chip',()=>{const geometry=new T.RingGeometry(0,1,48,12);const p=geometry.attributes.position,colors=[];for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getY(i),r=Math.hypot(x,z),edge=1+.035*Math.sin(Math.atan2(z,x)*7);p.setXYZ(i,x*.1*edge,.035*x*x-.025*z*z+.003*Math.sin(x*45),z*.145*edge);const toast=r>.9?.74:1;colors.push(1,toast,toast*.95);}geometry.setAttribute('color',new T.Float32BufferAttribute(colors,3));geometry.computeVertexNormals();return geometry;});
+      for(let i=0;i<7;i++){const chip=mesh(g,chipGeo,crisp,(i%3-1)*.12,.045+Math.floor(i/3)*.025,.21+(i%2)*.09);chip.name='golden-potato-chip';chip.rotation.set(i*.13,i*1.7,(i%3-1)*.25);}
+    }else if(food.shape==='white-cake'){
       lathe('white-cake-board',[[0,0],[.5,0],[.5,.035],[0,.035]],'#ede4d1');
       for(let tier=0;tier<8;tier++){const r=.44-tier*.042,y=.04+tier*.16;lathe('white-cake-tier-'+tier,[[0,y],[r,y],[r,y+.145],[r-.012,y+.16],[0,y+.16]],'#fff9ec');ring(0,y+.015,0,r,.008,'#e9dcc5');for(let i=0;i<30;i++){const a=i*Math.PI/15;smooth(Math.sin(a)*r,y+.02,Math.cos(a)*r,.009,.009,.009,'#fffdf5');}for(let j=0;j<3;j++){const a=tier*.45+j*.22,x=Math.sin(a)*r,z=Math.cos(a)*r;for(let k=0;k<5;k++){const b=k*Math.PI*2/5;smooth(x+Math.sin(b)*.028,y+.08+Math.cos(b)*.028,z+.012,.019,.026,.009,'#fffdf6');}smooth(x,y+.08,z+.025,.009,.01,.009,'#e7cf94');}}
     }else if(food.shape==='tacos'){
