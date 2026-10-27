@@ -1,17 +1,24 @@
 export const CITY_FOOD={
-  bread:{price:1,name:'Bread',shape:'loaf',color:'#c78f4c'},milkshake:{price:2,name:'Milkshake',shape:'shake',color:'#eba5b9'},sandwich:{price:2,name:'Sandwich',shape:'sandwich',color:'#e9c385'},pizza:{price:2,name:'Pizza',shape:'pizza',color:'#edbd63'},
+  bread:{price:1,name:'French baguette',shape:'loaf',color:'#c78f4c'},milkshake:{price:2,name:'Milkshake',shape:'shake',color:'#eba5b9'},sandwich:{price:2,name:'Sandwich',shape:'sandwich',color:'#e9c385'},pizza:{price:2,name:'Pizza',shape:'pizza',color:'#edbd63'},
   croissant:{price:1,name:'Croissant',shape:'croissant',color:'#cf9250'},cupcake:{price:2,name:'Cupcake',shape:'cupcake',color:'#e8a9ca'},cookie:{price:1,name:'Cookie',shape:'cookie',color:'#bc8a51'},doughnut:{price:1,name:'Doughnut',shape:'doughnut',color:'#e8a2b7'},
-  apple:{price:1,name:'Apple',shape:'apple',color:'#c44f42'},milk:{price:1,name:'Milk',shape:'carton',color:'#eee9db'},cheese:{price:2,name:'Cheese',shape:'cheese',color:'#e8bd49'},cereal:{price:2,name:'Cereal',shape:'carton',color:'#d99c4d'},carrot:{price:1,name:'Carrot',shape:'carrot',color:'#e89542'}
+  apple:{price:1,name:'Apple',shape:'apple',color:'#c44f42'},milk:{price:1,name:'Milk',shape:'carton',color:'#eee9db'},cheese:{price:2,name:'Cheese',shape:'cheese',color:'#e8bd49'},cereal:{price:2,name:'Waffle dragon cereal',shape:'carton',color:'#d99c4d'},carrot:{price:1,name:'Carrot',shape:'carrot',color:'#e89542'}
 };
+Object.assign(CITY_FOOD,{
+  chocolateDoughnut:{price:1,name:'Chocolate doughnut',shape:'doughnut',color:'#613020'},
+  vanillaDoughnut:{price:1,name:'Vanilla doughnut',shape:'doughnut',color:'#fff1d8'},
+  strawberries:{price:2,name:'Fresh strawberries',shape:'strawberries',color:'#d83136'}
+});
+// One static photographic atlas; all coordinates are shared by menu previews.
+['bread','milkshake','sandwich','pizza','croissant','cupcake','cookie','doughnut','apple','milk','cheese','cereal','carrot','chocolateDoughnut','vanillaDoughnut','strawberries'].forEach((kind,index)=>CITY_FOOD[kind].photo={column:index%4,row:Math.floor(index/4)});
 CITY_FOOD.cake={name:'Rainbow rosette cake',price:5,shape:'cake',color:'#efb3d1',upgrade:'city-cake',unlockCost:25,icon:'🎂',description:'A tall vanilla cake with rainbow drip icing, rainbow buttercream roses, and candy sprinkles. Eat it to grow rainbow flowers outside with Space for 30 seconds!'};
 CITY_FOOD.galaxyShake={name:'Galaxy milkshake',price:5,shape:'galaxy',color:'#9c8beb',upgrade:'city-galaxy-shake',unlockCost:30,icon:'🌌',description:'A swirling galaxy shake in a glass, topped with whipped cream, a ringed candy planet, and a striped straw. Drink it to fly outside with Space and arrow keys for 30 seconds!'};
 CITY_FOOD.fruitCup={name:'Rainbow fruit parfait',price:5,shape:'fruit-cup',color:'#77d6bb',upgrade:'city-fruit-cup',unlockCost:20,icon:'🌈',description:'A clear glass of yogurt, granola, blueberries, kiwi, orange, and strawberries. Eat it for 30 seconds of super speed with a sparkling golden contrail!'};
 export const CITY_FOOD_UNLOCKS=Object.entries(CITY_FOOD).filter(([,food])=>food.upgrade).map(([kind,food])=>({id:food.upgrade,name:food.name,group:'appearance',category:'CITY BUILDER · Fancy food recipe',icon:food.icon,cost:food.unlockCost,action:'Unlock recipe',description:`${food.description} Permanently unlock the recipe; each City Builder order then costs ${food.price} shared coins.`}));
 export const cityFoodUnlocked=(kind,upgrades=[])=>Boolean(Object.hasOwn(CITY_FOOD,kind)&&(!CITY_FOOD[kind].upgrade||upgrades.includes(CITY_FOOD[kind].upgrade)));
 export const CITY_SHOPS={
-  cafe:{name:'Café menu',menu:['bread','milkshake','sandwich','pizza','galaxyShake'],register:{x:-1,z:-3.5},counter:{id:'counter',x:-3,z:-3.5,w:5,d:1.3,y:1.2},serve:{x:-2,z:-3.1}},
-  bakery:{name:'Bakery menu',menu:['bread','croissant','cupcake','cookie','doughnut','cake'],register:{x:-1,z:-3.5},counter:{id:'counter',x:-3,z:-3.5,w:5,d:1.3,y:1.2},serve:{x:-2,z:-3.1}},
-  market:{name:'Market groceries',menu:['apple','milk','bread','cheese','cereal','carrot','fruitCup'],register:{x:-4,z:4},counter:{id:'counter',x:-4,z:4,w:3,d:1,y:1.05},serve:{x:-3.2,z:4.1}}
+  cafe:{name:'Café menu',menu:['bread','milkshake','sandwich','pizza','doughnut','strawberries','galaxyShake'],register:{x:-1,z:-3.5},counter:{id:'counter',x:-3,z:-3.5,w:5,d:1.3,y:1.2},serve:{x:-2,z:-3.1}},
+  bakery:{name:'Bakery menu',menu:['bread','croissant','cupcake','cookie','doughnut','chocolateDoughnut','vanillaDoughnut','cake'],register:{x:-1,z:-3.5},counter:{id:'counter',x:-3,z:-3.5,w:5,d:1.3,y:1.2},serve:{x:-2,z:-3.1}},
+  market:{name:'Market groceries',menu:['apple','milk','bread','cheese','cereal','carrot','strawberries','fruitCup'],register:{x:-4,z:4},counter:{id:'counter',x:-4,z:4,w:3,d:1,y:1.05},serve:{x:-3.2,z:4.1}}
 };
 export const CITY_HOLD_SECONDS=.55;
 export function createCityShop(id,surfaces=[]){return CITY_SHOPS[id]?{id,items:[],nextId:1,surfaces:[CITY_SHOPS[id].counter,...surfaces.filter(s=>s.id!=='counter')]}:null;}

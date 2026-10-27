@@ -4,7 +4,7 @@ import {createCityBuilder,createCityState,cityPlace} from '../src/city-builder.j
 test('register buttons, hold gestures, Space and all exit routes share the same carried-food state',async()=>{
   const saved=Object.fromEntries(['document','window','requestAnimationFrame','cancelAnimationFrame'].map(key=>[key,globalThis[key]]));
   class Element extends EventTarget{
-    constructor(){super();this.children=[];this.dataset={};this.classList={toggle(){},remove(){}};this.tagName='BUTTON';}
+    constructor(){super();this.children=[];this.dataset={};this.style={};this.classList={toggle(){},remove(){}};this.tagName='BUTTON';}
     setAttribute(){}focus(){}setPointerCapture(){}closest(){return dialog;}replaceChildren(){this.children=[];}append(...children){this.children.push(...children);}
     querySelector(id){if(!elements.has(id))elements.set(id,new Element());return elements.get(id);}
   }

@@ -122,3 +122,5 @@ html[data-background="aurora"]{--home-scene:url('./assets/backgrounds/aurora.svg
 .city-fire-hud[data-station="true"]{top:auto;bottom:10px}.city-fire-hud button[hidden]{display:none}
 
 .city-walk-buttons button[hidden]{display:none}
+
+.city-food-photo{display:block;width:100%;aspect-ratio:1;background:#fff url('./assets/city-food-catalogue.png') no-repeat;background-size:400% 400%;border-radius:8px}.city-food-name{line-height:1.2}#city-shop-choices button{overflow:hidden}

@@ -6,7 +6,7 @@ import {createCityBuilder,createCityState,cityPlace} from '../src/city-builder.j
 for(const input of ['keyboard','touch'])test(`held ${input} movement survives entering, exiting and re-entering a building`,async()=>{
   const saved=Object.fromEntries(['document','window','requestAnimationFrame','cancelAnimationFrame'].map(key=>[key,globalThis[key]]));
   class Element extends EventTarget {
-    constructor(){super();this.children=[];this.dataset={};this.classList={toggle(){},remove(){}};this.tagName='BUTTON';}
+    constructor(){super();this.children=[];this.dataset={};this.style={};this.classList={toggle(){},remove(){}};this.tagName='BUTTON';}
     setAttribute(){} focus(){} setPointerCapture(){} closest(){return dialog;}
     replaceChildren(){this.children=[];} append(child){this.children.push(child);}
     querySelector(id){if(!elements.has(id))elements.set(id,new Element());return elements.get(id);}

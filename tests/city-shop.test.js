@@ -5,7 +5,7 @@ const table={id:'table',x:0,z:0,w:2,d:2,y:1,occupied:[{x:.6,z:.6}]};
 const customer={x:-1,z:-2.2};
 test('register menus are shop specific and ordering requires an available nearby counter',()=>{
   assert.equal(createCityShop('school'),null);
-  assert.deepEqual(CITY_SHOPS.cafe.menu,['bread','milkshake','sandwich','pizza','galaxyShake']);
+  assert.deepEqual(CITY_SHOPS.cafe.menu,['bread','milkshake','sandwich','pizza','doughnut','strawberries','galaxyShake']);
   assert.ok(CITY_SHOPS.bakery.menu.includes('croissant'));assert.ok(CITY_SHOPS.market.menu.includes('milk'));
   const shop=createCityShop('cafe',[table]);assert.equal(cityAtRegister(shop,{x:0,z:5}),false);
   assert.equal(cityOrderFood(shop,'pizza',{x:0,z:5}),null);assert.equal(cityOrderFood(shop,'carrot',customer),null);
@@ -60,5 +60,18 @@ test('only the three fancy recipes need shop unlocks; everyday foods stay availa
    assert.equal(cityFoodUnlocked(kind),!food.upgrade);
    assert.equal(cityFoodUnlocked(kind,CITY_FOOD_UNLOCKS.map(item=>item.id)),true);
    if(food.upgrade)assert.equal(food.price,5);else assert.ok(food.price===1||food.price===2);
+ }
+});
+
+test('new everyday foods can be bought and eaten as their own food in every listed shop',async()=>{
+ const {CITY_FOOD}=await import('../src/city-shop.js');
+ for(const kind of ['chocolateDoughnut','vanillaDoughnut','strawberries']){
+  assert.ok(CITY_FOOD[kind].photo);assert.equal(CITY_FOOD[kind].upgrade,undefined);
+  for(const [id,config] of Object.entries(CITY_SHOPS).filter(([,s])=>s.menu.includes(kind))){
+   const shop=createCityShop(id),player=config.register;let paid;
+   const item=cityOrderFood(shop,kind,player,k=>paid=k);assert.equal(paid,kind);
+   assert.equal(cityPickUpFood(shop,item.id,config.serve),true);
+   assert.equal(cityEatOrderedFood(shop,player).kind,kind);assert.equal(shop.items.length,0);
+  }
  }
 });
