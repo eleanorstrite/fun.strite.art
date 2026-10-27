@@ -42,9 +42,9 @@ test('invalid appearance and map options fall back to safe defaults',()=>{
   const state=createCityState('{"size":99999,"theme":"bad","person":{"skin":"invalid","outfit":"invalid","accessory":"invalid"}}');
   assert.equal(state.size,12);assert.equal(state.person.outfit,'jacket');assert.equal(state.person.accessory,'none');assert.match(state.person.skin,/^#[0-9a-f]{6}$/i);
 });
-test('walking respects building walls, water, map edges, and interior furniture',async()=>{
+test('walking allows ponds while respecting building walls, map edges, and interior furniture',async()=>{
   const {cityCanWalk,cityDoor}=await import('../src/city-builder.js');const state=createCityState();cityPlace(state,0,0,'cafe');cityPlace(state,1,0,'pond');
-  assert.equal(cityCanWalk(state,2.5,2.5),false);assert.equal(cityCanWalk(state,.5,.5),true);assert.equal(cityCanWalk(state,-1,1),false);assert.equal(cityCanWalk(state,7.5,2.5),false);
+  assert.equal(cityCanWalk(state,2.5,2.5),false);assert.equal(cityCanWalk(state,.5,.5),true);assert.equal(cityCanWalk(state,-1,1),false);assert.equal(cityCanWalk(state,7.5,2.5),true);
   const door=cityDoor(state,0);assert.equal(cityCanWalk(state,door.x,door.z),true);
   const room=[{x:0,z:0,w:2,d:2}];assert.equal(cityCanWalk(state,0,0,room),false);assert.equal(cityCanWalk(state,0,4,room),true);assert.equal(cityCanWalk(state,9,4,room),false);
 });
@@ -77,4 +77,10 @@ test('walking camera keeps its height and distance at every position and view an
     assert.ok(Math.abs(Math.hypot(position.x-player.x,position.z-player.z)-5)<1e-10);
     assert.equal(position.y,3.2);assert.deepEqual(target,{x:player.x,y:1.2,z:player.z});
   }
+});
+
+test('swimming matches the water footprint and excludes banks, interiors and flight',async()=>{
+ const {cityIsSwimming,cityCanWalk,cityPath}=await import('../src/city-builder.js');const state=createCityState();cityPlace(state,1,1,'pond');const outfit=JSON.stringify(state.person);
+ assert.equal(cityIsSwimming(state,{x:7.5,z:7.5}),true);assert.equal(cityIsSwimming(state,{x:5.5,z:7.5}),false);assert.equal(cityIsSwimming(state,{x:9.5,z:7.5}),false);assert.equal(cityIsSwimming(state,{x:7.5,z:7.5,altitude:2}),false);assert.equal(cityIsSwimming(state,{x:7.5,z:7.5},{}),false);assert.equal(cityIsSwimming(state,{x:-1,z:7.5}),false);
+ for(let x=5;x<=10;x+=.1)assert.equal(cityCanWalk(state,x,7.5),true);assert.ok(cityPath(state,{x:5,z:7.5},{x:8,z:7.5}).length);assert.equal(JSON.stringify(state.person),outfit);
 });

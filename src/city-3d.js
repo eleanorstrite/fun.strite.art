@@ -5,7 +5,7 @@ import { createCityFirefighter, cityTickFirefighter, citySip, cityBedReaction, c
 import { CITY_FOOD, CITY_SHOPS } from './city-shop.js';
 import * as T from './vendor/three/three.module.min.js';
 import { cityHomeStyle, cityActivityPose } from './city-interiors.js';
-import { CITY_ITEMS, cityWalkCamera } from './city-builder.js';
+import { CITY_ITEMS, cityIsSwimming, cityWalkCamera } from './city-builder.js';
 
 export function createCityScene(original,state){
   const canvas=original.cloneNode();
@@ -84,23 +84,24 @@ export function createCityScene(original,state){
     selection=box(world,0,.05,0,4.95,.03,4.95,material('selection',{color:'#f3db91',transparent:true,opacity:.35,depthWrite:false}));selection.visible=false;
     batch(world);light.target.position.set(center,0,center);light.position.set(center-35,65,center+35);initialized=false;
   }
-  let limbs=[],knees=[],head,bite,magic;
+  let limbs=[],knees=[],head,bite,magic,swimLook=false,swimTime=0;
+  const ripples=new T.Group();ripples.name='swimming-ripples';scene.add(ripples);for(let i=0;i<3;i++){const ring=mesh(ripples,geo('swim-ripple',()=>new T.TorusGeometry(.45,.012,6,48)),material('swim-ripple-'+i,{color:'#d7f8ff',transparent:true,opacity:.5,depthWrite:false}),0,0,0);ring.rotation.x=-Math.PI/2;}ripples.visible=false;
   const fireGraphics=createFireGraphics(scene,camera,material,geo);
   function showBite(kind){bite.clear();const food=orderModel(kind);food.removeFromParent();if(kind==='chips')food.getObjectByName('chip-packaging').visible=false;food.name='eating-'+kind;food.scale.setScalar(['galaxyShake','fruitCup','cake'].includes(kind)?.33:.55);bite.add(food);bite.userData.kind=kind;}
-  function person(){avatar.clear();limbs=[];knees=[];const p=state.person,skin=solid(p.skin),jacket=solid(p.jacket),pants=solid(p.pants),hair=solid(p.hair);
+  function person(swimming=swimLook){swimLook=swimming;avatar.name=swimming?'swimming-player':'city-player';avatar.clear();limbs=[];knees=[];const p=state.person,skin=solid(p.skin),jacket=solid(swimming?'#26b9c8':p.jacket),pants=solid(swimming?'#187b94':p.pants),hair=solid(p.hair);
     const torso=mesh(avatar,geo('torso',()=>new T.CapsuleGeometry(.24,.38,6,12)),jacket,0,1.15,0);torso.scale.z=.65;
-    if(p.outfit==='coat')box(avatar,0,.82,0,.53,.55,.36,jacket);
-    box(avatar,0,1.2,.18,.025,.62,.02,'#c6bd9c');
-    for(const side of [-1,1]){const leg=new T.Group();leg.position.set(side*.13,.77,0);avatar.add(leg);mesh(leg,geo('thigh',()=>new T.CapsuleGeometry(.085,.17,5,10)),pants,0,-.15,0);const knee=new T.Group();leg.add(knee);knee.position.y=-.31;knees.push(knee);mesh(knee,geo('shin',()=>new T.CapsuleGeometry(.08,.17,5,10)),p.pantsStyle==='shorts'?skin:pants,0,-.15,0);box(knee,0,-.33,.06,.19,.14,.34,'#333435');limbs.push(leg);
-      const arm=new T.Group();arm.position.set(side*.32,1.37,0);avatar.add(arm);mesh(arm,geo('arm',()=>new T.CapsuleGeometry(.075,.4,5,10)),jacket,0,-.24,0);ball(arm,0,-.5,0,.07,.1,.07,skin);limbs.push(arm);}
+    if(!swimming&&p.outfit==='coat')box(avatar,0,.82,0,.53,.55,.36,jacket);
+    if(swimming){box(avatar,0,1.13,.18,.44,.06,.025,'#f7e481');torso.name='swimsuit';}else box(avatar,0,1.2,.18,.025,.62,.02,'#c6bd9c');
+    for(const side of [-1,1]){const leg=new T.Group();leg.position.set(side*.13,.77,0);avatar.add(leg);mesh(leg,geo('thigh',()=>new T.CapsuleGeometry(.085,.17,5,10)),pants,0,-.15,0);const knee=new T.Group();leg.add(knee);knee.position.y=-.31;knees.push(knee);mesh(knee,geo('shin',()=>new T.CapsuleGeometry(.08,.17,5,10)),swimming||p.pantsStyle==='shorts'?skin:pants,0,-.15,0);box(knee,0,-.33,.06,.19,.14,.34,swimming?skin:'#333435');limbs.push(leg);
+      const arm=new T.Group();arm.position.set(side*.32,1.37,0);avatar.add(arm);mesh(arm,geo('arm',()=>new T.CapsuleGeometry(.075,.4,5,10)),swimming?skin:jacket,0,-.24,0);ball(arm,0,-.5,0,.07,.1,.07,skin);limbs.push(arm);}
     bite=new T.Group();bite.name='eating-food';avatar.add(bite);bite.visible=false;magic?.reattach();
     cylinder(avatar,0,1.52,0,.08,.16,skin);head=ball(avatar,0,1.76,0,.18,.23,.18,skin);ball(avatar,0,1.9,-.02,.19,.13,.18,hair);ball(avatar,0,1.76,.175,.045,.055,.05,skin);
     for(const x of [-.07,.07])ball(avatar,x,1.8,.16,.018,.022,.015,'#28332e');
-    if(p.outfit==='hoodie')ball(avatar,0,1.52,-.13,.24,.21,.18,jacket);
-    if(p.accessory==='cap'){ball(avatar,0,1.96,0,.2,.09,.2,jacket);box(avatar,0,1.94,.2,.36,.035,.22,jacket);}
-    if(p.accessory==='backpack'){box(avatar,0,1.2,-.24,.4,.52,.2,'#98734c');for(const x of [-.18,.18])box(avatar,x,1.25,.19,.045,.4,.03,'#98734c');}
-    if(p.accessory==='scarf'){cylinder(avatar,0,1.5,0,.18,.14,'#b56f4e');box(avatar,.1,1.28,.2,.13,.4,.05,'#b56f4e');}
-    if(p.accessory==='glasses'){for(const x of [-.075,.075])box(avatar,x,1.8,.182,.12,.075,.025,'#252d2d');box(avatar,0,1.8,.19,.06,.02,.02,'#252d2d');}
+    if(!swimming&&p.outfit==='hoodie')ball(avatar,0,1.52,-.13,.24,.21,.18,jacket);
+    if(!swimming&&p.accessory==='cap'){ball(avatar,0,1.96,0,.2,.09,.2,jacket);box(avatar,0,1.94,.2,.36,.035,.22,jacket);}
+    if(!swimming&&p.accessory==='backpack'){box(avatar,0,1.2,-.24,.4,.52,.2,'#98734c');for(const x of [-.18,.18])box(avatar,x,1.25,.19,.045,.4,.03,'#98734c');}
+    if(!swimming&&p.accessory==='scarf'){cylinder(avatar,0,1.5,0,.18,.14,'#b56f4e');box(avatar,.1,1.28,.2,.13,.4,.05,'#b56f4e');}
+    if(!swimming&&p.accessory==='glasses'){for(const x of [-.075,.075])box(avatar,x,1.8,.182,.12,.075,.025,'#252d2d');box(avatar,0,1.8,.19,.06,.02,.02,'#252d2d');}
   }
   function furnish(id,index=0){clear(room);roomObstacles=[];doorFrame=[];roomAnimations=[];roomTime=0;roomPets=[];roomHome=null;fridgeDoor=null;orderMeshes.clear();computerTargets=[];celebration=null;shopSurfaces=[];meals=[];residents=[];biteUntil=0;const tables=[];const category=CITY_ITEMS[id].category,home=cityHomeStyle(state.size,index),accent=category==='homes'?home.accent:CITY_ITEMS[id].color;
     roomHome=category==='homes'?home:null;
@@ -437,6 +438,7 @@ export function createCityScene(original,state){
   function render({mode,player,hover,time,moving,interior,resting=null,shop=null,powers={},fire=null,computer=null,dt}){
     if(celebration){const age=roomTime-celebration.userData.start;if(age>=3.2){celebration.removeFromParent();celebration=null;}else for(const [i,p] of celebration.children.entries()){const t=Math.max(0,age-(i%3)*.22),a=i*2.399;const radius=t*(.65+(i%5)*.15);p.visible=age>=(i%3)*.22;p.position.set(Math.sin(a+t*.6)*radius,1+t*(1.8+(i%4)*.22)-t*t*.8,Math.cos(a+t*.6)*radius);p.rotation.set(t*3+i,t*2,t);p.scale.setScalar(Math.max(0,1-t/3.2));}}
     magic?.render({player,powers,moving,interior,mode:fire?'fire':mode,dt});
+    const swimming=mode==='walk'&&!fire&&cityIsSwimming(state,player,interior);if(swimming!==swimLook)person(swimming);swimTime+=dt;ripples.visible=swimming;ripples.position.set(player.x,.075,player.z);for(const [i,r] of ripples.children.entries()){const phase=(swimTime*(moving?1.2:.6)+i/3)%1;r.scale.setScalar(.7+phase*1.4);r.material.opacity=(1-phase)*.5;}
     const inside=Boolean(interior);currentRest=resting;bedAlert=inside?cityBedReaction(roomHome?.theme,resting):null;syncOrders(inside?shop:null,player);if(inside){reactionTarget=player;roomTime+=dt;for(const update of roomAnimations)update(roomTime,dt);for(const item of roomObstacles)if(item.use)item.use.occupied=residents.some(r=>r.seated&&Math.hypot(r.x-item.use.x,r.z-item.use.z)<.6);}world.visible=!inside;room.visible=inside;avatar.visible=mode==='walk';grid.visible=mode==='build';
     if(selection){selection.visible=!inside&&mode==='build'&&hover&&hover.x>=0&&hover.y>=0&&hover.x<state.size&&hover.y<state.size;if(selection.visible)selection.position.set(hover.x*5+2.5,.07,hover.y*5+2.5);}
     if(avatar.visible){
@@ -450,6 +452,8 @@ export function createCityScene(original,state){
       if(shop?.items.some(item=>item.carried)){limbs[1].rotation.x=-1.1;limbs[3].rotation.x=-1.1;}
       bite.visible=eating;if(eating){const lift=Math.sin(Math.min(1,(1.5-biteUntil+roomTime)/.7)*Math.PI/2);limbs[3].rotation.x=-1.3-lift*.8;const drink=['milk','milkshake','galaxyShake'].includes(bite.userData.kind);bite.position.set(.28-.02*lift,1.15+lift*(drink?.23:.5),.36);bite.rotation.set(drink?-lift*.45:0,0,0);}
     }
+    avatar.rotation.order=swimming?'YXZ':'XYZ';
+    if(swimming){avatar.rotation.x=.95;avatar.position.set(player.x-Math.sin(player.angle||0)*.6,-.45+Math.sin(swimTime*4)*.025,player.z-Math.cos(player.angle||0)*.6);for(const [i,limb] of limbs.entries()){const phase=swimTime*(moving?5:2)+(i<2?0:Math.PI);limb.rotation.x=i%2?-1.4+Math.sin(phase)*.8:Math.sin(phase)*.25;limb.rotation.z=i%2?(i===1?-.35:.35):0;}for(const knee of knees)knee.rotation.x=.2;}
     const target=new T.Vector3(),position=new T.Vector3();
     if(mode==='walk'){const pose=cityWalkCamera(player,yaw);target.set(pose.target.x,pose.target.y,pose.target.z);position.set(pose.position.x,pose.position.y,pose.position.z);}
     else{target.set(state.size*2.5,0,state.size*2.5);const distance=state.size*5*1.1*zoom;position.set(target.x+Math.sin(yaw+.5)*distance,distance*.85,target.z+Math.cos(yaw+.5)*distance);}
@@ -475,5 +479,5 @@ export function createCityScene(original,state){
   const shapeshift=createCityShapeshift(T,scene,material,geo);
   rebuild();person();
   magic=createCityMagic(T,scene,avatar,material,geo);
-  return {canvas,rebuild,person,render,pick,furnish,eat,growFlower:magic.growFlower,shopSurfaces:()=>shopSurfaces,eatOrder(kind){showBite(kind);biteUntil=roomTime+1.5;if(CITY_FOOD[kind]?.upgrade){celebration?.removeFromParent();celebration=new T.Group();celebration.name='food-celebration';celebration.position.set(reactionTarget.x,0,reactionTarget.z);celebration.userData.start=roomTime;room.add(celebration);for(let i=0;i<72;i++)mesh(celebration,geo(kind==='galaxyShake'?'food-star':'food-confetti',()=>kind==='galaxyShake'?new T.OctahedronGeometry(.035):new T.BoxGeometry(.07,.025,.04)),solid(['#ff3e93','#ffac32','#ffec49','#4be978','#38dbff','#be6bff'][i%6]),0,0,0);}},portrait,faceDoor(){yaw=0;},turn(direction){yaw+=direction*.35;},zoom(value){zoom=Math.max(.65,Math.min(1.5,zoom+value));},yaw:()=>yaw,dispose(){shapeshift.dispose();fireGraphics.dispose();magic.dispose();clear(world);clear(room);for(const m of materials.values())m.dispose();for(const g of geometries.values())g.dispose();for(const t of textures)t.dispose();renderer.dispose();renderer.forceContextLoss();canvas.replaceWith(original);}};
+  return {canvas,rebuild,person,render,pick,furnish,eat,growFlower:magic.growFlower,shopSurfaces:()=>shopSurfaces,eatOrder(kind){showBite(kind);biteUntil=roomTime+1.5;if(CITY_FOOD[kind]?.upgrade){celebration?.removeFromParent();celebration=new T.Group();celebration.name='food-celebration';celebration.position.set(reactionTarget.x,0,reactionTarget.z);celebration.userData.start=roomTime;room.add(celebration);for(let i=0;i<72;i++)mesh(celebration,geo(kind==='galaxyShake'?'food-star':'food-confetti',()=>kind==='galaxyShake'?new T.OctahedronGeometry(.035):new T.BoxGeometry(.07,.025,.04)),solid(['#ff3e93','#ffac32','#ffec49','#4be978','#38dbff','#be6bff'][i%6]),0,0,0);}},portrait,faceDoor(){yaw=0;},turn(direction){yaw+=direction*.35;},zoom(value){zoom=Math.max(.65,Math.min(1.5,zoom+value));},yaw:()=>yaw,dispose(){ripples.removeFromParent();shapeshift.dispose();fireGraphics.dispose();magic.dispose();clear(world);clear(room);for(const m of materials.values())m.dispose();for(const g of geometries.values())g.dispose();for(const t of textures)t.dispose();renderer.dispose();renderer.forceContextLoss();canvas.replaceWith(original);}};
 }

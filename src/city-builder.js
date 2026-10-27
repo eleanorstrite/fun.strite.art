@@ -72,8 +72,11 @@ export function cityCanWalk(state,x,z,room=null) {
   if(room)return x> -6.6&&x<6.6&&z> -5.6&&z<5.6&&!room.some(b=>Math.abs(x-b.x)<b.w/2+.22&&Math.abs(z-b.z)<b.d/2+.22);
   if(x<.3||z<.3||x>state.size*5-.3||z>state.size*5-.3)return false;
   const tx=Math.floor(x/5),tz=Math.floor(z/5),id=state.tiles[tz*state.size+tx];
-  if(id==='pond')return Math.abs(x%5-2.5)>1.75||Math.abs(z%5-2.5)>1.75;
   return !CITY_ITEMS[id]?.height||Math.abs(x%5-2.5)>1.85||Math.abs(z%5-2.5)>1.85;
+}
+export function cityIsSwimming(state,player,interior=null){
+  const {x,z}=player;if(interior||(player.altitude||0)>.1||!Number.isFinite(x)||!Number.isFinite(z)||x<0||z<0||x>=state.size*5||z>=state.size*5)return false;
+  return state.tiles[Math.floor(z/5)*state.size+Math.floor(x/5)]==='pond'&&Math.abs(x%5-2.5)<1.75&&Math.abs(z%5-2.5)<1.75;
 }
 // A one-metre walking grid routes taps around buildings rather than through walls.
 export function cityPath(state,from,to) {
@@ -338,7 +341,7 @@ export function createCityBuilder({canvas,onHud,wallet=null,openFoodShop=()=>{},
     if(resting)return;let dx=0,dz=0;
     if(path.length){const target=path[0],distance=Math.hypot(target.x-player.x,target.z-player.z);if(distance<.14)path.shift();else{dx=(target.x-player.x)/distance;dz=(target.z-player.z)/distance;}}
     else{const right=Number(keys.has('right'))-Number(keys.has('left')),forward=Number(keys.has('up'))-Number(keys.has('down')),yaw=view.yaw();dx=right*Math.cos(yaw)-forward*Math.sin(yaw);dz=-right*Math.sin(yaw)-forward*Math.cos(yaw);const length=Math.hypot(dx,dz);if(length){dx/=length;dz/=length;}}
-    if(dx||dz){const beforeX=player.x,beforeZ=player.z,speed=interior?3.1:powers.speed>0?10.5:(player.altitude||0)>.1?7:4.2;const nx=player.x+dx*speed*dt,nz=player.z+dz*speed*dt;if(interior&&cityLeavingRoom(player,{x:nx,z:nz})){interact();return;}if(!interior&&(player.altitude||0)<.1&&dz<0){const index=state.tiles.findIndex((id,i)=>{if(!CITY_ITEMS[id]?.height)return false;const door=cityDoor(state,i);return Math.abs(nx-door.x)<.5&&player.z>=door.z-.15&&nz<door.z-.15;});if(index>=0){enter(index);return;}}const seat=interior?cityFurnitureAt(obstacles,player,{x:nx,z:nz}):null;if(seat&&!(standOrigin&&seat.x===standOrigin.seat.x&&seat.z===standOrigin.seat.z)){sit(seat);return;}if(interior?cityCanWalk(state,nx,player.z,obstacles):airCanWalk(nx,player.z))player.x=nx;if(interior?cityCanWalk(state,player.x,nz,obstacles):airCanWalk(player.x,nz))player.z=nz;moving=Math.hypot(player.x-beforeX,player.z-beforeZ)>.001;if(moving)player.angle=Math.atan2(dx,dz);else path=[];}
+    if(dx||dz){const beforeX=player.x,beforeZ=player.z,speed=interior?3.1:cityIsSwimming(state,player)?2.3:powers.speed>0?10.5:(player.altitude||0)>.1?7:4.2;const nx=player.x+dx*speed*dt,nz=player.z+dz*speed*dt;if(interior&&cityLeavingRoom(player,{x:nx,z:nz})){interact();return;}if(!interior&&(player.altitude||0)<.1&&dz<0){const index=state.tiles.findIndex((id,i)=>{if(!CITY_ITEMS[id]?.height)return false;const door=cityDoor(state,i);return Math.abs(nx-door.x)<.5&&player.z>=door.z-.15&&nz<door.z-.15;});if(index>=0){enter(index);return;}}const seat=interior?cityFurnitureAt(obstacles,player,{x:nx,z:nz}):null;if(seat&&!(standOrigin&&seat.x===standOrigin.seat.x&&seat.z===standOrigin.seat.z)){sit(seat);return;}if(interior?cityCanWalk(state,nx,player.z,obstacles):airCanWalk(nx,player.z))player.x=nx;if(interior?cityCanWalk(state,player.x,nz,obstacles):airCanWalk(player.x,nz))player.z=nz;moving=Math.hypot(player.x-beforeX,player.z-beforeZ)>.001;if(moving)player.angle=Math.atan2(dx,dz);else path=[];}
     if(moving&&interior&&state.tiles[interior.index]==='fire'&&cityNearTruck(player)){boardTruck();return;}
     if(standOrigin&&Math.hypot(player.x-standOrigin.x,player.z-standOrigin.z)>.6)standOrigin=null;
     nearby=null;if(!interior&&(player.altitude||0)<.1){let distance=2.6;state.tiles.forEach((id,index)=>{if(!CITY_ITEMS[id]?.height)return;const door=cityDoor(state,index),d=Math.hypot(player.x-door.x,player.z-door.z);if(d<distance){nearby=index;distance=d;}});if(destinationBuilding!==null&&!path.length&&nearby===destinationBuilding)enter(destinationBuilding);}
