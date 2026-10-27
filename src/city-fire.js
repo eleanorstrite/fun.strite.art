@@ -14,3 +14,6 @@ export function cityTickFireTrip(trip,dt,input={}){
 export const CITY_FIRE_VICTORY_SECONDS=5;
 export const CITY_FIRE_VICTORY_LINE='Hooray! You saved the town!';
 export const cityFireTripWon=trip=>trip.fires.length>0&&trip.fires.every(fire=>fire.health<=0);
+
+export const CITY_FIRE_FAILURE_SECONDS=5;
+export const CITY_FIRE_FAILURE_LINE='Try again.';

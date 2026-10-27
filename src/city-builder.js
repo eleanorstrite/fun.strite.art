@@ -1,4 +1,4 @@
-import {CITY_FIRE_VICTORY_SECONDS,CITY_FIRE_VICTORY_LINE,cityFireTripWon,cityNearTruck,createCityFireTrip,cityTickFireTrip} from './city-fire.js';
+import {CITY_FIRE_FAILURE_SECONDS,CITY_FIRE_FAILURE_LINE,CITY_FIRE_VICTORY_SECONDS,CITY_FIRE_VICTORY_LINE,cityFireTripWon,cityNearTruck,createCityFireTrip,cityTickFireTrip} from './city-fire.js';
 import {createCityPowers,cityGrantPower,cityTickPowers,cityPowerMessage} from './city-powers.js';
 import { createCityAudio } from './city-audio.js';
 import { cityBedReaction, cityRoomRoute } from './city-life.js';
@@ -181,8 +181,8 @@ export function createCityBuilder({canvas,onHud,wallet=null,openFoodShop=()=>{},
   function shopNotice(message){shopMessage=message;shopStatus.textContent=message;updateRestControls(message);}
   function syncShopUI(){
     const station=Boolean(interior&&state.tiles[interior.index]==='fire'&&mode==='walk'),nearTruck=station&&cityNearTruck(player);
-    fireHud.dataset.station=String(!fire);fireHud.hidden=!active||paused||mode!=='walk'||(!station&&!fire);fireBoard.hidden=Boolean(fire)||!nearTruck;fireDrive.hidden=fire?.phase!=='cab';fireReturn.hidden=!fire||fire.phase==='victory';fireSpray.hidden=fire?.phase!=='drive';
-    fireStatus.textContent=fire?.phase==='victory'?`${CITY_FIRE_VICTORY_LINE} Returning to the station…`:fire?.phase==='drive'?`Firefighting · ${Math.ceil(fire.trip.remaining)}s · ${fire.trip.extinguished}/${fire.trip.fires.length} fires out. Arrows / WASD drive and steer. Hold Space or Spray water. Aim through the windshield at fires ahead.`:fire?'Inside the fire engine · Press Drive for a fresh one-minute firefighting trip.':nearTruck?'Enter the fire engine, then press Drive.':'Walk to the fire engine’s cab door to get in.';
+    fireHud.dataset.station=String(!fire);fireHud.hidden=!active||paused||mode!=='walk'||(!station&&!fire);fireBoard.hidden=Boolean(fire)||!nearTruck;fireDrive.hidden=fire?.phase!=='cab';fireReturn.hidden=!fire||['victory','failure'].includes(fire.phase);fireSpray.hidden=fire?.phase!=='drive';
+    fireStatus.textContent=fire?.phase==='failure'?`${CITY_FIRE_FAILURE_LINE} Returning to the station…`:fire?.phase==='victory'?`${CITY_FIRE_VICTORY_LINE} Returning to the station…`:fire?.phase==='drive'?`Firefighting · ${Math.ceil(fire.trip.remaining)}s · ${fire.trip.extinguished}/${fire.trip.fires.length} fires out. Arrows / WASD drive and steer. Hold Space or Spray water. Aim through the windshield at fires ahead.`:fire?'Inside the fire engine · Press Drive for a fresh one-minute firefighting trip.':nearTruck?'Enter the fire engine, then press Drive.':'Walk to the fire engine’s cab door to get in.';
 
     const magicText=fire?'':cityPowerMessage(powers);powerHud.hidden=!active||paused||mode!=='walk'||!magicText;powerText.textContent=magicText;powerButton.hidden=Boolean(interior)||!(powers.flight>0||powers.flowers>0);powerButton.textContent=powers.flight>0?'Hold to fly / Space':'Hold to grow flowers / Space';
     walletBox.hidden=!active;walletBalance.textContent=walletState.unlimitedCoins?'∞ coins':`${walletState.coins} coins`;
@@ -308,7 +308,7 @@ export function createCityBuilder({canvas,onHud,wallet=null,openFoodShop=()=>{},
   }
   function step(dt){moving=false;if(!active||paused||!focused||mode!=='walk')return;
     if(computer.open)return;
-    if(fire){if(fire.phase==='drive'){cityTickFireTrip(fire.trip,dt,{up:keys.has('up'),down:keys.has('down'),left:keys.has('left'),right:keys.has('right'),spray:keys.has('magic')});if(cityFireTripWon(fire.trip)){resetInput();fire.phase='victory';fire.clipTime=0;fire.trip.speed=0;fire.trip.spraying=false;audio.cheer?.();}else if(fire.trip.remaining<=0)returnTruck();}else if(fire.phase==='victory'){fire.clipTime+=dt;if(fire.clipTime>=CITY_FIRE_VICTORY_SECONDS)returnTruck();}return;}
+    if(fire){if(fire.phase==='drive'){cityTickFireTrip(fire.trip,dt,{up:keys.has('up'),down:keys.has('down'),left:keys.has('left'),right:keys.has('right'),spray:keys.has('magic')});if(cityFireTripWon(fire.trip)){resetInput();fire.phase='victory';fire.clipTime=0;fire.trip.speed=0;fire.trip.spraying=false;audio.cheer?.();}else if(fire.trip.remaining<=0){resetInput();fire.phase='failure';fire.clipTime=0;audio.tryAgain?.();}}else if(fire.phase==='victory'||fire.phase==='failure'){fire.clipTime+=dt;if(fire.clipTime>=(fire.phase==='failure'?CITY_FIRE_FAILURE_SECONDS:CITY_FIRE_VICTORY_SECONDS))returnTruck();}return;}
     cityTickPowers(powers,dt);flowerCooldown=Math.max(0,flowerCooldown-dt);
     if(!interior){
       if(cityCanWalk(state,player.x,player.z))lastSafe={x:player.x,z:player.z};

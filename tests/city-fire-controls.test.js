@@ -15,7 +15,8 @@ test('fire truck cab, Drive, spray, pause and timed return preserve the city',as
   key('keydown',' ');tick(55);key('keyup',' ');assert.equal(snapshot.fire.trip.extinguished,1);
   game.pause(true);const remaining=snapshot.fire.trip.remaining;tick(100);assert.equal(snapshot.fire.trip.remaining,remaining);game.pause(false);
   const z=snapshot.fire.trip.z;walk('w',20);assert.ok(snapshot.fire.trip.z<z);button('play').dispatchEvent(new Event('click'));tick(1);assert.equal(snapshot.mode,'walk','building mode cannot strand the trip');
-  tick(1500);assert.equal(snapshot.fire,null);assert.ok(snapshot.interior);assert.equal(snapshot.player.x,0);assert.equal(snapshot.player.z,3.6);assert.equal(JSON.stringify(state.tiles),original);assert.equal(button('fire-drive').hidden,true);
+  tick(1500);assert.equal(snapshot.fire.phase,'failure');assert.equal(snapshot.fire.trip.remaining,0);assert.equal(snapshot.fire.trip.spraying,false);assert.match(button('fire-status').textContent,/Try again/);assert.equal(button('fire-return').hidden,true);
+  const clipTime=snapshot.fire.clipTime;game.pause(true);tick(100);assert.equal(snapshot.fire.clipTime,clipTime);game.pause(false);tick(150);assert.equal(snapshot.fire,null);assert.ok(snapshot.interior);assert.equal(snapshot.player.x,0);assert.equal(snapshot.player.z,3.6);assert.equal(JSON.stringify(state.tiles),original);assert.equal(button('fire-drive').hidden,true);
   walk('w',16);assert.equal(snapshot.fire.phase,'cab');button('fire-drive').dispatchEvent(new Event('click'));tick(1);assert.equal(snapshot.fire.trip.extinguished,0);button('fire-return').dispatchEvent(new Event('click'));tick(1);assert.equal(snapshot.fire,null);
  }finally{game?.destroy();for(const [k,v]of Object.entries(saved))if(v===undefined)delete globalThis[k];else globalThis[k]=v;}
 });

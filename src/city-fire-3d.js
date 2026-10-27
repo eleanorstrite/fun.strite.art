@@ -1,4 +1,4 @@
-import {CITY_FIRE_VICTORY_LINE} from './city-fire.js';
+import {CITY_FIRE_VICTORY_LINE,CITY_FIRE_FAILURE_LINE} from './city-fire.js';
 import * as T from './vendor/three/three.module.min.js';
 export function createFireGraphics(scene,camera,material,geo){
  const red=material('engine-red',{color:'#c62624',roughness:.27,metalness:.22}),chrome=material('engine-chrome',{color:'#d9e3e9',roughness:.2,metalness:.75}),black=material('engine-rubber',{color:'#20252a',roughness:.8}),glass=material('engine-windows',{color:'#344b58',roughness:.14,metalness:.45}),white=material('engine-white',{color:'#f4e7c9',roughness:.4});
@@ -40,22 +40,31 @@ export function createFireGraphics(scene,camera,material,geo){
  const fires=[],water=new T.Group();water.name='fire-truck-water-spray';field.add(water);const drops=[];for(let i=0;i<75;i++){const m=ball(water,0,0,0,.022,.022,.08,material('fire-water',{color:'#a6e8ff',emissive:'#528ba4',emissiveIntensity:.25,transparent:true,opacity:.75}));drops.push(m);}
  const flameMaterials=['#ffb326','#ff6312','#ffe48a'].map((color,i)=>material('fire-flame-'+i,{color,emissive:color,emissiveIntensity:.55,transparent:true,opacity:.83,depthWrite:false}));
  function reset(trip){for(const fire of fires)fire.group.removeFromParent();fires.length=0;if(!trip)return;for(const f of trip.fires){const group=new T.Group();group.name='small-fire-'+f.id;group.position.set(f.x,0,f.z);field.add(group);const flames=[];for(let i=0;i<9;i++){const m=new T.Mesh(geo('fire-flame-shape',()=>new T.LatheGeometry([[0,0],[.13,.04],[.22,.28],[.13,.65],[.05,1.1],[0,1.4]].map(([r,y])=>new T.Vector2(r,y)),12)),flameMaterials[i%3]);m.position.set(Math.sin(i*2.4)*.35,0,Math.cos(i*2.4)*.35);group.add(m);flames.push(m);}ring(group,0,.025,0,.6,.06,black).rotation.x=-Math.PI/2;fires.push({group,flames});}}
- let lastTrip=null,victoryTruck=null,hero=null,wave=null,mouth=null,bubble=null,bubbleTexture=null,bubbleMaterial=null;
+ // One instanced field of flames keeps the timeout clip inexpensive even on small devices.
+ const wildfire=new T.InstancedMesh(geo('wildfire-flame',()=>new T.LatheGeometry([[0,0],[.35,.1],[.5,.55],[.2,1.3],[.08,2.1],[0,2.6]].map(([r,y])=>new T.Vector2(r,y)),10)),flameMaterials[1],1200);wildfire.name='timeout-grass-fire';wildfire.visible=false;wildfire.frustumCulled=false;field.add(wildfire);
+ let lastTrip=null,victoryTruck=null,hero=null,wave=null,mouth=null,frown=null,brows=[],bubble=null,bubbleTexture=null,bubbleMaterial=null;
+ function setEndingLine(line){if(bubble.userData.text===line)return;const canvas=bubbleTexture.image,ctx=canvas.getContext('2d');ctx.clearRect(0,0,640,160);ctx.fillStyle='#fff8e9';ctx.beginPath();ctx.roundRect(3,3,634,137,22);ctx.fill();ctx.beginPath();ctx.moveTo(300,137);ctx.lineTo(320,158);ctx.lineTo(340,137);ctx.fill();ctx.fillStyle='#293b32';ctx.font='bold 34px sans-serif';ctx.textAlign='center';ctx.fillText(line,320,83);bubbleTexture.needsUpdate=true;bubble.userData.text=line;}
+
  function prepareVictory(){
   if(victoryTruck)return;const parked=parkedEngine;victoryTruck=truck(field).group;parkedEngine=parked;victoryTruck.name='victory-fire-truck';
   hero=new T.Group();hero.name='victory-firefighter';victoryTruck.add(hero);
   const skin=material('victory-skin',{color:'#bd885c',roughness:.7}),helmet=material('victory-helmet',{color:'#efd058',roughness:.4});
   box(hero,-.2,-.35,0,.35,.55,.42,helmet);ball(hero,0,0,0,.22,.25,.21,skin);ball(hero,0,.18,0,.24,.14,.24,helmet);box(hero,.02,.17,0,.55,.05,.55,helmet);
   for(const z of [-.085,.085])ball(hero,.205,.045,z,.02,.025,.02,black);mouth=ball(hero,.215,-.08,0,.012,.055,.055,black);
+  frown=new T.Mesh(geo('firefighter-frown',()=>{const points=[];for(let i=0;i<=16;i++){const t=i/16;points.push(new T.Vector3(.218,-.11+Math.sin(t*Math.PI)*.045,(t-.5)*.13));}return new T.TubeGeometry(new T.CatmullRomCurve3(points),16,.009,6,false);}),black);frown.name='sad-firefighter-mouth';hero.add(frown);
+  for(const z of [-.085,.085]){const brow=box(hero,.211,.095,z,.015,.014,.07,black);brow.rotation.x=z<0?.4:-.4;brows.push(brow);}
   wave=new T.Group();hero.add(wave);wave.position.set(-.04,-.28,.3);box(wave,0,.15,0,.13,.35,.13,helmet);ball(wave,0,.36,0,.075,.09,.075,skin);
   const canvas=document.createElement('canvas');canvas.width=640;canvas.height=160;const ctx=canvas.getContext('2d');ctx.fillStyle='#fff8e9';ctx.beginPath();ctx.roundRect(3,3,634,137,22);ctx.fill();ctx.beginPath();ctx.moveTo(300,137);ctx.lineTo(320,158);ctx.lineTo(340,137);ctx.fill();ctx.fillStyle='#293b32';ctx.font='bold 34px sans-serif';ctx.textAlign='center';ctx.fillText(CITY_FIRE_VICTORY_LINE,320,83);bubbleTexture=new T.CanvasTexture(canvas);bubbleTexture.colorSpace=T.SRGBColorSpace;bubbleMaterial=new T.SpriteMaterial({map:bubbleTexture,depthTest:false});bubble=new T.Sprite(bubbleMaterial);bubble.name='fire-victory-speech';bubble.userData.text=CITY_FIRE_VICTORY_LINE;bubble.scale.set(4.1,1.025,1);victoryTruck.add(bubble);bubble.position.set(1.1,3.8,1.4);
  }
 
- function render(fire){const active=Boolean(fire);if(parkedEngine)parkedEngine.visible=!active;cab.visible=fire?.phase==='cab'||fire?.phase==='drive';field.visible=fire?.phase==='drive'||fire?.phase==='victory';if(victoryTruck)victoryTruck.visible=fire?.phase==='victory';if(!active){lastTrip=null;return false;}
+ function render(fire){const active=Boolean(fire);if(parkedEngine)parkedEngine.visible=!active;cab.visible=fire?.phase==='cab'||fire?.phase==='drive';field.visible=['drive','victory','failure'].includes(fire?.phase);wildfire.visible=fire?.phase==='failure';if(victoryTruck)victoryTruck.visible=['victory','failure'].includes(fire?.phase);if(!active){lastTrip=null;return false;}
   const trip=fire.trip;steering.rotation.z=(trip?.steering||0)*.45;
-  if(fire.phase==='victory'){
+  if(fire.phase==='victory'||fire.phase==='failure'){
    prepareVictory();victoryTruck.visible=true;water.visible=false;for(const f of fires)for(const flame of f.flames)flame.visible=false;
+   const failed=fire.phase==='failure';setEndingLine(failed?CITY_FIRE_FAILURE_LINE:CITY_FIRE_VICTORY_LINE);frown.visible=failed;mouth.visible=!failed;for(const brow of brows)brow.visible=failed;
    const t=fire.clipTime??0,lean=Math.min(1,t/.9);victoryTruck.position.set(trip.x,0,trip.z);victoryTruck.rotation.y=0;hero.position.set(1.05+lean*.55,2.12+lean*.18,1.4);hero.rotation.z=-lean*.1;wave.rotation.x=Math.sin(t*7)*.3;wave.rotation.z=-.35+Math.sin(t*6)*.25;mouth.scale.y=.025+Math.abs(Math.sin(t*11))*.04;bubble.visible=t>.6;
+   if(failed){wave.rotation.set(0,0,Math.PI);hero.rotation.z=-lean*.17;let count=0;for(let i=0;i<1200;i++){const x=(i%40)*2.5-48.75+Math.sin(i*73.7)*.8,z=Math.floor(i/40)*3.3-48+Math.cos(i*31.1); if(Math.hypot(x-trip.x,z-trip.z)<3.8)continue;const spread=Math.min(1,t*1.7),h=(.7+Math.sin(t*8+i*2.4)*.22)*spread;transform.position.set(x,0,z);transform.scale.set(2.3+Math.sin(i)*.4,h*(1+Math.cos(i*2.3)*.25),2.3);transform.rotation.set(0,i*2.4,Math.sin(t*5+i)*.12);transform.updateMatrix();wildfire.setMatrixAt(count++,transform.matrix);}wildfire.count=count;wildfire.instanceMatrix.needsUpdate=true;}
+
    camera.position.set(trip.x+6.5-Math.min(t,2)*.35,3.5,trip.z+5.3);camera.lookAt(trip.x+.7,2.15,trip.z+1.2);
   }else if(fire.phase==='drive'){
    if(lastTrip!==trip){reset(trip);lastTrip=trip;}
@@ -65,5 +74,5 @@ export function createFireGraphics(scene,camera,material,geo){
   }else{camera.position.set(-2,2.2,.75);camera.lookAt(-2,1.9,7);water.visible=false;}
   return true;
  }
- return {truck,render,dispose(){bubbleTexture?.dispose();bubbleMaterial?.dispose();blades.dispose();field.removeFromParent();cab.removeFromParent();}};
+ return {truck,render,dispose(){bubbleTexture?.dispose();bubbleMaterial?.dispose();blades.dispose();wildfire.dispose();field.removeFromParent();cab.removeFromParent();}};
 }
