@@ -9,7 +9,7 @@ test('register buttons, hold gestures, Space and all exit routes share the same 
     querySelector(id){if(!elements.has(id))elements.set(id,new Element());return elements.get(id);}
   }
   const elements=new Map(),dialog=new Element(),panel=new Element(),canvas=new Element(),state=createCityState();cityPlace(state,2,2,'cafe');
-  let frame,now=0,snapshot,game,hit,ate=0;
+  let frame,now=0,snapshot,game,hit,ate=0;const purse={coins:0,upgrades:[]};
   globalThis.document=Object.assign(new Element(),{hidden:false,querySelector:()=>panel,createElement:()=>new Element()});
   globalThis.window=Object.assign(new Element(),{localStorage:{getItem:()=>JSON.stringify(state),setItem(){}}});
   globalThis.requestAnimationFrame=fn=>(frame=fn,1);globalThis.cancelAnimationFrame=()=>{};
@@ -17,8 +17,11 @@ test('register buttons, hold gestures, Space and all exit routes share the same 
   const button=id=>panel.querySelector('#city-'+id),tick=(n=1)=>{for(let i=0;i<n;i++){now+=40;frame(now);}},key=(type,key)=>{const e=new Event(type);e.key=key;window.dispatchEvent(e);},walk=(k,n)=>{key('keydown',k);tick(n);key('keyup',k);};
   const pointer=(type,x=50)=>{const e=new Event(type);Object.assign(e,{pointerId:1,button:0,clientX:x,clientY:50});canvas.dispatchEvent(e);};
   try{
-    game=createCityBuilder({canvas,wallet:{snapshot:()=>({coins:100,upgrades:[]}),subscribe:()=>()=>{},buyFood(){}},onHud(){},loadScene:async()=>({createCityScene:()=>view})});game.start();await Promise.resolve();button('play').dispatchEvent(new Event('click'));walk('w',2);walk('w',58);
-    assert.equal(button('shop-menu').hidden,false);const pizza=button('shop-choices').children.find(b=>b.dataset.food==='pizza');pizza.dispatchEvent(new Event('click'));tick();assert.equal(snapshot.shop.items.length,1);
+    game=createCityBuilder({canvas,wallet:{snapshot:()=>purse,subscribe:()=>()=>{},buyFood(){purse.coins-=2;}},onHud(){},loadScene:async()=>({createCityScene:()=>view})});game.start();await Promise.resolve();button('play').dispatchEvent(new Event('click'));walk('w',2);walk('w',58);
+    assert.equal(button('shop-menu').hidden,false);const pizza=button('shop-choices').children.find(b=>b.dataset.food==='pizza');assert.equal(pizza.disabled,false);pizza.dispatchEvent(new Event('click'));tick();assert.equal(snapshot.shop.items.length,0);assert.match(button('order-message').textContent,/2 more coins/);assert.equal(purse.coins,0);
+    purse.coins=100;tick();pizza.dispatchEvent(new Event('click'));tick();assert.equal(snapshot.shop.items.length,1);assert.match(button('order-message').textContent,/Bought Pizza for 2 coins/);assert.equal(purse.coins,98);pizza.dispatchEvent(new Event('click'));tick();assert.equal(snapshot.shop.items.length,1);assert.equal(purse.coins,98);assert.match(button('order-message').textContent,/Collect or eat/);
+    button('order-eat').dispatchEvent(new Event('click'));tick();assert.equal(snapshot.shop.items.length,0);pizza.dispatchEvent(new Event('click'));tick();assert.equal(snapshot.shop.items.length,1);
+
     hit={x:-2,z:-3.1,orderId:snapshot.shop.items[0].id};pointer('pointerdown');tick(5);pointer('pointercancel');tick(15);assert.equal(snapshot.shop.items[0].carried,false,'cancelled holds cannot pick up');
     pointer('pointerdown');tick(5);pointer('pointermove',80);tick(15);pointer('pointerup');assert.equal(snapshot.shop.items[0].carried,false,'dragging cancels the hold');
     pointer('pointerdown');tick(5);game.pause(true);tick(20);game.pause(false);tick();assert.equal(snapshot.shop.items[0].carried,false,'pause cancels holds');
@@ -26,6 +29,6 @@ test('register buttons, hold gestures, Space and all exit routes share the same 
     walk('s',62);assert.ok(snapshot.interior,'walking exit is blocked while carrying');
     button('enter').dispatchEvent(new Event('click'));button('play').dispatchEvent(new Event('click'));tick();assert.ok(snapshot.interior);assert.equal(snapshot.mode,'walk','build mode cannot bypass the exit rule');
     walk('w',12);hit={x:0,z:3,surfaceId:'table'};pointer('pointerdown');tick(16);pointer('pointerup');tick();assert.equal(snapshot.shop.items[0].surface,'table');assert.equal(snapshot.shop.items[0].carried,false);
-    key('keydown',' ');tick();key('keyup',' ');assert.equal(snapshot.shop.items.length,0);assert.equal(ate,1);button('enter').dispatchEvent(new Event('click'));tick();assert.equal(snapshot.interior,null);assert.equal(snapshot.shop,null);assert.equal(button('shop-menu').hidden,true);
+    key('keydown',' ');tick();key('keyup',' ');assert.equal(snapshot.shop.items.length,0);assert.equal(ate,2);button('enter').dispatchEvent(new Event('click'));tick();assert.equal(snapshot.interior,null);assert.equal(snapshot.shop,null);assert.equal(button('shop-menu').hidden,true);
   }finally{game?.destroy();for(const [key,value]of Object.entries(saved))if(value===undefined)delete globalThis[key];else globalThis[key]=value;}
 });

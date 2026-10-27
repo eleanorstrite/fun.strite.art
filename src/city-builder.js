@@ -153,13 +153,14 @@ export function createCityBuilder({canvas,onHud,wallet=null,openFoodShop=()=>{},
   try{storage=window.localStorage;state=createCityState(storage.getItem(CITY_KEY));}catch{state=createCityState();saveError=true;}
   const abort=new AbortController(),options={signal:abort.signal},panel=document.querySelector('#city-controls'),$=id=>panel.querySelector('#city-'+id);
   const shopMenu=$('shop-menu'),shopChoices=$('shop-choices'),shopTitle=$('shop-title'),shopStatus=$('shop-status');
+  const orderMessage=$('order-message'),orderPickup=$('order-pickup'),orderEat=$('order-eat');
   const walletBox=$('wallet'),walletBalance=$('wallet-balance');
   let walletState=wallet?.snapshot()??{coins:0,upgrades:[]};
   const unsubscribeWallet=wallet?.subscribe(()=>{walletState=wallet.snapshot();syncShopUI();});
   const computer={open:false,pulse:0,keys:0,zoom:0},computerPanel=$('computer'),computerScreen=$('computer-screen'),computerStatus=$('computer-status');let computerFrame=null,frameAbort=null,computerSave=null;
   const audio=createCityAudio(),powers=createCityPowers(),powerHud=$('power-hud'),powerText=$('power-text'),powerButton=$('power-button');
   const animalChoices=document.createElement('div');animalChoices.className='city-animal-choices';animalChoices.hidden=true;powerHud.append(animalChoices);
-  for(const animal of CITY_ANIMALS){const button=document.createElement('button');button.type='button';button.className='button outline';button.dataset.animal=animal;button.textContent=animal[0].toUpperCase()+animal.slice(1);button.addEventListener('click',()=>{if(active&&!paused&&!interior&&!fire&&cityChooseAnimal(powers,animal)){audio.magic?.('shapeshift');canvas.focus({preventScroll:true});}},options);animalChoices.append(button);}
+  for(const animal of CITY_ANIMALS){const button=document.createElement('button');button.type='button';button.className='button outline';button.dataset.animal=animal;button.textContent=animal[0].toUpperCase()+animal.slice(1);button.addEventListener('click',()=>{if(active&&!paused&&!fire&&cityChooseAnimal(powers,animal)){audio.magic?.('shapeshift');canvas.focus({preventScroll:true});}},options);animalChoices.append(button);}
 
   let flowerCooldown=0,flowerIndex=0,lastSafe=null,fire=null;
   const fireHud=$('fire-hud'),fireStatus=$('fire-status'),fireBoard=$('fire-board'),fireDrive=$('fire-drive'),fireReturn=$('fire-return'),fireSpray=$('fire-spray');
@@ -187,27 +188,40 @@ export function createCityBuilder({canvas,onHud,wallet=null,openFoodShop=()=>{},
     fireHud.dataset.station=String(!fire);fireHud.hidden=!active||paused||mode!=='walk'||(!station&&!fire);fireBoard.hidden=Boolean(fire)||!nearTruck;fireDrive.hidden=fire?.phase!=='cab';fireReturn.hidden=!fire||['victory','failure'].includes(fire.phase);fireSpray.hidden=fire?.phase!=='drive';
     fireStatus.textContent=fire?.phase==='failure'?`${CITY_FIRE_FAILURE_LINE} Returning to the station…`:fire?.phase==='victory'?`${CITY_FIRE_VICTORY_LINE} Returning to the station…`:fire?.phase==='drive'?`Firefighting · ${Math.ceil(fire.trip.remaining)}s · ${fire.trip.extinguished}/${fire.trip.fires.length} fires out. Arrows / WASD drive and steer. Hold Space or Spray water. Aim through the windshield at fires ahead.`:fire?'Inside the fire engine · Press Drive for a fresh one-minute firefighting trip.':nearTruck?'Enter the fire engine, then press Drive.':'Walk to the fire engine’s cab door to get in.';
 
-    animalChoices.hidden=Boolean(interior)||powers.shapeshift<=0;for(const button of animalChoices.children)button.setAttribute('aria-pressed',String(button.dataset.animal===powers.animal));
-    const magicText=fire?'':cityPowerMessage(powers,!interior);powerHud.hidden=!active||paused||mode!=='walk'||!magicText;powerText.textContent=magicText;powerButton.hidden=Boolean(interior)||!(powers.flight>0||powers.flowers>0);powerButton.textContent=powers.flight>0?'Hold to fly / Space':'Hold to grow flowers / Space';
+    animalChoices.hidden=powers.shapeshift<=0;for(const button of animalChoices.children)button.setAttribute('aria-pressed',String(button.dataset.animal===powers.animal));
+    const magicText=fire?'':cityPowerMessage(powers,!interior);powerHud.hidden=!active||paused||mode!=='walk'||!magicText;powerText.textContent=magicText;powerButton.hidden=Boolean(interior)||!(powers.flight>0||powers.flowers>0);powerButton.textContent=powers.flight>0?'Hold to fly / Space':powers.flowers>0?'Hold to grow flowers / Space':'';
     walletBox.hidden=!active;walletBalance.textContent=walletState.unlimitedCoins?'∞ coins':`${walletState.coins} coins`;
     const visible=Boolean(active&&!paused&&mode==='walk'&&shop&&interior);
     shopMenu.hidden=!visible||!cityAtRegister(shop,player);
     const bedCue=active&&!paused&&mode==='walk'&&interior?cityBedReaction(roomTheme,resting):null;shopStatus.hidden=!visible&&!bedCue;
     if(bedCue){shopStatus.textContent=bedCue==='dog'?'Woof! The dog is barking. Get out of the bed to calm it down.':bedCue==='cat'?'Meow! The cat is protesting. Get out of the bed to calm it down.':'Hey, get out of the bed!';return;}
     if(!visible)return;
-    const carried=cityCarriedFood(shop),counterFull=shop.items.some(item=>!item.carried&&item.surface==='counter');
-    for(const button of shopChoices.children){const food=CITY_FOOD[button.dataset.food],unlocked=cityFoodUnlocked(button.dataset.food,walletState.upgrades);button.disabled=counterFull||shop.items.length>=6||!unlocked||(!walletState.unlimitedCoins&&walletState.coins<food.price);button.foodLock.textContent=unlocked?'':'🔒 Unlock in main shop';button.title=!unlocked?'Buy the permanent recipe in the main shop':!walletState.unlimitedCoins&&walletState.coins<food.price?'Earn more shared coins to order this food':'';}
+    const carried=cityCarriedFood(shop);
+    const counter=shop.items.find(item=>!item.carried&&item.surface==='counter');
+    orderPickup.hidden=!counter||Boolean(carried);orderEat.hidden=!counter&&!carried;
+    for(const button of shopChoices.children){const reason=orderProblem(button.dataset.food);button.disabled=false;button.foodLock.textContent=reason;button.title=reason||'Order this food';button.dataset.unavailable=String(Boolean(reason));}
+    orderMessage.textContent=shopMessage||(counter?`${CITY_FOOD[counter.kind].name} is waiting on the counter. Pick it up or eat it to clear space.`:!walletState.unlimitedCoins&&walletState.coins<1?'Your shared wallet has 0 coins. Earn coins by playing games, then come back to order.':'Choose a food to order. The price comes from your shared wallet.');
+
     shopStatus.textContent=shop.items.length>=6?'Six orders are already out. Eat an item before ordering more.':hold&&!hold.cancelled&&!hold.done?`Keep holding… ${Math.min(100,Math.round(hold.elapsed/CITY_HOLD_SECONDS*100))}%`:shopMessage||(carried?`Carrying ${CITY_FOOD[carried.kind].name}. Hold a clear spot on a table to put it down, or press Space to eat.`:'Walk to the register to order. Hold food to pick it up. Press Space to eat nearby food.');
   }
+  function orderProblem(kind){
+    const food=CITY_FOOD[kind];if(!wallet)return 'Shared wallet unavailable. Reopen City Builder from the home screen.';
+    if(!cityFoodUnlocked(kind,walletState.upgrades))return 'Unlock this recipe in the main shop first.';
+    if(!walletState.unlimitedCoins&&walletState.coins<food.price){const needed=food.price-walletState.coins;return `You need ${needed} more coin${needed===1?'':'s'}. Earn coins by playing games.`;}
+    const counter=shop?.items.find(item=>!item.carried&&item.surface==='counter');if(counter)return `Collect or eat your ${CITY_FOOD[counter.kind].name.toLowerCase()} first.`;
+    if(shop?.items.length>=6)return 'Eat an existing order to make room.';return '';
+  }
+  orderPickup.addEventListener('click',()=>{if(!active||paused||!interior||!cityAtRegister(shop,player))return;const counter=shop.items.find(item=>!item.carried&&item.surface==='counter');if(counter&&cityPickUpFood(shop,counter.id,player)){saveOrders();shopNotice(`Picked up ${CITY_FOOD[counter.kind].name}. The counter is ready for another order.`);}else shopNotice('Move closer to your order on the counter to pick it up.');syncShopUI();canvas.focus({preventScroll:true});},options);
+  orderEat.addEventListener('click',()=>{if(!active||paused||!interior||!cityAtRegister(shop,player))return;const item=cityCarriedFood(shop)??shop.items.find(item=>item.surface==='counter');if(item&&(item.carried||Math.hypot(item.x-player.x,item.z-player.z)<=2.4))eat();else shopNotice('Move closer to your order on the counter to eat it.');syncShopUI();canvas.focus({preventScroll:true});},options);
   function saveOrders(){if(shop&&interior){state.shopOrders[`${interior.index%state.size},${Math.floor(interior.index/state.size)}`]={id:shop.id,items:shop.items.map(item=>({...item,carried:false}))};save();}}
   $('food-shop').addEventListener('click',()=>{if(active&&!paused&&mayLeave())openFoodShop();},options);
   function prepareShop(id){
     shop=createCityShop(id,view.shopSurfaces?.()??[]);shopMessage='';hold=null;shopChoices.replaceChildren();const saved=state.shopOrders[`${interior.index%state.size},${Math.floor(interior.index/state.size)}`];if(saved?.id===id)restoreCityOrders(shop,saved.items);
     if(shop){shopTitle.textContent=CITY_SHOPS[id].name;for(const kind of CITY_SHOPS[id].menu){const button=document.createElement('button');button.type='button';button.className='button outline';button.dataset.food=kind;const food=CITY_FOOD[kind];
       if(food.photo){const picture=document.createElement('span');picture.className='city-food-photo';const grid=food.photo.grid??4;picture.style.backgroundPosition=`${(food.photo.column??0)*100/(grid-1)}% ${(food.photo.row??0)*100/(grid-1)}%`;if(grid===2){picture.style.backgroundImage="url('./assets/city-food-feast.png')";picture.style.backgroundSize='200% 200%';}if(food.photo.src){picture.style.backgroundImage=`url('${food.photo.src}')`;picture.style.backgroundSize='contain';picture.style.backgroundPosition='center';}picture.setAttribute('aria-hidden','true');button.append(picture);}
-      for(const [className,label] of [['city-food-name',`${food.icon??''} ${food.name}`],['city-food-price',`${food.price} coin${food.price===1?'':'s'}`],['city-food-type',food.upgrade?'Fancy food':'Available · no recipe needed']]){const line=document.createElement('span');line.className=className;line.textContent=label;button.append(line);}button.foodLock=document.createElement('span');button.foodLock.className='city-food-lock';button.append(button.foodLock);
+      for(const [className,label] of [['city-food-name',`${food.icon??''} ${food.name}`],['city-food-price',`${food.price} coin${food.price===1?'':'s'}`],['city-food-type',food.upgrade?`Fancy food · ${kind==='whiteCake'?'Shapeshifting':kind==='cake'?'Rainbow flowers':kind==='galaxyShake'?'Flight':'Golden speed'}`:'Available · no recipe needed']]){const line=document.createElement('span');line.className=className;line.textContent=label;button.append(line);}button.foodLock=document.createElement('span');button.foodLock.className='city-food-lock';button.append(button.foodLock);
       button.addEventListener('click',()=>{if(!active||paused||!interior||!cityAtRegister(shop,player))return;
-        try{if(cityOrderFood(shop,kind,player,food=>{if(!wallet)throw Error('Shared wallet unavailable. Reopen City Builder from the home screen.');wallet.buyFood(food);})){saveOrders();resetInput();shopNotice(`${CITY_FOOD[kind].name} is on the counter. Hold it to pick it up, or press Space to eat.`);}else shopNotice('Clear the counter before ordering again.');}catch(error){shopNotice(error.message);}syncShopUI();canvas.focus({preventScroll:true});
+        try{const reason=orderProblem(kind);if(reason)throw Error(reason);if(cityOrderFood(shop,kind,player,food=>{if(!wallet)throw Error('Shared wallet unavailable. Reopen City Builder from the home screen.');wallet.buyFood(food);})){saveOrders();resetInput();shopNotice(`Bought ${CITY_FOOD[kind].name} for ${CITY_FOOD[kind].price} coin${CITY_FOOD[kind].price===1?'':'s'}! Your order is on the counter. Pick it up or eat it below.`);}else shopNotice('Clear the counter before ordering again.');}catch(error){shopNotice(error.message);}syncShopUI();canvas.focus({preventScroll:true});
       },options);shopChoices.append(button);}}
     syncShopUI();
   }

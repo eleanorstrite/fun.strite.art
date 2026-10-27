@@ -126,3 +126,7 @@ html[data-background="aurora"]{--home-scene:url('./assets/backgrounds/aurora.svg
 .city-food-photo{display:block;width:100%;aspect-ratio:1;background:#fff url('./assets/city-food-catalogue.png') no-repeat;background-size:400% 400%;border-radius:8px}.city-food-name{line-height:1.2}#city-shop-choices button{overflow:hidden}
 
 .city-animal-choices{display:flex;flex-wrap:wrap;gap:5px;max-width:400px}.city-animal-choices[hidden]{display:none}.city-animal-choices button{padding:5px 8px;font-size:12px}.city-animal-choices [aria-pressed=true]{background:#365d50;color:white}
+
+.city-order-feedback{position:sticky;top:-14px;background:#fff9eb;padding:8px 0 12px;z-index:1;border-bottom:1px solid #c8d5bf;margin-bottom:10px}.city-shop-menu .city-order-feedback p{display:block;margin:0 0 8px;font-size:12px;color:#293f35;font-weight:600}.city-order-feedback>div{display:flex;gap:5px;flex-wrap:wrap}.city-order-feedback button{padding:7px;font-size:12px}.city-order-feedback button[hidden]{display:none}#city-shop-choices button[data-unavailable=true]{opacity:1;color:#314b40}#city-shop-choices button[data-unavailable=true] .city-food-lock{color:#90451c}
+
+.city-power-hud button[hidden]{display:none!important}.city-animal-choices{pointer-events:auto}
