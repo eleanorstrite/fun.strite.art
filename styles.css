@@ -124,3 +124,5 @@ html[data-background="aurora"]{--home-scene:url('./assets/backgrounds/aurora.svg
 .city-walk-buttons button[hidden]{display:none}
 
 .city-food-photo{display:block;width:100%;aspect-ratio:1;background:#fff url('./assets/city-food-catalogue.png') no-repeat;background-size:400% 400%;border-radius:8px}.city-food-name{line-height:1.2}#city-shop-choices button{overflow:hidden}
+
+.city-animal-choices{display:flex;flex-wrap:wrap;gap:5px;max-width:400px}.city-animal-choices[hidden]{display:none}.city-animal-choices button{padding:5px 8px;font-size:12px}.city-animal-choices [aria-pressed=true]{background:#365d50;color:white}

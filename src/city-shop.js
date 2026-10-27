@@ -13,12 +13,18 @@ Object.assign(CITY_FOOD,{
 CITY_FOOD.cake={name:'Rainbow rosette cake',price:5,shape:'cake',color:'#efb3d1',upgrade:'city-cake',unlockCost:25,icon:'🎂',description:'A tall vanilla cake with rainbow drip icing, rainbow buttercream roses, and candy sprinkles. Eat it to grow rainbow flowers outside with Space for 30 seconds!'};
 CITY_FOOD.galaxyShake={name:'Galaxy milkshake',price:5,shape:'galaxy',color:'#9c8beb',upgrade:'city-galaxy-shake',unlockCost:30,icon:'🌌',description:'A swirling galaxy shake in a glass, topped with whipped cream, a ringed candy planet, and a striped straw. Drink it to fly outside with Space and arrow keys for 30 seconds!'};
 CITY_FOOD.fruitCup={name:'Rainbow fruit parfait',price:5,shape:'fruit-cup',color:'#77d6bb',upgrade:'city-fruit-cup',unlockCost:20,icon:'🌈',description:'A clear glass of yogurt, granola, blueberries, kiwi, orange, and strawberries. Eat it for 30 seconds of super speed with a sparkling golden contrail!'};
+Object.assign(CITY_FOOD,{
+ tacos:{name:'Crunchy tacos',price:2,shape:'tacos',color:'#dca647',photo:{column:0,row:0,grid:2}},
+ waffles:{name:'Berry waffles',price:2,shape:'waffles',color:'#d49a4c',photo:{column:1,row:0,grid:2}},
+ pancakes:{name:'Berry pancakes',price:2,shape:'pancakes',color:'#e1af68',photo:{column:0,row:1,grid:2}},
+ whiteCake:{name:'White celebration cake',price:5,shape:'white-cake',color:'#fff8eb',upgrade:'city-white-cake',unlockCost:30,icon:'🍰',photo:{column:1,row:1,grid:2},description:'Eight ivory tiers with pearl piping and white flowers. Step outside to shapeshift into a tiger, dragon, cat, dog, giraffe or elephant for 30 seconds!'}
+});
 export const CITY_FOOD_UNLOCKS=Object.entries(CITY_FOOD).filter(([,food])=>food.upgrade).map(([kind,food])=>({id:food.upgrade,name:food.name,group:'appearance',category:'CITY BUILDER · Fancy food recipe',icon:food.icon,cost:food.unlockCost,action:'Unlock recipe',description:`${food.description} Permanently unlock the recipe; each City Builder order then costs ${food.price} shared coins.`}));
 export const cityFoodUnlocked=(kind,upgrades=[])=>Boolean(Object.hasOwn(CITY_FOOD,kind)&&(!CITY_FOOD[kind].upgrade||upgrades.includes(CITY_FOOD[kind].upgrade)));
 export const CITY_SHOPS={
-  cafe:{name:'Café menu',menu:['bread','milkshake','sandwich','pizza','doughnut','strawberries','galaxyShake'],register:{x:-1,z:-3.5},counter:{id:'counter',x:-3,z:-3.5,w:5,d:1.3,y:1.2},serve:{x:-2,z:-3.1}},
-  bakery:{name:'Bakery menu',menu:['bread','croissant','cupcake','cookie','doughnut','chocolateDoughnut','vanillaDoughnut','cake'],register:{x:-1,z:-3.5},counter:{id:'counter',x:-3,z:-3.5,w:5,d:1.3,y:1.2},serve:{x:-2,z:-3.1}},
-  market:{name:'Market groceries',menu:['apple','milk','bread','cheese','cereal','carrot','strawberries','fruitCup'],register:{x:-4,z:4},counter:{id:'counter',x:-4,z:4,w:3,d:1,y:1.05},serve:{x:-3.2,z:4.1}}
+  cafe:{name:'Café menu',menu:['bread','milkshake','sandwich','pizza','doughnut','strawberries','tacos','waffles','pancakes','galaxyShake'],register:{x:-1,z:-3.5},counter:{id:'counter',x:-3,z:-3.5,w:5,d:1.3,y:1.2},serve:{x:-2,z:-3.1}},
+  bakery:{name:'Bakery menu',menu:['bread','croissant','cupcake','cookie','doughnut','chocolateDoughnut','vanillaDoughnut','waffles','pancakes','cake','whiteCake'],register:{x:-1,z:-3.5},counter:{id:'counter',x:-3,z:-3.5,w:5,d:1.3,y:1.2},serve:{x:-2,z:-3.1}},
+  market:{name:'Market groceries',menu:['apple','milk','bread','cheese','cereal','carrot','strawberries','tacos','fruitCup'],register:{x:-4,z:4},counter:{id:'counter',x:-4,z:4,w:3,d:1,y:1.05},serve:{x:-3.2,z:4.1}}
 };
 export const CITY_HOLD_SECONDS=.55;
 export function createCityShop(id,surfaces=[]){return CITY_SHOPS[id]?{id,items:[],nextId:1,surfaces:[CITY_SHOPS[id].counter,...surfaces.filter(s=>s.id!=='counter')]}:null;}

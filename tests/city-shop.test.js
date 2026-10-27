@@ -5,7 +5,7 @@ const table={id:'table',x:0,z:0,w:2,d:2,y:1,occupied:[{x:.6,z:.6}]};
 const customer={x:-1,z:-2.2};
 test('register menus are shop specific and ordering requires an available nearby counter',()=>{
   assert.equal(createCityShop('school'),null);
-  assert.deepEqual(CITY_SHOPS.cafe.menu,['bread','milkshake','sandwich','pizza','doughnut','strawberries','galaxyShake']);
+  assert.deepEqual(CITY_SHOPS.cafe.menu,['bread','milkshake','sandwich','pizza','doughnut','strawberries','tacos','waffles','pancakes','galaxyShake']);
   assert.ok(CITY_SHOPS.bakery.menu.includes('croissant'));assert.ok(CITY_SHOPS.market.menu.includes('milk'));
   const shop=createCityShop('cafe',[table]);assert.equal(cityAtRegister(shop,{x:0,z:5}),false);
   assert.equal(cityOrderFood(shop,'pizza',{x:0,z:5}),null);assert.equal(cityOrderFood(shop,'carrot',customer),null);
@@ -53,9 +53,9 @@ test('saved orders follow their plot when resizing and clear when the building i
  state.shopOrders['2,2']={id:'bakery',items:[{kind:'cake',surface:'counter',x:-2,z:-3.1}]};cityResize(state,20);
  const restored=createCityState(citySerialize(state));assert.equal(restored.shopOrders['2,2'].items[0].kind,'cake');cityPlace(restored,2,2,'cafe');assert.equal(restored.shopOrders['2,2'],undefined);
 });
-test('only the three fancy recipes need shop unlocks; everyday foods stay available',async()=>{
+test('only the fancy recipes need shop unlocks; everyday foods stay available',async()=>{
  const {CITY_FOOD,CITY_FOOD_UNLOCKS,cityFoodUnlocked}=await import('../src/city-shop.js');
- assert.deepEqual(CITY_FOOD_UNLOCKS.map(item=>item.id).sort(),['city-cake','city-fruit-cup','city-galaxy-shake']);
+ assert.deepEqual(CITY_FOOD_UNLOCKS.map(item=>item.id).sort(),['city-cake','city-fruit-cup','city-galaxy-shake','city-white-cake']);
  for(const [kind,food] of Object.entries(CITY_FOOD)){
    assert.equal(cityFoodUnlocked(kind),!food.upgrade);
    assert.equal(cityFoodUnlocked(kind,CITY_FOOD_UNLOCKS.map(item=>item.id)),true);
@@ -65,7 +65,7 @@ test('only the three fancy recipes need shop unlocks; everyday foods stay availa
 
 test('new everyday foods can be bought and eaten as their own food in every listed shop',async()=>{
  const {CITY_FOOD}=await import('../src/city-shop.js');
- for(const kind of ['chocolateDoughnut','vanillaDoughnut','strawberries']){
+ for(const kind of ['chocolateDoughnut','vanillaDoughnut','strawberries','tacos','waffles','pancakes']){
   assert.ok(CITY_FOOD[kind].photo);assert.equal(CITY_FOOD[kind].upgrade,undefined);
   for(const [id,config] of Object.entries(CITY_SHOPS).filter(([,s])=>s.menu.includes(kind))){
    const shop=createCityShop(id),player=config.register;let paid;

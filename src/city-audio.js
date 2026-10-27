@@ -19,7 +19,7 @@ export function createCityAudio({Context=globalThis.AudioContext||globalThis.web
   }
   function magic(kind){
     if(destroyed||muted)return;unlock();if(!context||context.state==='suspended')return;
-    const notes={flight:[392,587,784,1175,1568],speed:[330,440,660,880,1320],flowers:[523,659,784,1047,1319],bloom:[784,1175]}[kind];if(!notes)return;
+    const notes={shapeshift:[262,392,622,784,1245],flight:[392,587,784,1175,1568],speed:[330,440,660,880,1320],flowers:[523,659,784,1047,1319],bloom:[784,1175]}[kind];if(!notes)return;
     for(const [i,hz] of notes.entries()){const oscillator=context.createOscillator(),gain=context.createGain(),at=context.currentTime+i*.1;oscillator.type=kind==='flight'?'sine':'triangle';oscillator.frequency.setValueAtTime(hz,at);oscillator.frequency.exponentialRampToValueAtTime(hz*1.025,at+.55);gain.gain.setValueAtTime(.001,at);gain.gain.linearRampToValueAtTime(kind==='bloom'?.025:.045,at+.025);gain.gain.exponentialRampToValueAtTime(.001,at+.6);oscillator.connect(gain);gain.connect(context.destination);voices.add(oscillator);oscillator.onended=()=>{voices.delete(oscillator);oscillator.disconnect();gain.disconnect();};oscillator.start(at);oscillator.stop(at+.65);}
   }
   function cheer(){if(destroyed||muted)return;magic('flowers');if(speech&&Utterance){const line=new Utterance('Hooray! You saved the town!');line.rate=.95;line.pitch=1.1;speaking=true;line.onend=line.onerror=()=>{speaking=false;};speech.speak(line);}}

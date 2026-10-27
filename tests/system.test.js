@@ -208,3 +208,6 @@ test('City food spends the shared wallet, rejects locked recipes, and persists p
 test('City food honors an unlocked unlimited wallet without changing saved coins',async()=>{
  const system=createSystem(memory());await system.unlockWallet('TestFirst','TestSecond');system.buy('city-cake');system.buyCityFood('cake');assert.equal(system.snapshot().coins,0);assert.equal(system.snapshot().unlimitedCoins,true);
 });
+test('white celebration cake recipe persists and each serving costs five shared coins',()=>{
+ const storage=memory(),system=createSystem(storage);system.beginSession('test').finish(40);assert.throws(()=>system.buyCityFood('whiteCake'));system.buy('city-white-cake');assert.equal(system.snapshot().coins,10);const reopened=createSystem(storage);reopened.buyCityFood('whiteCake');assert.equal(reopened.snapshot().coins,5);reopened.buyCityFood('whiteCake');assert.equal(reopened.snapshot().coins,0);assert.throws(()=>reopened.buyCityFood('whiteCake'));
+});

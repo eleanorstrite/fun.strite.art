@@ -1,3 +1,4 @@
+import {createCityShapeshift} from './city-shapeshift-3d.js';
 import {createFireGraphics} from './city-fire-3d.js';
 import {createCityMagic} from './city-magic-3d.js';
 import { createCityFirefighter, cityTickFirefighter, citySip, cityBedReaction, createCityRoutine, cityTickRoutine, createCityRoamer, cityRoam } from './city-life.js';
@@ -321,7 +322,16 @@ export function createCityScene(original,state){
     function berry(x,y,z,scale=1){const fruit=smooth(x,y,z,.095*scale,.13*scale,.095*scale,solid('#d52c33',.26));for(let i=0;i<36;i++){const t=(i+.5)/36,a=i*2.399,r=Math.sqrt(1-(2*t-1)**2)*.096*scale;smooth(x+Math.sin(a)*r,y+(2*t-1)*.12*scale,z+Math.cos(a)*r,.003*scale,.006*scale,.003*scale,'#f5c77b');}for(let i=0;i<5;i++){const a=i*Math.PI*2/5;const l=smooth(x+Math.sin(a)*.035*scale,y+.125*scale,z+Math.cos(a)*.035*scale,.025*scale,.008*scale,.055*scale,'#478432');l.rotation.y=a;}return fruit;}
 
 
-    if(food.shape==='cake'){
+    if(food.shape==='white-cake'){
+      lathe('white-cake-board',[[0,0],[.5,0],[.5,.035],[0,.035]],'#ede4d1');
+      for(let tier=0;tier<8;tier++){const r=.44-tier*.042,y=.04+tier*.16;lathe('white-cake-tier-'+tier,[[0,y],[r,y],[r,y+.145],[r-.012,y+.16],[0,y+.16]],'#fff9ec');ring(0,y+.015,0,r,.008,'#e9dcc5');for(let i=0;i<30;i++){const a=i*Math.PI/15;smooth(Math.sin(a)*r,y+.02,Math.cos(a)*r,.009,.009,.009,'#fffdf5');}for(let j=0;j<3;j++){const a=tier*.45+j*.22,x=Math.sin(a)*r,z=Math.cos(a)*r;for(let k=0;k<5;k++){const b=k*Math.PI*2/5;smooth(x+Math.sin(b)*.028,y+.08+Math.cos(b)*.028,z+.012,.019,.026,.009,'#fffdf6');}smooth(x,y+.08,z+.025,.009,.01,.009,'#e7cf94');}}
+    }else if(food.shape==='tacos'){
+      for(const x of [-.16,.16]){const shell=mesh(g,geo('taco-shell',()=>new T.TorusGeometry(.16,.017,8,40,Math.PI)),baked,x,.19,0);shell.rotation.z=Math.PI;smooth(x,.19,-.065,.13,.17,.018,baked);smooth(x,.19,.065,.13,.17,.018,baked);for(let i=0;i<18;i++){const z=(i%3-1)*.035,xx=x+Math.sin(i*2.4)*.1;smooth(xx,.16+(i%4)*.025,z,.028,.024,.025,'#79442b');smooth(xx,.3+(i%3)*.018,z,.038,.013,.024,i%3?'#86b846':'#d64e39');const cheese=box(g,xx,.33,z,.055,.008,.008,'#f2bb39');cheese.rotation.y=i; }smooth(x,.34,0,.09,.014,.024,'#fff1d8');}
+    }else if(food.shape==='waffles'||food.shape==='pancakes'){
+      lathe('breakfast-plate',[[0,0],[.34,0],[.37,.025],[.36,.04],[0,.025]],'#faf3e5');
+      for(let layer=0;layer<4;layer++){const y=.065+layer*.064;smooth(0,y,0,.29,.032,.29,baked);if(food.shape==='waffles'){for(let i=-4;i<=4;i++){const x=i*.056,length=2*Math.sqrt(.28*.28-x*x);box(g,x,y+.028,0,.012,.02,length,'#eabd76');box(g,0,y+.029,x,length,.02,.012,'#eabd76');}}else ring(0,y,0,.278,.012,'#f0ce8d');}
+      const syrup=material('maple-syrup',{color:'#9b4c15',roughness:.12,transparent:true,opacity:.7});smooth(0,.295,0,.22,.008,.22,syrup);box(g,0,.32,0,.1,.035,.08,'#ffe199');berry(.1,.37,.06,.55);berry(-.08,.37,-.08,.5);for(let i=0;i<5;i++)smooth(Math.sin(i*2.4)*.14,.33,Math.cos(i*2.4)*.14,.026,.025,.026,'#344364');
+    }else if(food.shape==='cake'){
       const rainbow=['#fc3588','#ff982b','#ffe52c','#32d05b','#28cfe7','#9550dc'];
       lathe('cake-board',[[0,0],[.47,0],[.47,.045],[0,.045]],'#e82fbc');lathe('cake-body',[[0,.045],[.37,.045],[.385,.07],[.385,.73],[.37,.765],[0,.765]],'#fff0c9');
       // Rainbow ganache sectors and rounded drips around the vanilla sides.
@@ -437,6 +447,7 @@ export function createCityScene(original,state){
     if(computer?.open&&resting?.computer){const desk=resting.computer;target.set(desk.x,1.25,desk.z+.05);position.set(desk.x,1.45,desk.z+1.25);}
     const ease=computer?.open?1-Math.exp(-dt*10):mode==='walk'||!initialized?1:1-Math.exp(-dt*6);camera.position.lerp(position,ease);look.lerp(target,ease);camera.lookAt(look);initialized=true;
     for(const piece of doorFrame)piece.visible=position.z<5.6;
+    if(shapeshift.render({mode,player,powers,moving,interior,fire,dt}))avatar.visible=false;
     scene.background.set(inside?'#d8d1c4':'#adcbdc');scene.fog.near=inside?200:110;if(fireGraphics.render(fire)){avatar.visible=false;world.visible=false;room.visible=fire.phase==='cab';scene.background.set(fire.phase!=='cab'?'#a5d4e8':'#d8d1c4');}renderer.render(scene,camera);
   }
   const ray=new T.Raycaster(),plane=new T.Plane(new T.Vector3(0,1,0),0);
@@ -452,7 +463,8 @@ export function createCityScene(original,state){
     const p=new T.Vector3();if(!ray.ray.intersectPlane(plane,p))return null;const hit=inside?null:ray.intersectObjects(buildings,false)[0];return {x:p.x,z:p.z,building:hit?.object.userData.building};
   }
   function portrait(target){const oldPosition=avatar.position.clone(),oldRotation=avatar.rotation.clone(),oldVisible=avatar.visible,oldWorld=world.visible,oldRoom=room.visible;world.visible=false;room.visible=false;avatar.visible=true;avatar.position.set(0,0,0);avatar.rotation.set(0,-.25,0);const cam=new T.PerspectiveCamera(30,1,.1,20);cam.position.set(0,1.3,4.5);cam.lookAt(0,1.05,0);renderer.setSize(200,200,false);renderer.render(scene,cam);const c=target.getContext('2d');c.drawImage(canvas,0,0,target.width,target.height);renderer.setSize(900,650,false);avatar.position.copy(oldPosition);avatar.rotation.copy(oldRotation);avatar.visible=oldVisible;world.visible=oldWorld;room.visible=oldRoom;}
+  const shapeshift=createCityShapeshift(T,scene,material,geo);
   rebuild();person();
   magic=createCityMagic(T,scene,avatar,material,geo);
-  return {canvas,rebuild,person,render,pick,furnish,eat,growFlower:magic.growFlower,shopSurfaces:()=>shopSurfaces,eatOrder(kind){showBite(kind);biteUntil=roomTime+1.5;if(CITY_FOOD[kind]?.upgrade){celebration?.removeFromParent();celebration=new T.Group();celebration.name='food-celebration';celebration.position.set(reactionTarget.x,0,reactionTarget.z);celebration.userData.start=roomTime;room.add(celebration);for(let i=0;i<72;i++)mesh(celebration,geo(kind==='galaxyShake'?'food-star':'food-confetti',()=>kind==='galaxyShake'?new T.OctahedronGeometry(.035):new T.BoxGeometry(.07,.025,.04)),solid(['#ff3e93','#ffac32','#ffec49','#4be978','#38dbff','#be6bff'][i%6]),0,0,0);}},portrait,faceDoor(){yaw=0;},turn(direction){yaw+=direction*.35;},zoom(value){zoom=Math.max(.65,Math.min(1.5,zoom+value));},yaw:()=>yaw,dispose(){fireGraphics.dispose();magic.dispose();clear(world);clear(room);for(const m of materials.values())m.dispose();for(const g of geometries.values())g.dispose();for(const t of textures)t.dispose();renderer.dispose();renderer.forceContextLoss();canvas.replaceWith(original);}};
+  return {canvas,rebuild,person,render,pick,furnish,eat,growFlower:magic.growFlower,shopSurfaces:()=>shopSurfaces,eatOrder(kind){showBite(kind);biteUntil=roomTime+1.5;if(CITY_FOOD[kind]?.upgrade){celebration?.removeFromParent();celebration=new T.Group();celebration.name='food-celebration';celebration.position.set(reactionTarget.x,0,reactionTarget.z);celebration.userData.start=roomTime;room.add(celebration);for(let i=0;i<72;i++)mesh(celebration,geo(kind==='galaxyShake'?'food-star':'food-confetti',()=>kind==='galaxyShake'?new T.OctahedronGeometry(.035):new T.BoxGeometry(.07,.025,.04)),solid(['#ff3e93','#ffac32','#ffec49','#4be978','#38dbff','#be6bff'][i%6]),0,0,0);}},portrait,faceDoor(){yaw=0;},turn(direction){yaw+=direction*.35;},zoom(value){zoom=Math.max(.65,Math.min(1.5,zoom+value));},yaw:()=>yaw,dispose(){shapeshift.dispose();fireGraphics.dispose();magic.dispose();clear(world);clear(room);for(const m of materials.values())m.dispose();for(const g of geometries.values())g.dispose();for(const t of textures)t.dispose();renderer.dispose();renderer.forceContextLoss();canvas.replaceWith(original);}};
 }
