@@ -138,3 +138,6 @@ html[data-background="aurora"]{--home-scene:url('./assets/backgrounds/aurora.svg
 @media(prefers-reduced-motion:reduce){.memory-dragon-back,.mystery-left,.mystery-right{animation:none!important}.memory-dragon-art{transition:none}}
 
 .memory-dialog #game-character{display:none}
+
+/* The victory film shares the matching cards’ photographic dragon atlas. */
+.dragon-memory-board[hidden]{display:none}.dragon-celebration{position:relative;background:#16253e;isolation:isolate}.dragon-celebration canvas{display:block;width:100%;height:auto;max-height:70vh;object-fit:contain}.dragon-celebration-caption{margin:0;padding:12px;text-align:center;color:#fff1bd;background:#16253e;font-weight:700}.dragon-celebration[data-phase="good-job"] .dragon-celebration-caption{font-size:20px}
