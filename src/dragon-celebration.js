@@ -1,46 +1,51 @@
-// The finale uses the very same atlas as the matching cards.
+// These tribes follow the same ordering as the photographic matching-card atlas.
+export const DRAGON_TRIBE_EFFECTS=['fire','leaves','frost','petals','fire','sunlight','water','petals','water','frost','stars','mud','frost','leaves','fire','stars','fire','petals','mud','rainbows'];
 export const DRAGON_CELEBRATION_SECONDS=9;
-export function dragonCelebrationPhase(time){return time<2.4?'gather':time<4.5?'wings':time<6.8?'fire':'good-job';}
+export function dragonCelebrationPhase(time){return time<2?'arrival':time<3.2?'charge':time<6.8?'blast':'good-job';}
 const ease=value=>{const t=Math.max(0,Math.min(1,value));return t*t*(3-2*t);};
-export function createDragonCelebration(board){
- const stage=document.createElement('section');stage.className='dragon-celebration';stage.setAttribute('aria-label','Dragon victory celebration');
- const canvas=document.createElement('canvas');canvas.width=960;canvas.height=720;canvas.setAttribute('aria-hidden','true');
- const caption=document.createElement('p');caption.className='dragon-celebration-caption';caption.setAttribute('role','status');stage.append(canvas,caption);board.before(stage);board.hidden=true;
- const ctx=canvas.getContext('2d'),art=new Image(),reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;const sprites=[];art.onload=()=>{for(let kind=0;kind<20;kind++){const sprite=document.createElement('canvas');sprite.width=sprite.height=256;const c=sprite.getContext('2d');c.drawImage(art,(kind%5)*art.naturalWidth/5,Math.floor(kind/5)*art.naturalHeight/4,art.naturalWidth/5,art.naturalHeight/4,0,0,256,256);c.globalCompositeOperation='destination-in';const mask=c.createRadialGradient(128,128,95,128,128,175);mask.addColorStop(0,'#000');mask.addColorStop(1,'#0000');c.fillStyle=mask;c.fillRect(0,0,256,256);sprites.push(sprite);}};art.src='./assets/dragon-memory-colors.png';let previous='';
+const random=i=>{const value=Math.sin(i*127.1+31.7)*43758.5453;return value-Math.floor(value);};
+const themes={fire:['#281326','#ffb04a'],leaves:['#132e26','#a1da75'],frost:['#17354b','#d9f8ff'],stars:['#100e32','#e3c9ff'],mud:['#2c211b','#c4a079'],rainbows:['#202044','#ffd5f6'],petals:['#34203e','#ffc6ec'],water:['#102e47','#8ee6ff'],sunlight:['#322544','#ffe39b']};
+function leaf(c,petal=false){
+ c.beginPath();c.moveTo(0,-47);c.bezierCurveTo(45,-24,35,27,0,45);c.bezierCurveTo(-32,23,-39,-19,0,-47);c.closePath();
+ const color=c.createLinearGradient(-30,-30,30,35);color.addColorStop(0,petal?'#ffddeb':'#abc969');color.addColorStop(.38,petal?'#e67fbc':'#588f31');color.addColorStop(.55,petal?'#f5add8':'#82ad40');color.addColorStop(1,petal?'#9f467f':'#234b22');c.fillStyle=color;c.fill();c.save();c.clip();
+ c.lineWidth=.65;c.strokeStyle=petal?'#fff2f163':'#c3d88b99';for(let y=-33;y<35;y+=8){for(const side of [-1,1]){c.beginPath();c.moveTo(0,y+12);c.quadraticCurveTo(side*14,y+4,side*32,y-12);c.stroke();}}
+ c.strokeStyle=petal?'#fcd7e4':'#c3cf86';c.lineWidth=1.3;c.beginPath();c.moveTo(0,-43);c.quadraticCurveTo(-3,3,0,45);c.stroke();c.restore();if(!petal){c.strokeStyle='#7a783d';c.lineWidth=2;c.beginPath();c.moveTo(0,43);c.quadraticCurveTo(2,51,7,55);c.stroke();}
+}
+function particle(effect){
+ const sprite=document.createElement('canvas');sprite.width=sprite.height=144;const c=sprite.getContext('2d');c.translate(72,72);
+ if(effect==='leaves'||effect==='petals')leaf(c,effect==='petals');
+ else if(effect==='frost'){c.strokeStyle='#e5faff';c.shadowColor='#71cafa';c.shadowBlur=6;c.lineWidth=2;for(let arm=0;arm<6;arm++){c.save();c.rotate(arm*Math.PI/3);c.beginPath();c.moveTo(0,0);c.lineTo(0,-52);for(const y of [-22,-36]){c.moveTo(-10,y-10);c.lineTo(0,y);c.lineTo(10,y-10);}c.stroke();c.restore();}}
+ else if(effect==='mud'){const g=c.createRadialGradient(-12,-18,1,0,0,60);g.addColorStop(0,'#ac7951');g.addColorStop(.4,'#705039');g.addColorStop(1,'#38251c');c.fillStyle=g;c.beginPath();for(let i=0;i<40;i++){const a=i/40*Math.PI*2,r=30+random(i)*26;c.lineTo(Math.cos(a)*r,Math.sin(a)*r);}c.closePath();c.fill();c.fillStyle='#dbb08055';c.beginPath();c.ellipse(-12,-16,12,5,-.5,0,Math.PI*2);c.fill();for(let i=0;i<12;i++){c.fillStyle=i%2?'#30241c60':'#dab28450';c.beginPath();c.arc((random(i+30)-.5)*55,(random(i+60)-.5)*55,1+random(i)*3,0,Math.PI*2);c.fill();}}
+ else if(effect==='water'){const g=c.createRadialGradient(-10,-10,2,0,0,52);g.addColorStop(0,'#e2ffffe0');g.addColorStop(.4,'#4cc1eac0');g.addColorStop(1,'#1669b450');c.fillStyle=g;c.beginPath();c.moveTo(0,-55);c.bezierCurveTo(10,-25,40,0,33,25);c.bezierCurveTo(20,58,-30,50,-33,20);c.bezierCurveTo(-35,0,-8,-29,0,-55);c.fill();c.strokeStyle='#e4ffffb0';c.lineWidth=3;c.beginPath();c.ellipse(-13,12,7,17,.3,0,Math.PI);c.stroke();}
+ else if(effect==='fire'){const g=c.createRadialGradient(0,15,1,0,0,65);g.addColorStop(0,'#fff5bb');g.addColorStop(.25,'#ffd54ae0');g.addColorStop(.55,'#ff691cbb');g.addColorStop(1,'#f3230000');c.fillStyle=g;c.beginPath();c.moveTo(0,-66);c.bezierCurveTo(24,-35,-3,-20,33,0);c.bezierCurveTo(66,54,-55,70,-35,5);c.bezierCurveTo(-20,-20,-3,-23,0,-66);c.fill();}
+ else{c.shadowColor=effect==='sunlight'?'#ffc148':'#a9a4ff';c.shadowBlur=15;c.fillStyle=effect==='sunlight'?'#ffe9a7':'#fff5e3';c.beginPath();for(let i=0;i<10;i++){const a=i*Math.PI/5-Math.PI/2,r=i%2?17:48;c.lineTo(Math.cos(a)*r,Math.sin(a)*r);}c.closePath();c.fill();}
+ return sprite;
+}
+export function createDragonCelebration(board,kind=0,name='Your dragon'){
+ if(!Number.isInteger(kind)||kind<0||kind>=20)kind=0;
+ const effect=DRAGON_TRIBE_EFFECTS[kind],theme=themes[effect],stage=document.createElement('section');stage.className='dragon-celebration';stage.dataset.dragon=String(kind);stage.dataset.effect=effect;stage.setAttribute('aria-label',`${name} victory celebration`);
+ const canvas=document.createElement('canvas');canvas.width=960;canvas.height=720;canvas.setAttribute('aria-hidden','true');const caption=document.createElement('p');caption.className='dragon-celebration-caption';caption.setAttribute('role','status');stage.append(canvas,caption);board.before(stage);board.hidden=true;
+ const ctx=canvas.getContext('2d'),art=new Image(),reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches,projectile=particle(effect);let sprite=null,previous='';
+ art.onload=()=>{sprite=document.createElement('canvas');sprite.width=sprite.height=512;const c=sprite.getContext('2d');c.drawImage(art,(kind%5)*art.naturalWidth/5,Math.floor(kind/5)*art.naturalHeight/4,art.naturalWidth/5,art.naturalHeight/4,0,0,512,512);c.globalCompositeOperation='destination-in';const mask=c.createRadialGradient(256,256,180,256,256,350);mask.addColorStop(0,'#000');mask.addColorStop(1,'#0000');c.fillStyle=mask;c.fillRect(0,0,512,512);};art.src='./assets/dragon-memory-colors.png';
  function draw(time){
-  const phase=dragonCelebrationPhase(time);stage.dataset.phase=phase;
-  if(previous!==phase){caption.textContent={gather:'All twenty dragons are coming together…',wings:'A celebratory wing bump!',fire:'A dragon-sized celebration!', 'good-job':'Good job!'}[phase];previous=phase;}
-  if(!ctx)return;const w=960,h=720;
-  const sky=ctx.createLinearGradient(0,0,0,h);sky.addColorStop(0,'#16253e');sky.addColorStop(1,'#546780');ctx.fillStyle=sky;ctx.fillRect(0,0,w,h);
-  for(let i=0;i<65;i++){ctx.fillStyle=`rgba(255,230,171,${.25+(i%4)*.12})`;ctx.beginPath();ctx.arc((i*137)%w,(i*83)%h,1+i%2,0,Math.PI*2);ctx.fill();}
-  const arrival=reduced?1:ease(time/2.4),bump=reduced?0:Math.sin(ease((time-2.5)/1.7)*Math.PI),mouths=[];
-  for(let kind=0;kind<20;kind++){
-   const col=kind%4,row=Math.floor(kind/4),left=col%2===0,side=left?-1:1;
-   // Faces point outward, so each pair meets wing-to-wing in the middle.
-   const targetX=180+col*200-side*bump*40,targetY=85+row*119;
-   const angle=kind/20*Math.PI*2,x=targetX*arrival+(480+Math.cos(angle)*850)*(1-arrival),y=targetY*arrival+(340+Math.sin(angle)*750)*(1-arrival)+(reduced?0:Math.sin(time*2+row)*3);
-   const size=132;ctx.save();ctx.translate(x,y);ctx.scale(left?-1:1,1);ctx.rotate(side*bump*.065);
-   if(art.complete&&art.naturalWidth){
-    // Feather the original cloudy picture edges; keep the entire dragon intact.
-    const sprite=sprites[kind];if(sprite)ctx.drawImage(sprite,-size/2,-size/2,size,size);
-   }
-   ctx.restore();mouths.push({x:x+(left?-1:1)*size*.37,y:y-size*.2});
-   if(bump>.7){ctx.fillStyle='#ffe7a7';ctx.font='24px serif';ctx.fillText('✦',x-side*size*.45,y-28);}
-  }
-  const flame=ease((time-4.5)/1.1)*(1-ease((time-6.3)/.9));
-  if(flame>0){
-   ctx.save();ctx.globalCompositeOperation='screen';
-   if(!reduced)for(const [i,mouth]of mouths.entries()){
-    const endX=mouth.x+(480-mouth.x)*.7+Math.sin(i*9)*180,endY=mouth.y+(360-mouth.y)*.7;
-    const width=55*flame,wave=Math.sin(time*7+i)*25,gradient=ctx.createLinearGradient(mouth.x,mouth.y,endX,endY);gradient.addColorStop(0,'#fff9bde0');gradient.addColorStop(.5,'#ffad25b0');gradient.addColorStop(1,'#ff401000');ctx.fillStyle=gradient;ctx.beginPath();ctx.moveTo(mouth.x,mouth.y);ctx.bezierCurveTo(mouth.x+wave,mouth.y-20,endX-width,endY-width,endX,endY-110*flame);ctx.bezierCurveTo(endX+width,endY+width,mouth.x-wave,mouth.y+15,mouth.x,mouth.y);ctx.fill();
-   }
-   for(let i=0;i<(reduced?20:160);i++){
-    const mouth=mouths[i%20],travel=((time-4.5)*.85+(i%8)/8)%1;if(travel<0)continue;
-    const spread=travel*travel,x=mouth.x+(480-mouth.x)*spread+Math.sin(i*12.3)*spread*650,y=mouth.y+(360-mouth.y)*spread+Math.cos(i*5.7)*spread*450,r=(8+spread*190)*flame*(reduced?.3:1);
-    if(r<.1)continue;const glow=ctx.createRadialGradient(x,y,0,x,y,r);glow.addColorStop(0,'#fff5b9e0');glow.addColorStop(.23,'#ffcb46c0');glow.addColorStop(.55,'#ff641980');glow.addColorStop(1,'#ed260000');ctx.fillStyle=glow;ctx.fillRect(x-r,y-r,r*2,r*2);
+  const phase=dragonCelebrationPhase(time);stage.dataset.phase=phase;if(previous!==phase){caption.textContent={arrival:`${name} — your last matched dragon!`,charge:`${name} is gathering ${effect}…`,blast:`A blast of ${effect}!`,'good-job':'Good job!'}[phase];previous=phase;}if(!ctx)return;
+  const sky=ctx.createRadialGradient(480,300,40,480,360,700);sky.addColorStop(0,theme[1]);sky.addColorStop(.6,theme[0]);sky.addColorStop(1,'#0c1527');ctx.fillStyle=sky;ctx.fillRect(0,0,960,720);
+  const arrival=reduced?1:ease(time/2),size=400+arrival*170,x=480,y=350+(1-arrival)*180+(reduced?0:Math.sin(time*1.8)*3);
+  if(sprite)ctx.drawImage(sprite,x-size/2,y-size/2,size,size);
+  const mouth={x:x+size*.36,y:y-size*.22},charge=ease((time-2)/1.2)*(1-ease((time-3.2)/.6));
+  if(charge>0){const glow=ctx.createRadialGradient(mouth.x,mouth.y,0,mouth.x,mouth.y,65);glow.addColorStop(0,theme[1]);glow.addColorStop(1,theme[1]+'00');ctx.globalAlpha=charge*.75;ctx.fillStyle=glow;ctx.fillRect(mouth.x-65,mouth.y-65,130,130);ctx.globalAlpha=1;}
+  const age=time-3.2,envelope=ease(age/.5)*(1-ease((time-6.1)/.7));
+  if(envelope>0){
+   ctx.save();ctx.globalAlpha=envelope;
+   if(effect==='rainbows'){
+    const colors=['#ff5b68','#ffab44','#ffe66a','#77e695','#63d5ff','#9e8cff','#ed8fe7'];ctx.lineCap='round';for(let ribbon=0;ribbon<5;ribbon++)for(let band=0;band<7;band++){ctx.strokeStyle=colors[band];ctx.lineWidth=9+ease(age/2)*10;ctx.beginPath();ctx.moveTo(mouth.x,mouth.y);const endX=80+ribbon*200,endY=600+band*14;ctx.bezierCurveTo(mouth.x-300,50+band*18,endX+Math.sin(reduced?0:time*2+ribbon)*80,200+band*18,endX,endY);ctx.stroke();}
+   }else for(let i=0;i<(reduced?25:100);i++){
+    const birth=random(i+200)*1.7,travel=(age-birth)/1.65;if(travel<0||travel>1.5)continue;const p=Math.min(travel,1),spread=p*p;
+    const endX=-170+random(i+5)*1300,endY=-140+random(i+80)*1000,px=mouth.x+(endX-mouth.x)*spread,py=mouth.y+(endY-mouth.y)*spread;
+    const r=(8+spread*(effect==='mud'?180:135))*(reduced?.55:1);ctx.save();ctx.translate(px,py);ctx.rotate(random(i)*Math.PI*2+(reduced?0:travel*(random(i+40)-.5)*5));if(effect==='leaves'||effect==='petals')ctx.scale(.65+.35*Math.abs(Math.cos(travel*3+i)),1);ctx.globalAlpha=envelope*(travel>1?1-ease((travel-1)/.5):1);ctx.drawImage(projectile,-r,-r,r*2,r*2);ctx.restore();
    }ctx.restore();
   }
-  if(time>=6.8){const reveal=reduced?1:ease((time-6.8)/.6);ctx.fillStyle=`rgba(10,20,38,${reveal*.7})`;ctx.fillRect(0,0,w,h);ctx.save();ctx.globalAlpha=reveal;ctx.textAlign='center';ctx.shadowColor='#ffb94e';ctx.shadowBlur=25;ctx.fillStyle='#fff1b6';ctx.font='bold 100px Georgia,serif';ctx.fillText('Good job!',480,345);ctx.shadowBlur=0;ctx.fillStyle='#fff';ctx.font='26px sans-serif';ctx.fillText('Every dragon found a friend.',480,397);ctx.restore();}
+  if(time>=6.8){const reveal=ease((time-6.8)/.6);ctx.fillStyle=`rgba(10,20,38,${reveal*.72})`;ctx.fillRect(0,0,960,720);ctx.save();ctx.globalAlpha=reveal;ctx.textAlign='center';ctx.shadowColor=theme[1];ctx.shadowBlur=25;ctx.fillStyle='#fff1b6';ctx.font='bold 100px Georgia,serif';ctx.fillText('Good job!',480,345);ctx.shadowBlur=0;ctx.fillStyle='#fff';ctx.font='26px sans-serif';ctx.fillText(`${name} celebrates with you!`,480,397);ctx.restore();}
  }
- draw(0);return {draw,destroy(){art.onload=null;sprites.length=0;stage.remove();board.hidden=false;}};
+ draw(0);return {draw,destroy(){art.onload=null;sprite=null;stage.remove();board.hidden=false;}};
 }

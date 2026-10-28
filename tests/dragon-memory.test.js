@@ -16,3 +16,15 @@ test('every difficulty is winnable and completion prevents additional moves',()=
 test('new rounds have fresh state, and a zero-duration tick keeps a revealed mismatch',()=>{
  const s=createDragonMemoryState('easy',()=>.99);revealMemoryDragon(s,0);revealMemoryDragon(s,2);const before=structuredClone(s);tickDragonMemory(s,0);assert.deepEqual(s,before);const next=createDragonMemoryState('easy');assert.equal(next.moves,0);assert.deepEqual(next.open,[]);assert.equal(next.matches,0);
 });
+
+test('the final matching pair selects the finale dragon in every difficulty',()=>{
+ for(const level of Object.keys(DRAGON_MEMORY_LEVELS))for(let last=0;last<DRAGON_MEMORY_LEVELS[level].pairs;last++){
+  const state=createDragonMemoryState(level,()=>.99);assert.equal(state.lastMatched,null);
+  const order=Array.from({length:state.cards.length/2},(_,i)=>i).filter(i=>i!==last).concat(last);
+  for(const kind of order){const indices=state.cards.flatMap((card,i)=>card.kind===kind?[i]:[]);indices.forEach(i=>revealMemoryDragon(state,i));assert.equal(state.lastMatched,kind);}
+  assert.equal(state.won,true);assert.equal(state.lastMatched,last);revealMemoryDragon(state,0);assert.equal(state.lastMatched,last);
+ }
+});
+test('a mismatched reveal cannot change the most recently matched dragon',()=>{
+ const state=createDragonMemoryState('easy',()=>.99);revealMemoryDragon(state,2);revealMemoryDragon(state,3);assert.equal(state.lastMatched,1);revealMemoryDragon(state,0);revealMemoryDragon(state,4);tickDragonMemory(state,2);assert.equal(state.lastMatched,1);
+});

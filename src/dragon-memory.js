@@ -4,11 +4,11 @@ export const MEMORY_DRAGONS=['Coral ember','Emerald forest','Icy pearl','Amethys
 export function createDragonMemoryState(level='easy',random=Math.random){
  if(!Object.hasOwn(DRAGON_MEMORY_LEVELS,level))level='easy';const pairs=DRAGON_MEMORY_LEVELS[level].pairs,cards=Array.from({length:pairs*2},(_,i)=>({kind:Math.floor(i/2),matched:false}));
  for(let i=cards.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[cards[i],cards[j]]=[cards[j],cards[i]];}
- return {level,cards,open:[],moves:0,matches:0,remaining:0,elapsed:0,won:false};
+ return {level,cards,open:[],moves:0,matches:0,remaining:0,elapsed:0,won:false,lastMatched:null};
 }
 export function revealMemoryDragon(state,index){
  if(state.won||state.remaining>0||!Number.isInteger(index)||!state.cards[index]||state.cards[index].matched||state.open.includes(index))return false;
- state.open.push(index);if(state.open.length===2){state.moves++;const [a,b]=state.open;if(state.cards[a].kind===state.cards[b].kind){state.cards[a].matched=state.cards[b].matched=true;state.matches++;state.open=[];state.won=state.matches===state.cards.length/2;}else state.remaining=1.25;}return true;
+ state.open.push(index);if(state.open.length===2){state.moves++;const [a,b]=state.open;if(state.cards[a].kind===state.cards[b].kind){state.cards[a].matched=state.cards[b].matched=true;state.matches++;state.lastMatched=state.cards[a].kind;state.open=[];state.won=state.matches===state.cards.length/2;}else state.remaining=1.25;}return true;
 }
 export function tickDragonMemory(state,dt){dt=Math.max(0,dt);if(!state.won)state.elapsed+=dt;if(state.remaining>0){state.remaining=Math.max(0,state.remaining-dt);if(state.remaining===0)state.open=[];}}
 export function createDragonMemory({canvas,onHud=()=>{},onFinish=()=>{}}){
@@ -24,7 +24,7 @@ export function createDragonMemory({canvas,onHud=()=>{},onFinish=()=>{}}){
   onHud({text:`${DRAGON_MEMORY_LEVELS[state.level].name} · ${state.matches}/${state.cards.length/2} pairs · ${state.moves} moves`});
  }
  select.addEventListener('change',()=>{if(running)return;level=select.value;state=createDragonMemoryState(level);try{localStorage.setItem('sidequest.dragon-memory.level',level);}catch{}makeBoard();},options);
- function loop(now){const dt=Math.min(.1,Math.max(0,(now-last)/1000||0));last=now;if(running&&!paused&&!document.hidden){const was=state.remaining;tickDragonMemory(state,dt);if(was>0&&state.remaining===0)sync();if(state.won){celebration??=createDragonCelebration(board);finishDelay+=dt;celebration.draw(finishDelay);if(finishDelay>=DRAGON_CELEBRATION_SECONDS&&!finished){finished=true;running=false;sync();onFinish(state.cards.length,{title:'Good job!',detail:`${DRAGON_MEMORY_LEVELS[state.level].name} · ${state.moves} moves`,score:Math.max(1,1000-state.moves)});}}}if(!destroyed)frame=requestAnimationFrame(loop);}
+ function loop(now){const dt=Math.min(.1,Math.max(0,(now-last)/1000||0));last=now;if(running&&!paused&&!document.hidden){const was=state.remaining;tickDragonMemory(state,dt);if(was>0&&state.remaining===0)sync();if(state.won){celebration??=createDragonCelebration(board,state.lastMatched,MEMORY_DRAGONS[state.lastMatched]);finishDelay+=dt;celebration.draw(finishDelay);if(finishDelay>=DRAGON_CELEBRATION_SECONDS&&!finished){finished=true;running=false;sync();onFinish(state.cards.length,{title:'Good job!',detail:`${DRAGON_MEMORY_LEVELS[state.level].name} · ${state.moves} moves`,score:Math.max(1,1000-state.moves)});}}}if(!destroyed)frame=requestAnimationFrame(loop);}
  makeBoard();frame=requestAnimationFrame(loop);
  return {start(){state=createDragonMemoryState(level);running=true;paused=false;finished=false;finishDelay=0;makeBoard();buttons[0]?.focus({preventScroll:true});},pause(value){paused=value;sync();},destroy(){celebration?.destroy();destroyed=true;abort.abort();cancelAnimationFrame(frame);board.remove();controls.remove();canvas.style.display=oldDisplay;}};
 }
