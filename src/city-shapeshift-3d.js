@@ -11,7 +11,7 @@ function framesFor(kind,image){
  const width=image.width,height=image.height,frames=[];let pixels;
  if(typeof document!=='undefined'){const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;const ctx=canvas.getContext('2d');ctx.drawImage(image,0,0);pixels=ctx.getImageData(0,0,width,height).data;}
  for(let row=0;row<2;row++)for(let col=0;col<4;col++){
-  let x0=Math.floor(COLUMNS[kind][col]*width),x1=Math.floor(COLUMNS[kind][col+1]*width);const y0=Math.floor(row*height/2),y1=Math.floor((row+1)*height/2);
+  let x0=Math.floor(COLUMNS[kind][col]*width),x1=Math.floor(COLUMNS[kind][col+1]*width);const y0=Math.floor(row*height/2),y1=Math.floor((row+1)*height/2);if(kind==='dragon'&&col===0)x1=Math.floor(.19*width);
   // Ignore fragments from a neighbouring pose at the edge of an uneven sheet cell.
   if(pixels){let start=x0,last=x0-1,bestStart=x0,bestEnd=x0-1;
    for(let x=x0;x<x1;x++){let count=0;for(let y=y0;y<y1;y++)if(pixels[(y*width+x)*4+3]>140)count++;
