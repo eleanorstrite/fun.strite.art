@@ -9,7 +9,7 @@ export const CITY_ANIMALS=['tiger','dragon','cat','dog','giraffe','elephant'];
 export function cityChooseAnimal(powers,animal){if(powers.shapeshift<=0||!CITY_ANIMALS.includes(animal))return false;powers.animal=animal;return true;}
 
 // Comfortable travel speeds and stride lengths, in city world units.
-export const CITY_ANIMAL_MOVEMENT={tiger:{speed:8.4,stride:3.8},dragon:{speed:8,stride:4.4},cat:{speed:6.8,stride:2.8},dog:{speed:8,stride:3.4},giraffe:{speed:7.6,stride:5},elephant:{speed:6.2,stride:4.8}};
+export const CITY_ANIMAL_MOVEMENT={tiger:{speed:10.5,stride:3.8},dragon:{speed:10,stride:4.4},cat:{speed:8.5,stride:2.8},dog:{speed:10,stride:3.4},giraffe:{speed:9.5,stride:5},elephant:{speed:7.75,stride:4.8}};
 export function cityMovementSpeed({interior=false,swimming=false,powers={},altitude=0}={}){
  if(interior)return 3.1;if(swimming)return 2.3;if(powers.speed>0)return 10.5;if(altitude>.1)return 7;
  return powers.shapeshift>0?(CITY_ANIMAL_MOVEMENT[powers.animal]?.speed??4.2):4.2;
