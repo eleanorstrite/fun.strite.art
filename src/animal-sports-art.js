@@ -24,7 +24,7 @@ export function drawSportsAnimal(c,x,y,size,settings=SPORTS_DEFAULTS,time=0,movi
  if(settings.accessory==='glasses'){for(const side of [-1,1]){panel(c,side*12-10,-64,20,15,'#1c3047',5);line(c,[[side*12-5,-61],[side*12+2,-61]],'#9cdef5',2);}line(c,[[-3,-57],[3,-57]],'#17283a',3);}
  c.restore();
 }
-function ball(c,x,y,r,color,type,shine=false,finish='classic',time=0){
+export function ball(c,x,y,r,color,type,shine=false,finish='classic',time=0){
  if((type==='basketball'||type==='tennis')&&drawEquipmentSprite(c,type,finish,x,y,r*2,r*2,Math.sin(time*.5)*.12))return;
  const g=c.createRadialGradient(x-r*.35,y-r*.4,r*.05,x,y,r);g.addColorStop(0,'#fff1cd');g.addColorStop(.3,color);g.addColorStop(1,'#26364c');ellipse(c,x,y,r,r,g);
  if(type==='basketball'){c.save();c.beginPath();c.arc(x,y,r,0,Math.PI*2);c.clip();line(c,[[x-r,y],[x+r,y]],'#472f25',1.6);line(c,[[x,y-r],[x,y+r]],'#472f25',1.6);c.strokeStyle='#472f25';c.lineWidth=1.6;c.beginPath();c.ellipse(x-r*.7,y,r*.55,r,0,0,Math.PI*2);c.stroke();c.beginPath();c.ellipse(x+r*.7,y,r*.55,r,0,0,Math.PI*2);c.stroke();c.restore();}
@@ -51,19 +51,19 @@ export function drawEquipmentPreview(canvas,sport,finish,time=0){
  else{c.save();c.translate(125,145+bob);c.scale(2.05,2.05);racket(c,0,0,SPORTS_EQUIPMENT.tennis[finish].color,0,false,finish,Math.sin(time*.7)*.12);c.restore();ball(c,235,116-bob,33,'#d5e64d','tennis',false,finish,time);}
  for(let i=0;i<6;i++){const a=time*.5+i*Math.PI/3;const x=160+Math.cos(a)*100,y=85+Math.sin(a)*55;line(c,[[x-3,y],[x+3,y]],'#d8ecff99',1);line(c,[[x,y-3],[x,y+3]],'#d8ecff99',1);}
 }
-function stands(c,sport){
+export function stands(c,sport){
  const bg=c.createLinearGradient(0,0,0,600);bg.addColorStop(0,sport==='tennis'?'#7dc8ed':'#0c1932');bg.addColorStop(1,'#294466');c.fillStyle=bg;c.fillRect(0,0,960,600);
  if(sport==='tennis'){ellipse(c,805,45,28,28,'#fff0b5');for(let i=0;i<6;i++){c.fillStyle=i%2?'#769c9f':'#a3bec0';c.beginPath();c.moveTo(i*200-80,130);c.lineTo(i*200+50,35+i%3*15);c.lineTo(i*200+180,130);c.fill();}}
  for(let row=0;row<5;row++){panel(c,40,58+row*17,880,13,sport==='basketball'?'#ae3c47':sport==='tennis'?'#c3a16c':'#293c69',2);for(let i=0;i<43;i++){ellipse(c,52+i*20,61+row*17,3,3,['#a9dfe3','#eac79c','#f18880','#9098d5'][i%4]);}}
  if(sport!=='tennis'){for(let i=0;i<7;i++){const x=70+i*135;const light=c.createRadialGradient(x,15,0,x,15,85);light.addColorStop(0,'#fffbdc80');light.addColorStop(1,'#fffbdc00');c.fillStyle=light;c.fillRect(x-85,0,170,100);panel(c,x-25,8,50,8,'#effbff',3);}}
 }
-function court(c,sport){
+export function court(c,sport){
  stands(c,sport);const wood=c.createLinearGradient(0,140,0,600);wood.addColorStop(0,'#ce934e');wood.addColorStop(.6,'#ecc17d');wood.addColorStop(1,'#a95e30');c.fillStyle=sport==='tennis'?'#468a63':wood;c.fillRect(0,145,960,455);
  if(sport!=='tennis'){for(let i=0;i<40;i++)line(c,[[i*28,145],[i*28,600]],i%3?'#9b622c20':'#fff6ce50',1);for(let y=160;y<600;y+=28)line(c,[[0,y],[960,y]],'#a36b352e',1);}
  if(sport==='tennis'){panel(c,200,155,560,380,'#487dd1',0);c.strokeStyle='#fff';c.lineWidth=3;c.strokeRect(200,155,560,380);c.strokeRect(240,155,480,380);line(c,[[240,245],[720,245]]);line(c,[[240,445],[720,445]]);line(c,[[480,245],[480,445]]);}
  if(sport==='basketball'){c.strokeStyle='#fff4d2';c.lineWidth=4;c.strokeRect(150,155,660,390);panel(c,380,155,200,145,'#bb4d49',0);c.strokeRect(380,155,200,145);c.beginPath();c.arc(480,300,100,0,Math.PI);c.stroke();c.beginPath();c.ellipse(480,175,260,270,0,0,Math.PI);c.stroke();line(c,[[150,535],[810,535]],'#fff4d2',4);}
 }
-function racket(c,x,y,color,swing,reverse=false,finish='classic',tilt=0){c.save();c.translate(x,y);c.rotate((reverse?Math.PI:0)+(swing>0?-.7:.15)+tilt);if(drawEquipmentSprite(c,'racket',finish,0,-32,82,82)){c.restore();return;}line(c,[[0,0],[0,-20]],color,6);c.strokeStyle=color;c.lineWidth=4;c.beginPath();c.ellipse(0,-38,20,25,0,0,Math.PI*2);c.stroke();for(let v=-12;v<=12;v+=6)line(c,[[v,-56],[v,-20]],'#f5ffffbb',1);for(let v=-54;v<=-22;v+=7)line(c,[[-15,v],[15,v]],'#f5ffffbb',1);c.restore();}
+export function racket(c,x,y,color,swing,reverse=false,finish='classic',tilt=0){c.save();c.translate(x,y);c.rotate((reverse?Math.PI:0)+(swing>0?-.7:.15)+tilt);if(drawEquipmentSprite(c,'racket',finish,0,-32,82,82)){c.restore();return;}line(c,[[0,0],[0,-20]],color,6);c.strokeStyle=color;c.lineWidth=4;c.beginPath();c.ellipse(0,-38,20,25,0,0,Math.PI*2);c.stroke();for(let v=-12;v<=12;v+=6)line(c,[[v,-56],[v,-20]],'#f5ffffbb',1);for(let v=-54;v<=-22;v+=7)line(c,[[-15,v],[15,v]],'#f5ffffbb',1);c.restore();}
 const laneX=(x,y)=>480+(x-480)*(.45+(y-120)/430*.55)*.5;
 export function drawSports(c,s,settings,playing=false){
  c.save();c.scale(c.canvas.width/960,c.canvas.height/600);const color=SPORTS_EQUIPMENT[s.sport][settings[s.sport]]?.color||'#31bad2',special=settings[s.sport]!=='classic';

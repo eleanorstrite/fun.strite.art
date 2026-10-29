@@ -164,3 +164,5 @@ html[data-background="aurora"]{--home-scene:url('./assets/backgrounds/aurora.svg
 .platform-jump-dialog #game-character{display:none}
 .jump-editor fieldset{grid-column:auto;margin:0}.jump-editor input[type=color]{height:42px;min-height:42px;padding:4px}.platform-jump-dialog #game-canvas{touch-action:none}
 .jump-editor fieldset{align-content:start}.jump-editor select,.jump-editor input[type=text]{min-height:42px}
+
+.sports-skip-victory{display:block;margin:12px auto}.sports-skip-victory[hidden]{display:none}
