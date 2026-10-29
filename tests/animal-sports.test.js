@@ -45,20 +45,24 @@ test('each sport offers two free finishes and three purchasable finishes',()=>{
  for(const [sport,items]of Object.entries(SPORTS_EQUIPMENT)){const free=Object.entries(items).filter(([,item])=>!item.upgrade);assert.equal(free.length,2);assert.equal(Object.values(items).filter(i=>i.upgrade).length,3);for(const [key]of free)assert.equal(validateSportsSettings({[sport]:key})[sport],key);}
  assert.equal(validateSportsSettings({tennisPlayers:2}).tennisPlayers,2);
 });
-test('solo tennis opponent returns most reachable shots but sometimes mistimes them',()=>{
- let returns=0,misses=0;
- for(let i=0;i<100;i++){
-  const s=createSportsState('tennis');s.ball={x:480,y:295,vx:0,vy:-250};let choices=0;
-  for(let frame=0;frame<45;frame++)tickSports(s,.02,{},()=>{choices++;return i/100;});
-  assert.equal(choices,1,'Choose once per incoming ball, never reroll every frame');
-  if(s.score===1)misses++;else if(s.ball?.vy>0)returns++;
+test('solo tennis returns close shots reliably and misses only when out of reach',()=>{
+ for(const offset of [0,25,55,90]){
+  const s=createSportsState('tennis');s.ball={x:480+offset,y:295,vx:0,vy:-250};
+  for(let f=0;f<35;f++)tickSports(s,.02,{},()=>assert.fail('Tennis returns must not depend on random misses'));
+  assert.ok(s.ball?.vy>0,`Opponent should return a reachable shot offset by ${offset}`);assert.equal(s.score,0);
  }
- assert.equal(misses,24);assert.equal(returns,76);
- const two=createSportsState('tennis',{tennisPlayers:2});two.ball={x:480,y:220,vx:0,vy:-250};sportsAction(two,'swing2');assert.ok(two.ball.vy>0,'Human player two never suffers a forced AI miss');
+ for(const x of [230,730]){
+  const s=createSportsState('tennis');s.ball={x,y:270,vx:0,vy:-300};
+  tickSports(s,.02);assert.ok(x<480?s.opponent.x<480:s.opponent.x>480,'Opponent tries to chase the ball');
+  for(let f=0;f<30;f++)tickSports(s,.02);
+  assert.equal(s.score,1,'Wide ball that cannot be reached should score');assert.equal(s.ball,null);
+ }
+ const wide=createSportsState('tennis');wide.player.x=420;wide.ball={x:480,y:440,vx:0,vy:250};sportsAction(wide,'swing');advance(wide,1.5);assert.equal(wide.score,1,'A playable angled return must be able to beat the opponent');
+ const two=createSportsState('tennis',{tennisPlayers:2});two.ball={x:570,y:220,vx:0,vy:-250};sportsAction(two,'swing2');assert.ok(two.ball.vy>0,'Human player two keeps the existing racket reach');
 });
-test('tennis prepares a fresh serve after each point and clears the mistake decision on a return',()=>{
+test('tennis prepares a fresh serve after each point and can return the next shot',()=>{
  const s=createSportsState('tennis');assert.equal(s.serveStarted,0);assert.match(s.message,/Serve!/);s.time=8;s.ball={x:480,y:539,vx:0,vy:250};tickSports(s,.02);assert.equal(s.serveStarted,s.time);assert.equal(s.ball,null);assert.equal(s.opponent.score,1);
- advance(s,1);sportsAction(s,'swing');assert.ok(s.ball);s.swing=0;s.ball={x:480,y:440,vx:0,vy:250,aiAttempt:false};sportsAction(s,'swing');assert.equal(s.ball.aiAttempt,undefined);assert.ok(s.ball.vy<0);
+ advance(s,1);sportsAction(s,'swing');assert.ok(s.ball);s.swing=0;s.ball={x:480,y:440,vx:0,vy:250};sportsAction(s,'swing');assert.ok(s.ball.vy<0);
 });
 test('basketball has three defenders and occasional dribble steals with recovery protection',()=>{
  let steals=0;
