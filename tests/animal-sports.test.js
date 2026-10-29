@@ -6,7 +6,7 @@ import {createSystem} from '../src/system.js';
 const advance=(s,seconds,input={})=>{for(let t=0;t<seconds;t+=.02)tickSports(s,.02,input,()=>1);};
 test('bowling aims, prevents multiple balls, knocks down pins and finishes five rounds',()=>{
  const s=createSportsState('bowling');advance(s,3,{x:1});assert.equal(s.player.x,645);advance(s,.66,{x:-1});assert.ok(Math.abs(s.player.x-480)<10);
- assert.equal(sportsAction(s,'roll'),true);assert.equal(sportsAction(s,'roll'),false);advance(s,2.4);assert.ok(s.score>0);const score=s.score;advance(s,.1);assert.equal(s.score,score);
+ s.release=0;s.power=.86;assert.equal(sportsAction(s,'roll'),true);assert.equal(sportsAction(s,'roll'),false);advance(s,2.4);assert.ok(s.score>0);const score=s.score;advance(s,.1);assert.equal(s.score,score);
  for(let roll=0;roll<12&&!s.done;roll++){advance(s,1.2);sportsAction(s,'roll');advance(s,2.4);}assert.equal(s.done,true);assert.equal(s.round,6);assert.ok(s.score<=50);assert.equal(sportsAction(s,'roll'),false);assert.equal(sportsReward(s),s.score);
 });
 test('tennis requires a timed swing and ends at five points for either side',()=>{
@@ -29,10 +29,15 @@ test('all five animals and free accessories are available while equipment requir
  const data=new Map(),storage={getItem:k=>data.get(k),setItem:(k,v)=>data.set(k,v)},system=createSystem(storage);system.beginSession('animal-sports').finish(SPORTS_SHOP_ITEMS.length*50);for(const item of SPORTS_SHOP_ITEMS)system.buy(item.id);assert.equal(system.snapshot().coins,0);assert.equal(system.snapshot().upgrades.filter(id=>id.startsWith('sports-')).length,SPORTS_SHOP_ITEMS.length);const next=createSystem(storage);for(const [sport,choices]of Object.entries(SPORTS_EQUIPMENT)){const [key]=Object.entries(choices).find(([,item])=>item.upgrade);assert.equal(validateSportsSettings({[sport]:key},next.snapshot().upgrades)[sport],key);}
 });
 
-test('full bowling power and the center triangle always strike, with frame totals and rival scores',()=>{
- const s=createSportsState('bowling');s.charging=true;advance(s,1);assert.equal(s.power,1);sportsAction(s,'roll');advance(s,2);assert.equal(s.score,10);assert.equal(s.frameMarks[0],'X');assert.equal(s.frames[0],10);assert.equal(s.round,2);assert.equal(s.rivals.length,3);assert.ok(s.rivals.every(p=>p.name&&p.frames.length===5));
- const low=createSportsState('bowling');low.power=.2;sportsAction(low,'roll');advance(low,3);assert.ok(low.score<10);assert.equal(low.round,1);
- const side=createSportsState('bowling');side.power=1;side.player.x=640;sportsAction(side,'roll');advance(side,2);assert.ok(side.score<10);
+test('bowling requires precise power, aim and release timing instead of full-power automatic strikes',()=>{
+ const precise=createSportsState('bowling');precise.power=.86;precise.release=0;sportsAction(precise,'roll');advance(precise,2);assert.equal(precise.score,10);assert.equal(precise.frameMarks[0],'X');assert.equal(precise.frames[0],10);assert.equal(precise.rivals.length,3);
+ const strong=createSportsState('bowling');strong.power=1;strong.release=0;sportsAction(strong,'roll');advance(strong,2);assert.ok(strong.score<=6,'Maximum power must not automatically strike');
+ const wide=createSportsState('bowling');wide.power=.86;wide.release=1;sportsAction(wide,'roll');advance(wide,2);assert.ok(wide.score<10,'Bad timing must miss the strike');
+ const gutter=createSportsState('bowling');gutter.player.x=645;gutter.release=1;sportsAction(gutter,'roll');advance(gutter,3);assert.equal(gutter.score,0);assert.match(gutter.message,/Gutter/);
+ const weak=createSportsState('bowling');weak.power=.2;sportsAction(weak,'roll');advance(weak,3);assert.ok(weak.score<10);
+});
+test('bowling power cycles while charging and release accuracy is frozen into each throw',()=>{
+ const s=createSportsState('bowling');s.charging=true;advance(s,1);assert.ok(s.power<1);assert.equal(s.powerDirection,-1);assert.notEqual(s.release,0);const release=s.release;sportsAction(s,'roll');assert.equal(s.ball.release,release);advance(s,.3);assert.equal(s.ball.release,release);assert.ok(Math.abs(s.ball.x-s.ball.startX)>1);assert.ok(s.power>=.1&&s.power<=1);
 });
 test('an early tennis swing connects during its active window and player two controls are independent',()=>{
  const s=createSportsState('tennis',{tennisPlayers:2});s.ball={x:480,y:360,vx:0,vy:250};sportsAction(s,'swing');assert.ok(s.ball.vy>0);advance(s,.12);assert.ok(s.ball.vy<0,'Ball must return once it reaches active racket');assert.equal(s.rally,1);
