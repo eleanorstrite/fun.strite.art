@@ -1,4 +1,4 @@
-export const SPORTS_INSTRUCTIONS={bowling:'← → aim. Hold ↑ to cycle power; release when the accuracy needle is centered. Green power (82–90%) and a precise release give the best strikes. Maximum power is harder to control! Phone: set power, swipe sideways to aim, then swipe up or tap Roll with the needle centered. Five rounds.',tennis:'Player 1: ← → move, Space swings. Player 2: A / D move, W moves toward the net, Shift swings. Choose solo or two-player before starting. Phone: swipe sideways and tap to swing. First to five wins.',basketball:'Arrows move. Hold Space to enter shooting mode; arrows now adjust the dotted arc. Release Space to fire. V passes. Phone: hold to enter shooting mode, lift your finger, drag to aim, then tap to fire. Outside shooting mode, tap a teammate to pass or swipe to move. Three defenders can steal or intercept; shooting mode protects the ball. After a turnover, defend against their attack: get close and press Space (or tap Steal) to knock the ball away.'};
+export const SPORTS_INSTRUCTIONS={bowling:'← → aim. Hold ↑ to cycle power; release when the accuracy needle is centered. Green power (82–90%) and a precise release give the best strikes. Maximum power is harder to control! Phone: set power, swipe sideways to aim, then swipe up or tap Roll with the needle centered. Five rounds.',tennis:'Player 1: ← → move, Space swings. Player 2: A / D move, W moves toward the net, Shift swings. Choose solo or two-player before starting. Phone: swipe sideways and tap to swing. In solo mode, hit from the right half to make the opponent occasionally miss. First to five wins.',basketball:'Arrows move. Hold Space to enter shooting mode; arrows now adjust the dotted arc. Release Space to fire. V passes. Phone: hold to enter shooting mode, lift your finger, drag to aim, then tap to fire. Outside shooting mode, tap a teammate to pass or swipe to move. Three defenders can steal or intercept; shooting mode protects the ball. After a turnover, defend against their attack: get close and press Space (or tap Steal) to knock the ball away.'};
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export function createSportsState(sport='bowling',settings={}){
  if(!Object.hasOwn(SPORTS_INSTRUCTIONS,sport))sport='bowling';
@@ -7,7 +7,7 @@ export function createSportsState(sport='bowling',settings={}){
 function makePins(){return Array.from({length:10},(_,i)=>{let row=0;while((row+1)*(row+2)/2<=i)row++;const slot=i-row*(row+1)/2;return {x:480+(slot-row/2)*48,y:225-row*30,up:true,fall:0};});}
 export function sportsShotPoint(start,target,t){const p=clamp(t,0,1);return {x:start.x+(target.x-start.x)*p,y:start.y+(target.y-start.y)*p-Math.sin(p*Math.PI)*Math.min(170,70+Math.hypot(target.x-start.x,target.y-start.y)*.25)};}
 export function sportsShotAligned(aim){return Boolean(aim&&Math.hypot(aim.x-480,aim.y-170)<=22);}
-function tennisReturn(s,second=false){const b=s.ball,p=second?s.opponent:s.player;if(!b||(second?b.vy>=0:b.vy<=0))return false;const hitY=second?p.y+18:p.y-36;if(Math.abs(b.y-hitY)>72||Math.abs(b.x-p.x)>(second&&s.tennisPlayers===1?48:105))return false;b.vy=(second?1:-1)*Math.min(350,225+s.rally*12);b.vx=clamp((b.x-p.x)*3,-185,185);if(Math.abs(b.vx)<35)b.vx=p.x<480?65:-65;b.y=hitY+(second?8:-8);s.rally++;s.message=second?(s.tennisPlayers===2?'Player 2 returns!':'Opponent returns!'):'Nice return!';return true;}
+function tennisReturn(s,second=false){const b=s.ball,p=second?s.opponent:s.player;if(!b||(second?b.vy>=0:b.vy<=0))return false;const hitY=second?p.y+18:p.y-36;if(Math.abs(b.y-hitY)>72||Math.abs(b.x-p.x)>105)return false;b.vy=(second?1:-1)*Math.min(350,225+s.rally*12);b.vx=clamp((b.x-p.x)*3,-185,185);if(Math.abs(b.vx)<35)b.vx=p.x<480?65:-65;b.y=hitY+(second?8:-8);if(!second){b.allowAiMiss=p.x>480;b.aiAttempt=undefined;}s.rally++;s.message=second?(s.tennisPlayers===2?'Player 2 returns!':'Opponent returns!'):'Nice return!';return true;}
 export function sportsAction(s,action,target=null){
  if(s.done)return false;
  if(s.sport==='bowling'){
@@ -15,7 +15,7 @@ export function sportsAction(s,action,target=null){
  }
  if(s.sport==='tennis'){
   const second=action==='swing2';if(action!=='swing'&&!second||second&&s.tennisPlayers!==2)return false;const key=second?'opponentSwing':'swing';if(s[key]>.1)return false;s[key]=.42;
-  if(!s.ball&&s.cooldown<=0){const p=second?s.opponent:s.player;s.ball={x:p.x,y:second?p.y+28:p.y-45,vx:65,vy:second?225:-225};s.rally=0;s.message='Rally on!';return true;}
+  if(!s.ball&&s.cooldown<=0){const p=second?s.opponent:s.player;s.ball={x:p.x,y:second?p.y+28:p.y-45,vx:65,vy:second?225:-225,allowAiMiss:!second&&p.x>480};s.rally=0;s.message='Rally on!';return true;}
   // The swing remains active so an early press can connect as the ball arrives.
   tennisReturn(s,second);return true;
  }
@@ -71,12 +71,13 @@ export function tickSports(s,dt,input={},random=Math.random){
   s.player.x=clamp(s.player.x+dx*365*dt,230,730);
   if(s.tennisPlayers===2){s.opponent.x=clamp(s.opponent.x+(input.p2x||0)*365*dt,230,730);s.opponent.y=clamp(s.opponent.y+(input.p2y||0)*170*dt,175,265);}
   const b=s.ball;if(b){if(s.tennisPlayers===1){
-    // Close shots are reliable returns; wide shots must be reached on foot.
-    // Limited running speed leaves room to win with well-placed shots.
-    s.opponent.x+=clamp(b.x-s.opponent.x,-110*dt,110*dt);
-    if(b.vy<0&&Math.abs(b.y-(s.opponent.y+18))<48&&Math.abs(b.x-s.opponent.x)<=48)s.opponentSwing=.3;
+    // Shots hit from the right half can cause an occasional mistimed return.
+    // Decide once per incoming shot, using the hitter position at contact.
+    if(b.vy<0&&b.aiAttempt===undefined)b.aiAttempt=!b.allowAiMiss||random()>=.3;
+    s.opponent.x+=clamp(b.x-s.opponent.x,-145*dt,145*dt);
+    if(b.vy<0&&(b.aiAttempt?Math.abs(b.y-(s.opponent.y+18))<48:b.y<150))s.opponentSwing=.3;
    }
-   b.x+=b.vx*dt;b.y+=b.vy*dt;if(b.x<220||b.x>740){b.x=clamp(b.x,220,740);b.vx*=-1;}if(s.swing>0)tennisReturn(s);if(s.opponentSwing>0)tennisReturn(s,true);
+   b.x+=b.vx*dt;b.y+=b.vy*dt;if(b.x<220||b.x>740){b.x=clamp(b.x,220,740);b.vx*=-1;}if(s.swing>0)tennisReturn(s);if(s.opponentSwing>0&&(s.tennisPlayers===2||b.aiAttempt!==false))tennisReturn(s,true);
    if(b.y<130)tennisPoint(s,true);else if(b.y>540)tennisPoint(s,false);
   }
  }else{

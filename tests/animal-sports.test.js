@@ -62,7 +62,6 @@ test('solo tennis returns close shots reliably and misses only when out of reach
   for(let f=0;f<30;f++)tickSports(s,.02);
   assert.equal(s.score,1,'Wide ball that cannot be reached should score');assert.equal(s.ball,null);
  }
- const wide=createSportsState('tennis');wide.player.x=420;wide.ball={x:480,y:440,vx:0,vy:250};sportsAction(wide,'swing');advance(wide,1.5);assert.equal(wide.score,1,'A playable angled return must be able to beat the opponent');
  const two=createSportsState('tennis',{tennisPlayers:2});two.ball={x:570,y:220,vx:0,vy:-250};sportsAction(two,'swing2');assert.ok(two.ball.vy>0,'Human player two keeps the existing racket reach');
 });
 test('tennis prepares a fresh serve after each point and can return the next shot',()=>{
@@ -107,4 +106,18 @@ test('basketball turnovers become baseline attacks and Space steals only within 
 });
 test('uncontested opponent attack scores and then gives the player a new possession',()=>{
  const s=createSportsState('basketball');s.defenseGrace=0;s.defenders[0]={x:500,y:490};tickSports(s,.02,{},()=>0);advance(s,1.05);advance(s,6);assert.equal(s.enemyScore,2);assert.equal(s.score,0);assert.equal(s.enemyPossession,false);assert.equal(s.ball,null);assert.ok(s.defenseGrace>0);
+});
+
+test('tennis random misses apply only to shots hit from the right half of the court',()=>{
+ for(const x of [400,480,560]){
+  let misses=0;
+  for(let i=0;i<100;i++){
+   const s=createSportsState('tennis');s.player.x=x;s.opponent.x=x;s.ball={x,y:440,vx:0,vy:250};sportsAction(s,'swing');assert.equal(s.ball.allowAiMiss,x>480);
+   s.player.x=x>480?400:560; // Moving after contact must not change the shot's eligibility.
+   let rolls=0;for(let f=0;f<80;f++)tickSports(s,.02,{},()=>{rolls++;return i/100;});
+   if(s.score===1)misses++;assert.equal(rolls,x>480?1:0);
+  }
+  assert.equal(misses,x>480?30:0);
+ }
+ const s=createSportsState('tennis');s.player.x=560;sportsAction(s,'swing');assert.equal(s.ball.allowAiMiss,true,'Serving from the right also enables occasional misses');
 });
