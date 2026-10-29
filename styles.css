@@ -151,3 +151,6 @@ html[data-background="aurora"]{--home-scene:url('./assets/backgrounds/aurora.svg
 .memory-dialog:has(.dragon-intro-playing) #game-instructions{display:none}
 
 .dragon-intro-loading{position:absolute;top:8%;left:10%;right:10%;text-align:center;padding:12px;border-radius:12px;background:#fff9edeb;color:#263b57}.dragon-intro-loading[hidden]{display:none}
+
+.sports-arena-picker{position:relative;display:block;margin:12px 0;border-radius:16px;overflow:hidden}.sports-arena-picker[hidden],.sports-action-controls[hidden],.sports-dialog .canvas-wrap[hidden]{display:none}.sports-arena-picker>canvas{display:block;width:100%;height:auto}.sports-arena-picker button{position:absolute;width:31.25%;height:36%;background:transparent!important;border:3px solid transparent;color:transparent!important;box-shadow:none;padding:0}.sports-arena-picker button:hover,.sports-arena-picker button:focus-visible{border-color:#fff1a0;background:#ffffff15!important;outline:none}.sports-power-control{display:grid;gap:5px;font-size:13px;font-weight:700;min-width:180px}.sports-power-control[hidden]{display:none}.sports-power-control input{width:100%;accent-color:#278b65}.sports-action-controls{gap:15px;align-items:center;flex-wrap:wrap}
+.animal-sports-controls>button[hidden]{display:none}

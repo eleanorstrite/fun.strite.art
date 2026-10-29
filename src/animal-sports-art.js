@@ -1,3 +1,5 @@
+import {sportsShotPoint,sportsShotAligned} from './animal-sports-rules.js';
+import {drawSportsHub} from './sports-hub.js';
 import {SPORTS_EQUIPMENT,SPORTS_DEFAULTS} from './animal-sports-settings.js';
 const ellipse=(c,x,y,rx,ry,color)=>{c.fillStyle=color;c.beginPath();c.ellipse(x,y,rx,ry,0,0,Math.PI*2);c.fill();};
 const line=(c,points,color='#ffffffbb',width=3)=>{c.strokeStyle=color;c.lineWidth=width;c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.stroke();};
@@ -39,6 +41,7 @@ function court(c,sport){
  if(sport==='tennis'){panel(c,200,155,560,380,'#487dd1',0);c.strokeStyle='#fff';c.lineWidth=3;c.strokeRect(200,155,560,380);c.strokeRect(240,155,480,380);line(c,[[240,245],[720,245]]);line(c,[[240,445],[720,445]]);line(c,[[480,245],[480,445]]);}
  if(sport==='basketball'){c.strokeStyle='#fff4d2';c.lineWidth=4;c.strokeRect(150,155,660,390);panel(c,380,155,200,145,'#bb4d49',0);c.strokeRect(380,155,200,145);c.beginPath();c.arc(480,300,100,0,Math.PI);c.stroke();c.beginPath();c.ellipse(480,175,260,270,0,0,Math.PI);c.stroke();line(c,[[150,535],[810,535]],'#fff4d2',4);}
 }
+function racket(c,x,y,color,swing,reverse=false){c.save();c.translate(x,y);c.rotate((reverse?Math.PI:0)+(swing>0?-.7:.15));line(c,[[0,0],[0,-20]],color,6);c.strokeStyle=color;c.lineWidth=4;c.beginPath();c.ellipse(0,-38,20,25,0,0,Math.PI*2);c.stroke();for(let v=-12;v<=12;v+=6)line(c,[[v,-56],[v,-20]],'#f5ffffbb',1);for(let v=-54;v<=-22;v+=7)line(c,[[-15,v],[15,v]],'#f5ffffbb',1);c.restore();}
 const laneX=(x,y)=>480+(x-480)*(.45+(y-120)/430*.55);
 export function drawSports(c,s,settings,playing=false){
  c.save();c.scale(c.canvas.width/960,c.canvas.height/600);const color=SPORTS_EQUIPMENT[s.sport][settings[s.sport]]?.color||'#31bad2',special=settings[s.sport]!=='classic';
@@ -46,24 +49,31 @@ export function drawSports(c,s,settings,playing=false){
   stands(c,'bowling');panel(c,310,18,340,64,'#152f53');text(c,'NEON BOWL',480,60,32,'#6eebf1');
   for(let lane=-2;lane<=2;lane++){const center=480+lane*260;c.fillStyle=lane===0?'#e5ad65':'#b37b49';c.beginPath();c.moveTo(center-75,130);c.lineTo(center+75,130);c.lineTo(center+190,600);c.lineTo(center-190,600);c.fill();line(c,[[center-78,130],[center-200,600]],'#25354d',16);line(c,[[center+78,130],[center+200,600]],'#25354d',16);for(let i=-3;i<=3;i++)line(c,[[center+i*20,130],[center+i*47,600]],'#714a2928',1);}
   for(let y=270;y<540;y+=85)for(let i=-2;i<=2;i++){const x=laneX(480+i*35,y);c.fillStyle='#895b33';c.beginPath();c.moveTo(x,y);c.lineTo(x-4,y+8);c.lineTo(x+4,y+8);c.fill();}
+  // The highlighted central triangle is the full-power strike target.
+  c.fillStyle=Math.abs(s.player.x-480)<=18?'#79f5b8':'#fff1a0';c.beginPath();c.moveTo(480,342);c.lineTo(467,366);c.lineTo(493,366);c.closePath();c.fill();
+  panel(c,24,280,195,105,'#12283ee8');text(c,'SHOT POWER',122,305,16);panel(c,40,320,163,18,'#31465d',6);panel(c,40,320,Math.max(2,163*s.power),18,s.power>=.98?'#7ef2b1':'#edc66e',6);text(c,`${Math.round(s.power*100)}%`,122,365,19,'#fff0ba');
+  panel(c,695,110,248,210,'#12283eec');text(c,'CHAMPIONSHIP',819,136,16,'#9fe5f0');text(c,'PLAYER     1   2   3   4   5   TOTAL',819,158,10);
+  const rows=[{name:'You',frames:s.frames},...s.rivals];rows.forEach((row,index)=>{const complete=Math.min(5,s.round-1),values=row.frames.map((n,i)=>index===0?n:i<complete?n:0),y=185+index*33;c.textAlign='left';c.font='bold 12px system-ui';c.fillStyle=index===0?'#fff1aa':'#e0eff8';c.fillText(row.name,704,y);for(let i=0;i<5;i++)c.fillText(index===0?(s.frameMarks[i]||values[i]):i<complete?values[i]:'–',790+i*22,y);c.fillText(values.reduce((a,b)=>a+b,0),916,y);});
   for(const pin of s.pins){const x=laneX(pin.x,pin.y),y=pin.y;const fallen=!pin.up;if(fallen&&s.time-pin.fall>1.1)continue;c.save();c.translate(x,y);if(fallen)c.rotate(Math.min(1,(s.time-pin.fall)*6)*1.3);ellipse(c,0,3,12,4,'#4e362655');const g=c.createLinearGradient(-10,0,10,0);g.addColorStop(0,'#aab9c7');g.addColorStop(.4,'#fff');g.addColorStop(1,'#dce6f2');ellipse(c,0,-10,10,17,g);ellipse(c,0,-32,6,7,g);panel(c,-4,-29,8,17,g,3);panel(c,-5,-26,10,3,'#e85263',1);panel(c,-5,-21,10,3,'#e85263',1);c.restore();}
   if(!s.ball){line(c,[[laneX(s.player.x,500),500],[laneX(s.player.x,200),200]],'#fffbd488',2);drawSportsAnimal(c,laneX(s.player.x,540)-40,566,57,settings,s.time,false);ball(c,laneX(s.player.x,520),520,18,color,'bowling',special);}else ball(c,laneX(s.ball.x,s.ball.y),s.ball.y,10+s.ball.y/70,color,'bowling',special);
  }else{
   court(c,s.sport);
   if(s.sport==='tennis'){
-   drawSportsAnimal(c,s.opponent.x,210,38,{...settings,animal:'dog',color:'#ad8b6b',jersey:'#e97892',accessory:'cap'},s.time,!!s.ball);
+   drawSportsAnimal(c,s.opponent.x,s.opponent.y+20,38,{...settings,animal:'dog',color:'#ad8b6b',jersey:'#e97892',accessory:'cap'},s.time,!!s.ball);
+   racket(c,s.opponent.x+28,s.opponent.y-15,'#f590b4',s.opponentSwing,true);text(c,s.tennisPlayers===2?'PLAYER 2 · A D W + SHIFT':'OPPONENT',s.opponent.x,s.opponent.y-65,12,'#153047');
    // A transparent mesh net spans the blue court.
    panel(c,190,314,580,4,'#edf6fa',1);for(let x=195;x<770;x+=13)line(c,[[x,318],[x,352]],'#f3f7fa70',1);for(let y=322;y<353;y+=8)line(c,[[190,y],[770,y]],'#f3f7fa60',1);line(c,[[190,307],[190,359]],'#d1e0ed',6);line(c,[[770,307],[770,359]],'#d1e0ed',6);
-   drawSportsAnimal(c,s.player.x,508,55,settings,s.time,playing);c.save();c.translate(s.player.x+38,467);c.rotate(s.swing>0?-1.1:.3);line(c,[[0,0],[0,-24]],color,6);c.strokeStyle=color;c.lineWidth=5;c.beginPath();c.ellipse(0,-43,20,28,0,0,Math.PI*2);c.stroke();for(let x=-12;x<=12;x+=6)line(c,[[x,-64],[x,-22]],'#e5fafaaa',1);for(let y=-61;y<=-25;y+=6)line(c,[[-14,y],[14,y]],'#e5fafaaa',1);c.restore();if(s.ball){ellipse(c,s.ball.x,s.ball.y+8,9,3,'#172c5555');ball(c,s.ball.x,s.ball.y,9,'#dbeb55','tennis',special);}
+   drawSportsAnimal(c,s.player.x,s.player.y+18,55,settings,s.time,playing);racket(c,s.player.x+38,s.player.y-23,color,s.swing);if(s.ball){ellipse(c,s.ball.x,s.ball.y+8,9,3,'#172c5555');ball(c,s.ball.x,s.ball.y,9,'#dbeb55','tennis',special);}
   }else{
    // Backboard and net stay visible above the animals.
    panel(c,430,104,100,62,'#e9f5f9b0',4);c.strokeStyle='#fff';c.lineWidth=3;c.strokeRect(455,128,50,30);for(let i=0;i<6;i++)line(c,[[455+i*10,171],[466+i*6,195]],'#f8f5e7',1);ellipse(c,480,169,28,7,'#e96e3d');ellipse(c,480,167,23,4,'#ae5438');
    s.defenders.forEach(d=>drawSportsAnimal(c,d.x,d.y,47,{...settings,animal:'dog',color:'#8c786b',jersey:'#c95664',accessory:'none'},s.time,playing));
    s.team.forEach((p,i)=>{if(i===s.active){ellipse(c,p.x,p.y+5,36,11,'#59e9ea88');text(c,'YOU',p.x,p.y-81,13,'#163c51');}else{panel(c,p.x-27,p.y-87,54,20,'#143751b0',6);text(c,'PASS',p.x,p.y-72,11);}drawSportsAnimal(c,p.x,p.y,52,settings,s.time,playing);});
+   if(s.aim){const p=s.team[s.active],aligned=sportsShotAligned(s.aim);for(let i=0;i<=24;i++){const dot=sportsShotPoint({x:p.x+28,y:p.y-28},s.aim,i/24);ellipse(c,dot.x,dot.y,3,3,aligned?'#72f7b6':'#fff4b4');}c.strokeStyle=aligned?'#58f0a5':'#ffed98';c.lineWidth=3;c.beginPath();c.ellipse(s.aim.x,s.aim.y,22,10,0,0,Math.PI*2);c.stroke();text(c,aligned?'ALIGNED':'AIM AT THE RIM',480,110,16,aligned?'#75ffc2':'#fff4c5');}
    if(s.ball)ball(c,s.ball.x,s.ball.y,13,color,'basketball',special);else{const p=s.team[s.active];ball(c,p.x+28,p.y-20+Math.abs(Math.sin(s.time*9))*16,13,color,'basketball',special);}
   }
  }
  panel(c,18,18,220,74,'#10263bdc',12);text(c,s.sport==='bowling'?`ROUND ${Math.min(5,s.round)} / 5`:s.sport==='tennis'?'FIRST TO FIVE':`${Math.ceil(s.remaining)} SECONDS`,128,45,16,'#a8e6ef');text(c,s.sport==='tennis'?`${s.score} — ${s.opponent.score}`:`${s.score} ${s.sport==='bowling'?'PINS':'POINTS'}`,128,77,25);
  panel(c,190,555,580,34,'#10263bdc',10);text(c,s.message,480,578,16,'#fff0cb');c.restore();
 }
-export function drawAnimalSportsPreview(canvas){const c=canvas.getContext('2d');if(!c)return;const state={sport:'basketball',time:0,remaining:90,score:0,message:'BOWL · RALLY · SHOOT',active:0,team:[{x:480,y:490},{x:275,y:345},{x:685,y:350}],defenders:[],ball:null};drawSports(c,state,{...SPORTS_DEFAULTS,animal:'dragon',color:'#6aa891'});}
+export function drawAnimalSportsPreview(canvas){const c=canvas.getContext('2d');if(c)drawSportsHub(c);}
