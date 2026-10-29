@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createSportsState,sportsAction,tickSports,sportsReward,sportsShotPoint,sportsShotAligned} from '../src/animal-sports-rules.js';
 import {SPORTS_ANIMALS,SPORTS_EQUIPMENT,SPORTS_SHOP_ITEMS,validateSportsSettings} from '../src/animal-sports-settings.js';
 import {createSystem} from '../src/system.js';
-const advance=(s,seconds,input={})=>{for(let t=0;t<seconds;t+=.02)tickSports(s,.02,input);};
+const advance=(s,seconds,input={})=>{for(let t=0;t<seconds;t+=.02)tickSports(s,.02,input,()=>1);};
 test('bowling aims, prevents multiple balls, knocks down pins and finishes five rounds',()=>{
  const s=createSportsState('bowling');advance(s,3,{x:1});assert.equal(s.player.x,645);advance(s,.66,{x:-1});assert.ok(Math.abs(s.player.x-480)<10);
  assert.equal(sportsAction(s,'roll'),true);assert.equal(sportsAction(s,'roll'),false);advance(s,2.4);assert.ok(s.score>0);const score=s.score;advance(s,.1);assert.equal(s.score,score);
@@ -59,4 +59,35 @@ test('solo tennis opponent returns most reachable shots but sometimes mistimes t
 test('tennis prepares a fresh serve after each point and clears the mistake decision on a return',()=>{
  const s=createSportsState('tennis');assert.equal(s.serveStarted,0);assert.match(s.message,/Serve!/);s.time=8;s.ball={x:480,y:539,vx:0,vy:250};tickSports(s,.02);assert.equal(s.serveStarted,s.time);assert.equal(s.ball,null);assert.equal(s.opponent.score,1);
  advance(s,1);sportsAction(s,'swing');assert.ok(s.ball);s.swing=0;s.ball={x:480,y:440,vx:0,vy:250,aiAttempt:false};sportsAction(s,'swing');assert.equal(s.ball.aiAttempt,undefined);assert.ok(s.ball.vy<0);
+});
+test('basketball has three defenders and occasional dribble steals with recovery protection',()=>{
+ let steals=0;
+ for(let i=0;i<100;i++){
+  const s=createSportsState('basketball');assert.equal(s.defenders.length,3);s.defenseGrace=0;s.defenders[0]={x:500,y:490};let attempts=0;
+  tickSports(s,.02,{},()=>{attempts++;return i/100;});assert.equal(attempts,1);
+  if(s.ball?.type==='loose'){
+   steals++;assert.equal(s.turnovers,1);assert.equal(sportsAction(s,'pass'),false);
+   for(let f=0;f<55;f++)tickSports(s,.02,{},()=>0);
+   assert.equal(s.ball,null);assert.equal(s.active,1);assert.ok(s.defenseGrace>2.8);assert.equal(s.score,0);
+   s.defenders[0]={x:s.team[1].x+22,y:s.team[1].y};tickSports(s,.02,{},()=>0);assert.equal(s.turnovers,1,'Recovery prevents an immediate repeat steal');
+  }else{for(let f=0;f<20;f++)tickSports(s,.02,{},()=>{attempts++;return 1;});assert.equal(attempts,1,'Failed swats have a cooldown');}
+ }
+ assert.equal(steals,28);
+});
+test('defenders can intercept contested passes but open passes remain safe',()=>{
+ let interceptions=0;
+ for(let i=0;i<100;i++){
+  const s=createSportsState('basketball');s.defenseGrace=0;s.team[0]={x:400,y:400};s.team[1]={x:600,y:400};s.defenders=[{x:495,y:400},{x:200,y:230},{x:750,y:230}];sportsAction(s,'pass',1);let attempts=0;
+  for(let f=0;f<24;f++)tickSports(s,.02,{},()=>{attempts++;return i/100;});
+  assert.equal(attempts,1,'Each contested pass has only one steal attempt');if(s.turnovers)interceptions++;else assert.equal(s.active,1);
+ }
+ assert.equal(interceptions,35);
+ const open=createSportsState('basketball');open.defenseGrace=0;open.defenders.forEach(d=>{d.x=180;d.y=210;});sportsAction(open,'pass',2);for(let f=0;f<24;f++)tickSports(open,.02,{},()=>0);assert.equal(open.active,2);assert.equal(open.turnovers,0);
+});
+test('shooting mode and shots are immune to steals even with defenders touching the ball',()=>{
+ const s=createSportsState('basketball');s.defenseGrace=0;s.defenders.forEach(d=>{d.x=500;d.y=490;});sportsAction(s,'aim');
+ for(let f=0;f<200;f++)tickSports(s,.02,{},()=>{assert.fail('No steal rolls while aiming');});
+ assert.ok(s.aim);assert.equal(s.turnovers,0);s.aim={x:480,y:170};sportsAction(s,'shoot');
+ for(let f=0;f<56;f++)tickSports(s,.02,{},()=>{assert.fail('No steal rolls during a shot');});
+ assert.equal(s.score,3);assert.equal(s.turnovers,0);
 });

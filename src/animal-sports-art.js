@@ -89,9 +89,9 @@ export function drawSports(c,s,settings,playing=false){
   }else{
    // Backboard and net stay visible above the animals.
    panel(c,430,104,100,62,'#e9f5f9b0',4);c.strokeStyle='#fff';c.lineWidth=3;c.strokeRect(455,128,50,30);for(let i=0;i<6;i++)line(c,[[455+i*10,171],[466+i*6,195]],'#f8f5e7',1);ellipse(c,480,169,28,7,'#e96e3d');ellipse(c,480,167,23,4,'#ae5438');
-   s.defenders.forEach(d=>drawSportsAnimal(c,d.x,d.y,47,{...settings,animal:'dog',color:'#8c786b',jersey:'#c95664',accessory:'none'},s.time,playing));
+   s.defenders.forEach(d=>{drawSportsAnimal(c,d.x,d.y,47,{...settings,animal:'dog',color:'#8c786b',jersey:'#c95664',accessory:'none'},s.time,playing);if(d.reach>0&&!s.aim){const target=s.ball||s.team[s.active],angle=Math.atan2(target.y-20-(d.y-20),target.x-d.x),x=d.x+Math.cos(angle)*38,y=d.y-20+Math.sin(angle)*38;line(c,[[d.x,d.y-22],[x,y]],'#8c786b',9);ellipse(c,x,y,6,6,'#ddbd93');text(c,'SWAT!',d.x,d.y-77,11,'#ffe79b');}});
    s.team.forEach((p,i)=>{if(i===s.active){ellipse(c,p.x,p.y+5,36,11,'#59e9ea88');text(c,'YOU',p.x,p.y-81,13,'#163c51');}else{panel(c,p.x-27,p.y-87,54,20,'#143751b0',6);text(c,'PASS',p.x,p.y-72,11);}drawSportsAnimal(c,p.x,p.y,52,settings,s.time,playing);});
-   if(s.aim){const p=s.team[s.active],aligned=sportsShotAligned(s.aim);for(let i=0;i<=24;i++){const dot=sportsShotPoint({x:p.x+28,y:p.y-28},s.aim,i/24);ellipse(c,dot.x,dot.y,3,3,aligned?'#72f7b6':'#fff4b4');}c.strokeStyle=aligned?'#58f0a5':'#ffed98';c.lineWidth=3;c.beginPath();c.ellipse(s.aim.x,s.aim.y,22,10,0,0,Math.PI*2);c.stroke();text(c,aligned?'ALIGNED':'AIM AT THE RIM',480,110,16,aligned?'#75ffc2':'#fff4c5');}
+   if(s.aim){const p=s.team[s.active],aligned=sportsShotAligned(s.aim);for(let i=0;i<=24;i++){const dot=sportsShotPoint({x:p.x+28,y:p.y-28},s.aim,i/24);ellipse(c,dot.x,dot.y,3,3,aligned?'#72f7b6':'#fff4b4');}c.strokeStyle=aligned?'#58f0a5':'#ffed98';c.lineWidth=3;c.beginPath();c.ellipse(s.aim.x,s.aim.y,22,10,0,0,Math.PI*2);c.stroke();text(c,aligned?'ALIGNED · BALL PROTECTED':'AIM AT THE RIM · BALL PROTECTED',480,110,16,aligned?'#75ffc2':'#fff4c5');}
    if(s.ball)ball(c,s.ball.x,s.ball.y,13,color,'basketball',special,settings.basketball,s.time);else{const p=s.team[s.active];ball(c,p.x+28,p.y-20+Math.abs(Math.sin(s.time*9))*16,13,color,'basketball',special,settings.basketball,s.time);}
   }
  }
