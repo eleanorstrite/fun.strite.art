@@ -29,6 +29,22 @@ function ball(c,x,y,r,color,type,shine=false){
  if(type==='bowling'){for(const [a,b]of [[-.2,-.2],[.15,-.3],[0,.1]])ellipse(c,x+a*r,y+b*r,r*.12,r*.12,'#14304c');}
  if(shine){for(let i=1;i<5;i++)ellipse(c,x-i*9,y+i*4,Math.max(1,r*.35-i),Math.max(1,r*.35-i),'#eedaff80');}
 }
+export function drawBowlingBall(c,x,y,r,finish='classic',time=0){
+ const item=SPORTS_EQUIPMENT.bowling[finish]||SPORTS_EQUIPMENT.bowling.classic;
+ ball(c,x,y,r,item.color,'sphere');c.save();c.translate(x,y);c.beginPath();c.arc(0,0,r,0,Math.PI*2);c.clip();c.rotate(time*.55);
+ const accent={classic:'#b0fbff',sunset:'#ffdb84',galaxy:'#e5baff',emerald:'#b9ffe0',pearl:'#ffffff'}[finish]||'#fff';
+ c.strokeStyle=accent;c.globalAlpha=.5;c.lineWidth=r*.14;
+ for(let i=-1;i<=1;i++){c.beginPath();c.ellipse(i*r*.46,0,r*.3,r*1.3,.55,0,Math.PI*2);c.stroke();}
+ c.globalAlpha=1;
+ if(finish==='galaxy'||finish==='pearl')for(let i=0;i<16;i++){const a=i*2.4,d=r*Math.sqrt((i+.5)/17);ellipse(c,Math.cos(a)*d,Math.sin(a)*d,r*.025,r*.025,'#fff4cf');}
+ for(const [a,b]of [[-.2,-.2],[.15,-.3],[0,.1]]){ellipse(c,a*r,b*r,r*.105,r*.13,'#102038');ellipse(c,a*r,b*r+r*.06,r*.07,r*.025,'#6d8199');}
+ c.restore();ellipse(c,x-r*.35,y-r*.5,r*.22,r*.08,'#ffffff9c');
+}
+export function drawBowlingPreview(canvas,finish,time=0){
+ const c=canvas.getContext('2d');c.clearRect(0,0,canvas.width,canvas.height);const g=c.createLinearGradient(0,0,0,180);g.addColorStop(0,'#13253e');g.addColorStop(1,'#364568');c.fillStyle=g;c.fillRect(0,0,320,180);
+ const bob=Math.sin(time*1.7)*5;ellipse(c,160,151,57,9,'#09132688');drawBowlingBall(c,160,86+bob,61,finish,time);
+ for(let i=0;i<6;i++){const a=time*.5+i*Math.PI/3;const x=160+Math.cos(a)*100,y=85+Math.sin(a)*55;line(c,[[x-3,y],[x+3,y]],'#d8ecff99',1);line(c,[[x,y-3],[x,y+3]],'#d8ecff99',1);}
+}
 function stands(c,sport){
  const bg=c.createLinearGradient(0,0,0,600);bg.addColorStop(0,sport==='tennis'?'#7dc8ed':'#0c1932');bg.addColorStop(1,'#294466');c.fillStyle=bg;c.fillRect(0,0,960,600);
  if(sport==='tennis'){ellipse(c,805,45,28,28,'#fff0b5');for(let i=0;i<6;i++){c.fillStyle=i%2?'#769c9f':'#a3bec0';c.beginPath();c.moveTo(i*200-80,130);c.lineTo(i*200+50,35+i%3*15);c.lineTo(i*200+180,130);c.fill();}}
@@ -55,7 +71,7 @@ export function drawSports(c,s,settings,playing=false){
   panel(c,695,110,248,210,'#12283eec');text(c,'CHAMPIONSHIP',819,136,16,'#9fe5f0');text(c,'PLAYER     1   2   3   4   5   TOTAL',819,158,10);
   const rows=[{name:'You',frames:s.frames},...s.rivals];rows.forEach((row,index)=>{const complete=Math.min(5,s.round-1),values=row.frames.map((n,i)=>index===0?n:i<complete?n:0),y=185+index*33;c.textAlign='left';c.font='bold 12px system-ui';c.fillStyle=index===0?'#fff1aa':'#e0eff8';c.fillText(row.name,704,y);for(let i=0;i<5;i++)c.fillText(index===0?(s.frameMarks[i]||values[i]):i<complete?values[i]:'–',790+i*22,y);c.fillText(values.reduce((a,b)=>a+b,0),916,y);});
   for(const pin of s.pins){const x=laneX(pin.x,pin.y),y=pin.y;const fallen=!pin.up;if(fallen&&s.time-pin.fall>1.1)continue;c.save();c.translate(x,y);if(fallen)c.rotate(Math.min(1,(s.time-pin.fall)*6)*1.3);ellipse(c,0,3,12,4,'#4e362655');const g=c.createLinearGradient(-10,0,10,0);g.addColorStop(0,'#aab9c7');g.addColorStop(.4,'#fff');g.addColorStop(1,'#dce6f2');ellipse(c,0,-10,10,17,g);ellipse(c,0,-32,6,7,g);panel(c,-4,-29,8,17,g,3);panel(c,-5,-26,10,3,'#e85263',1);panel(c,-5,-21,10,3,'#e85263',1);c.restore();}
-  if(!s.ball){line(c,[[laneX(s.player.x,500),500],[laneX(s.player.x,200),200]],'#fffbd488',2);drawSportsAnimal(c,laneX(s.player.x,540)-40,566,57,settings,s.time,false);ball(c,laneX(s.player.x,520),520,18,color,'bowling',special);}else ball(c,laneX(s.ball.x,s.ball.y),s.ball.y,10+s.ball.y/70,color,'bowling',special);
+  if(!s.ball){line(c,[[laneX(s.player.x,500),500],[laneX(s.player.x,200),200]],'#fffbd488',2);drawSportsAnimal(c,laneX(s.player.x,540)-40,566,57,settings,s.time,false);drawBowlingBall(c,laneX(s.player.x,520),520,18,settings.bowling,s.time);}else drawBowlingBall(c,laneX(s.ball.x,s.ball.y),s.ball.y,10+s.ball.y/70,settings.bowling,s.time*5);
  }else{
   court(c,s.sport);
   if(s.sport==='tennis'){
@@ -63,7 +79,7 @@ export function drawSports(c,s,settings,playing=false){
    racket(c,s.opponent.x+28,s.opponent.y-15,'#f590b4',s.opponentSwing,true);text(c,s.tennisPlayers===2?'PLAYER 2 · A D W + SHIFT':'OPPONENT',s.opponent.x,s.opponent.y-65,12,'#153047');
    // A transparent mesh net spans the blue court.
    panel(c,190,314,580,4,'#edf6fa',1);for(let x=195;x<770;x+=13)line(c,[[x,318],[x,352]],'#f3f7fa70',1);for(let y=322;y<353;y+=8)line(c,[[190,y],[770,y]],'#f3f7fa60',1);line(c,[[190,307],[190,359]],'#d1e0ed',6);line(c,[[770,307],[770,359]],'#d1e0ed',6);
-   drawSportsAnimal(c,s.player.x,s.player.y+18,55,settings,s.time,playing);racket(c,s.player.x+38,s.player.y-23,color,s.swing);if(s.ball){ellipse(c,s.ball.x,s.ball.y+8,9,3,'#172c5555');ball(c,s.ball.x,s.ball.y,9,'#dbeb55','tennis',special);}
+   drawSportsAnimal(c,s.player.x,s.player.y+18,55,settings,s.time,playing);racket(c,s.player.x+38,s.player.y-23,color,s.swing);if(!s.ball&&!s.done)ball(c,s.player.x-25,s.player.y-2,9,'#dbeb55','tennis');if(s.ball){ellipse(c,s.ball.x,s.ball.y+8,9,3,'#172c5555');ball(c,s.ball.x,s.ball.y,9,'#dbeb55','tennis',special);}
   }else{
    // Backboard and net stay visible above the animals.
    panel(c,430,104,100,62,'#e9f5f9b0',4);c.strokeStyle='#fff';c.lineWidth=3;c.strokeRect(455,128,50,30);for(let i=0;i<6;i++)line(c,[[455+i*10,171],[466+i*6,195]],'#f8f5e7',1);ellipse(c,480,169,28,7,'#e96e3d');ellipse(c,480,167,23,4,'#ae5438');
@@ -73,6 +89,7 @@ export function drawSports(c,s,settings,playing=false){
    if(s.ball)ball(c,s.ball.x,s.ball.y,13,color,'basketball',special);else{const p=s.team[s.active];ball(c,p.x+28,p.y-20+Math.abs(Math.sin(s.time*9))*16,13,color,'basketball',special);}
   }
  }
+ if(s.sport==='tennis'&&!s.ball&&!s.done){const age=s.time-s.serveStarted;if(age<2.2){const x=age<.5?-220+700*(1-Math.pow(1-age/.5,3)):age<1.6?480:480+800*Math.pow((age-1.6)/.6,2);panel(c,x-160,250,320,78,'#103858e8',20);text(c,'Serve!',x,307,54,'#fff3a5');}}
  panel(c,18,18,220,74,'#10263bdc',12);text(c,s.sport==='bowling'?`ROUND ${Math.min(5,s.round)} / 5`:s.sport==='tennis'?'FIRST TO FIVE':`${Math.ceil(s.remaining)} SECONDS`,128,45,16,'#a8e6ef');text(c,s.sport==='tennis'?`${s.score} — ${s.opponent.score}`:`${s.score} ${s.sport==='bowling'?'PINS':'POINTS'}`,128,77,25);
  panel(c,190,555,580,34,'#10263bdc',10);text(c,s.message,480,578,16,'#fff0cb');c.restore();
 }

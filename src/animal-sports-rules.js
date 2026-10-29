@@ -2,12 +2,12 @@ export const SPORTS_INSTRUCTIONS={bowling:'← → aim at the center triangle. H
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export function createSportsState(sport='bowling',settings={}){
  if(!Object.hasOwn(SPORTS_INSTRUCTIONS,sport))sport='bowling';
- return {sport,time:0,done:false,score:0,message:sport==='tennis'?'Swing to serve!':sport==='bowling'?'Center triangle + full power = strike!':'Hold Space to aim your shot!',player:{x:480,y:490},ball:null,cooldown:0,round:1,roll:0,pins:makePins(),pinFlash:0,power:.65,charging:false,frames:[0,0,0,0,0],frameMarks:['','','','',''],rivals:[{name:'Nova Fox',frames:[8,7,10,6,9]},{name:'Milo Moon',frames:[6,9,8,10,7]},{name:'Ziggy Zoom',frames:[9,6,7,8,10]}],opponent:{x:480,y:190,score:0},tennisPlayers:Number(settings.tennisPlayers)===2?2:1,rally:0,swing:0,opponentSwing:0,remaining:90,active:0,team:[{x:480,y:490},{x:275,y:345},{x:685,y:350}],defenders:[{x:390,y:260},{x:600,y:260}],passCount:0,shots:0,aim:null};
+ return {sport,time:0,done:false,score:0,message:sport==='tennis'?'Serve! Swing when you are ready.':sport==='bowling'?'Center triangle + full power = strike!':'Hold Space to aim your shot!',player:{x:480,y:490},ball:null,cooldown:0,round:1,roll:0,pins:makePins(),pinFlash:0,power:.65,charging:false,frames:[0,0,0,0,0],frameMarks:['','','','',''],rivals:[{name:'Nova Fox',frames:[8,7,10,6,9]},{name:'Milo Moon',frames:[6,9,8,10,7]},{name:'Ziggy Zoom',frames:[9,6,7,8,10]}],opponent:{x:480,y:190,score:0},tennisPlayers:Number(settings.tennisPlayers)===2?2:1,rally:0,serveStarted:0,swing:0,opponentSwing:0,remaining:90,active:0,team:[{x:480,y:490},{x:275,y:345},{x:685,y:350}],defenders:[{x:390,y:260},{x:600,y:260}],passCount:0,shots:0,aim:null};
 }
 function makePins(){return Array.from({length:10},(_,i)=>{let row=0;while((row+1)*(row+2)/2<=i)row++;const slot=i-row*(row+1)/2;return {x:480+(slot-row/2)*48,y:225-row*30,up:true,fall:0};});}
 export function sportsShotPoint(start,target,t){const p=clamp(t,0,1);return {x:start.x+(target.x-start.x)*p,y:start.y+(target.y-start.y)*p-Math.sin(p*Math.PI)*Math.min(170,70+Math.hypot(target.x-start.x,target.y-start.y)*.25)};}
 export function sportsShotAligned(aim){return Boolean(aim&&Math.hypot(aim.x-480,aim.y-170)<=22);}
-function tennisReturn(s,second=false){const b=s.ball,p=second?s.opponent:s.player;if(!b||(second?b.vy>=0:b.vy<=0))return false;const hitY=second?p.y+18:p.y-36;if(Math.abs(b.y-hitY)>72||Math.abs(b.x-p.x)>105)return false;b.vy=(second?1:-1)*Math.min(350,225+s.rally*12);b.vx=clamp((b.x-p.x)*3,-185,185);if(Math.abs(b.vx)<35)b.vx=p.x<480?65:-65;b.y=hitY+(second?8:-8);s.rally++;s.message=second?'Player 2 returns!':'Nice return!';return true;}
+function tennisReturn(s,second=false){const b=s.ball,p=second?s.opponent:s.player;if(!b||(second?b.vy>=0:b.vy<=0))return false;const hitY=second?p.y+18:p.y-36;if(Math.abs(b.y-hitY)>72||Math.abs(b.x-p.x)>105)return false;b.vy=(second?1:-1)*Math.min(350,225+s.rally*12);b.vx=clamp((b.x-p.x)*3,-185,185);if(Math.abs(b.vx)<35)b.vx=p.x<480?65:-65;b.y=hitY+(second?8:-8);if(!second)b.aiAttempt=undefined;s.rally++;s.message=second?'Player 2 returns!':'Nice return!';return true;}
 export function sportsAction(s,action,target=null){
  if(s.done)return false;
  if(s.sport==='bowling'){
@@ -28,8 +28,8 @@ export function sportsAction(s,action,target=null){
   const p=s.team[s.active],aim={...s.aim},distance=Math.hypot(p.x-480,p.y-170);s.ball={type:'shot',startX:p.x+28,startY:p.y-28,x:p.x+28,y:p.y-28,endX:aim.x,endY:aim.y,progress:0,made:sportsShotAligned(aim),points:distance>270?3:2};s.aim=null;s.shots++;s.message='Shot away!';return true;
  }return false;
 }
-function tennisPoint(s,player){if(player)s.score++;else s.opponent.score++;s.ball=null;s.swing=0;s.opponentSwing=0;s.cooldown=.8;s.message=player?'Player 1 scores! Swing to serve.':`${s.tennisPlayers===2?'Player 2':'Opponent'} scores. Swing to serve.`;if(s.score>=5||s.opponent.score>=5){s.done=true;s.message=s.score>=5?'Player 1 wins!':s.tennisPlayers===2?'Player 2 wins!':'Good match — try again!';}}
-export function tickSports(s,dt,input={}){
+function tennisPoint(s,player){if(player)s.score++;else s.opponent.score++;s.ball=null;s.serveStarted=s.time;s.swing=0;s.opponentSwing=0;s.cooldown=.8;s.message=player?'Player 1 scores! Swing to serve.':`${s.tennisPlayers===2?'Player 2':'Opponent'} scores. Swing to serve.`;if(s.score>=5||s.opponent.score>=5){s.done=true;s.message=s.score>=5?'Player 1 wins!':s.tennisPlayers===2?'Player 2 wins!':'Good match — try again!';}}
+export function tickSports(s,dt,input={},random=Math.random){
  if(s.done||dt<=0)return;dt=Math.min(dt,.05);s.time+=dt;s.cooldown=Math.max(0,s.cooldown-dt);s.swing=Math.max(0,s.swing-dt);s.opponentSwing=Math.max(0,s.opponentSwing-dt);s.pinFlash=Math.max(0,s.pinFlash-dt);
  let dx=input.x||0,dy=input.y||0;const length=Math.hypot(dx,dy);if(length>1){dx/=length;dy/=length;}
  if(s.sport==='bowling'){
@@ -41,8 +41,14 @@ export function tickSports(s,dt,input={}){
  }else if(s.sport==='tennis'){
   s.player.x=clamp(s.player.x+dx*365*dt,230,730);
   if(s.tennisPlayers===2){s.opponent.x=clamp(s.opponent.x+(input.p2x||0)*365*dt,230,730);s.opponent.y=clamp(s.opponent.y+(input.p2y||0)*170*dt,175,265);}
-  const b=s.ball;if(b){if(s.tennisPlayers===1){s.opponent.x+=clamp(b.x-s.opponent.x,-165*dt,165*dt);if(b.vy<0&&Math.abs(b.y-(s.opponent.y+18))<65)s.opponentSwing=.3;}
-   b.x+=b.vx*dt;b.y+=b.vy*dt;if(b.x<220||b.x>740){b.x=clamp(b.x,220,740);b.vx*=-1;}if(s.swing>0)tennisReturn(s);if(s.opponentSwing>0)tennisReturn(s,true);
+  const b=s.ball;if(b){if(s.tennisPlayers===1){
+    // Decide once per incoming shot, not every frame: an ordinary club opponent
+    // returns most reachable balls, but sometimes mistimes a swing.
+    if(b.vy<0&&b.aiAttempt===undefined)b.aiAttempt=random()>=.24;
+    s.opponent.x+=clamp(b.x-s.opponent.x,-145*dt,145*dt);
+    if(b.vy<0&&(b.aiAttempt?Math.abs(b.y-(s.opponent.y+18))<48:b.y<150))s.opponentSwing=.3;
+   }
+   b.x+=b.vx*dt;b.y+=b.vy*dt;if(b.x<220||b.x>740){b.x=clamp(b.x,220,740);b.vx*=-1;}if(s.swing>0)tennisReturn(s);if(s.opponentSwing>0&&(s.tennisPlayers===2||b.aiAttempt!==false))tennisReturn(s,true);
    if(b.y<130)tennisPoint(s,true);else if(b.y>540)tennisPoint(s,false);
   }
  }else{

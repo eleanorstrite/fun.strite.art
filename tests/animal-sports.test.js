@@ -45,3 +45,18 @@ test('each sport offers two free finishes and three purchasable finishes',()=>{
  for(const [sport,items]of Object.entries(SPORTS_EQUIPMENT)){const free=Object.entries(items).filter(([,item])=>!item.upgrade);assert.equal(free.length,2);assert.equal(Object.values(items).filter(i=>i.upgrade).length,3);for(const [key]of free)assert.equal(validateSportsSettings({[sport]:key})[sport],key);}
  assert.equal(validateSportsSettings({tennisPlayers:2}).tennisPlayers,2);
 });
+test('solo tennis opponent returns most reachable shots but sometimes mistimes them',()=>{
+ let returns=0,misses=0;
+ for(let i=0;i<100;i++){
+  const s=createSportsState('tennis');s.ball={x:480,y:295,vx:0,vy:-250};let choices=0;
+  for(let frame=0;frame<45;frame++)tickSports(s,.02,{},()=>{choices++;return i/100;});
+  assert.equal(choices,1,'Choose once per incoming ball, never reroll every frame');
+  if(s.score===1)misses++;else if(s.ball?.vy>0)returns++;
+ }
+ assert.equal(misses,24);assert.equal(returns,76);
+ const two=createSportsState('tennis',{tennisPlayers:2});two.ball={x:480,y:220,vx:0,vy:-250};sportsAction(two,'swing2');assert.ok(two.ball.vy>0,'Human player two never suffers a forced AI miss');
+});
+test('tennis prepares a fresh serve after each point and clears the mistake decision on a return',()=>{
+ const s=createSportsState('tennis');assert.equal(s.serveStarted,0);assert.match(s.message,/Serve!/);s.time=8;s.ball={x:480,y:539,vx:0,vy:250};tickSports(s,.02);assert.equal(s.serveStarted,s.time);assert.equal(s.ball,null);assert.equal(s.opponent.score,1);
+ advance(s,1);sportsAction(s,'swing');assert.ok(s.ball);s.swing=0;s.ball={x:480,y:440,vx:0,vy:250,aiAttempt:false};sportsAction(s,'swing');assert.equal(s.ball.aiAttempt,undefined);assert.ok(s.ball.vy<0);
+});
