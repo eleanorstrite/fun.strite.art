@@ -158,3 +158,9 @@ html[data-background="aurora"]{--home-scene:url('./assets/backgrounds/aurora.svg
 .sports-ball-preview{margin:18px auto 4px;max-width:320px;text-align:center}.sports-ball-preview canvas{display:block;width:100%;height:auto;border-radius:16px}.sports-ball-preview figcaption{margin-top:8px;font-size:14px;font-weight:700}
 
 .sports-equipment-gallery{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.sports-equipment-gallery .sports-ball-preview{width:100%}@media(max-width:650px){.sports-equipment-gallery{grid-template-columns:1fr}}
+
+.platform-jump-controls{margin:12px 0}.platform-jump-controls details{padding:14px;background:#e8efeb;border:1px solid #c5dcd5;border-radius:14px}.platform-jump-controls summary{font-weight:700;cursor:pointer}.jump-editor{display:grid;grid-template-columns:220px 1fr 1fr;gap:16px;margin-top:14px}.jump-editor canvas{width:100%;border-radius:12px}.jump-editor fieldset{display:grid;gap:9px;min-width:0;border:0;padding:0}.jump-editor label{display:grid;gap:4px;font-size:13px}.jump-editor select,.jump-editor input{max-width:100%;width:100%;min-width:0}.jump-editor small{font-size:12px}.jump-touch-controls{display:flex;justify-content:center;gap:14px;margin:12px 0;touch-action:none}.jump-touch-controls button{min-height:48px}@media(max-width:700px){.jump-editor{grid-template-columns:1fr 1fr}.jump-editor canvas{grid-column:1/-1;max-width:300px;justify-self:center}}
+
+.platform-jump-dialog #game-character{display:none}
+.jump-editor fieldset{grid-column:auto;margin:0}.jump-editor input[type=color]{height:42px;min-height:42px;padding:4px}.platform-jump-dialog #game-canvas{touch-action:none}
+.jump-editor fieldset{align-content:start}.jump-editor select,.jump-editor input[type=text]{min-height:42px}
