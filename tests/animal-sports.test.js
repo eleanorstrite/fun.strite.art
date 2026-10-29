@@ -69,7 +69,7 @@ test('tennis prepares a fresh serve after each point and can return the next sho
  const s=createSportsState('tennis');assert.equal(s.serveStarted,0);assert.match(s.message,/Serve!/);s.time=8;s.ball={x:480,y:539,vx:0,vy:250};tickSports(s,.02);assert.equal(s.serveStarted,s.time);assert.equal(s.ball,null);assert.equal(s.opponent.score,1);
  advance(s,1);sportsAction(s,'swing');assert.ok(s.ball);s.swing=0;s.ball={x:480,y:440,vx:0,vy:250};sportsAction(s,'swing');assert.ok(s.ball.vy<0);
 });
-test('basketball has three defenders and occasional dribble steals with recovery protection',()=>{
+test('basketball has three defenders and occasional dribble steals that start opponent possessions',()=>{
  let steals=0;
  for(let i=0;i<100;i++){
   const s=createSportsState('basketball');assert.equal(s.defenders.length,3);s.defenseGrace=0;s.defenders[0]={x:500,y:490};let attempts=0;
@@ -77,8 +77,8 @@ test('basketball has three defenders and occasional dribble steals with recovery
   if(s.ball?.type==='loose'){
    steals++;assert.equal(s.turnovers,1);assert.equal(sportsAction(s,'pass'),false);
    for(let f=0;f<55;f++)tickSports(s,.02,{},()=>0);
-   assert.equal(s.ball,null);assert.equal(s.active,1);assert.ok(s.defenseGrace>2.8);assert.equal(s.score,0);
-   s.defenders[0]={x:s.team[1].x+22,y:s.team[1].y};tickSports(s,.02,{},()=>0);assert.equal(s.turnovers,1,'Recovery prevents an immediate repeat steal');
+   assert.equal(s.ball,null);assert.equal(s.enemyPossession,true);assert.equal(s.active,0);assert.ok(s.defenders[s.enemyCarrier].y>490);assert.equal(s.score,0);
+   tickSports(s,.02,{},()=>0);assert.equal(s.turnovers,1,'Opponent possession does not trigger another defensive steal');
   }else{for(let f=0;f<20;f++)tickSports(s,.02,{},()=>{attempts++;return 1;});assert.equal(attempts,1,'Failed swats have a cooldown');}
  }
  assert.equal(steals,28);
@@ -99,4 +99,12 @@ test('shooting mode and shots are immune to steals even with defenders touching 
  assert.ok(s.aim);assert.equal(s.turnovers,0);s.aim={x:480,y:170};sportsAction(s,'shoot');
  for(let f=0;f<56;f++)tickSports(s,.02,{},()=>{assert.fail('No steal rolls during a shot');});
  assert.equal(s.score,3);assert.equal(s.turnovers,0);
+});
+
+test('basketball turnovers become baseline attacks and Space steals only within reach',()=>{
+ const s=createSportsState('basketball');s.defenseGrace=0;s.defenders[0]={x:500,y:490};tickSports(s,.02,{},()=>0);advance(s,1.05);assert.equal(s.enemyPossession,true);const d=s.defenders[s.enemyCarrier],start=d.y;advance(s,.5);assert.ok(d.y<start);assert.equal(s.enemyPossession,true,'Ball never automatically returns after turnover');
+ assert.equal(sportsAction(s,'pass'),false);assert.equal(sportsAction(s,'aim'),true);assert.equal(s.aim,null);assert.equal(s.enemyPossession,true,'A distant steal must miss');assert.equal(sportsAction(s,'steal'),false,'Steal attempts have a cooldown');advance(s,.7);s.team[s.active]={x:d.x,y:d.y};assert.equal(sportsAction(s,'aim'),true);assert.equal(s.enemyPossession,false);assert.equal(s.defenseGrace,3);assert.equal(s.aim,null,'Space steals rather than immediately aiming');assert.equal(sportsAction(s,'shoot'),false);assert.equal(sportsAction(s,'aim'),true);
+});
+test('uncontested opponent attack scores and then gives the player a new possession',()=>{
+ const s=createSportsState('basketball');s.defenseGrace=0;s.defenders[0]={x:500,y:490};tickSports(s,.02,{},()=>0);advance(s,1.05);advance(s,6);assert.equal(s.enemyScore,2);assert.equal(s.score,0);assert.equal(s.enemyPossession,false);assert.equal(s.ball,null);assert.ok(s.defenseGrace>0);
 });
