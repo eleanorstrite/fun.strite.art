@@ -1,3 +1,4 @@
+import {drawEquipmentSprite} from './sports-equipment-art.js';
 import {sportsShotPoint,sportsShotAligned} from './animal-sports-rules.js';
 import {drawSportsHub} from './sports-hub.js';
 import {SPORTS_EQUIPMENT,SPORTS_DEFAULTS} from './animal-sports-settings.js';
@@ -23,13 +24,15 @@ export function drawSportsAnimal(c,x,y,size,settings=SPORTS_DEFAULTS,time=0,movi
  if(settings.accessory==='glasses'){for(const side of [-1,1]){panel(c,side*12-10,-64,20,15,'#1c3047',5);line(c,[[side*12-5,-61],[side*12+2,-61]],'#9cdef5',2);}line(c,[[-3,-57],[3,-57]],'#17283a',3);}
  c.restore();
 }
-function ball(c,x,y,r,color,type,shine=false){
+function ball(c,x,y,r,color,type,shine=false,finish='classic',time=0){
+ if((type==='basketball'||type==='tennis')&&drawEquipmentSprite(c,type,finish,x,y,r*2,r*2,Math.sin(time*.5)*.12))return;
  const g=c.createRadialGradient(x-r*.35,y-r*.4,r*.05,x,y,r);g.addColorStop(0,'#fff1cd');g.addColorStop(.3,color);g.addColorStop(1,'#26364c');ellipse(c,x,y,r,r,g);
  if(type==='basketball'){c.save();c.beginPath();c.arc(x,y,r,0,Math.PI*2);c.clip();line(c,[[x-r,y],[x+r,y]],'#472f25',1.6);line(c,[[x,y-r],[x,y+r]],'#472f25',1.6);c.strokeStyle='#472f25';c.lineWidth=1.6;c.beginPath();c.ellipse(x-r*.7,y,r*.55,r,0,0,Math.PI*2);c.stroke();c.beginPath();c.ellipse(x+r*.7,y,r*.55,r,0,0,Math.PI*2);c.stroke();c.restore();}
  if(type==='bowling'){for(const [a,b]of [[-.2,-.2],[.15,-.3],[0,.1]])ellipse(c,x+a*r,y+b*r,r*.12,r*.12,'#14304c');}
  if(shine){for(let i=1;i<5;i++)ellipse(c,x-i*9,y+i*4,Math.max(1,r*.35-i),Math.max(1,r*.35-i),'#eedaff80');}
 }
 export function drawBowlingBall(c,x,y,r,finish='classic',time=0){
+ if(drawEquipmentSprite(c,'bowling',finish,x,y,r*2,r*2,Math.sin(time*.6)*.18))return;
  const item=SPORTS_EQUIPMENT.bowling[finish]||SPORTS_EQUIPMENT.bowling.classic;
  ball(c,x,y,r,item.color,'sphere');c.save();c.translate(x,y);c.beginPath();c.arc(0,0,r,0,Math.PI*2);c.clip();c.rotate(time*.55);
  const accent={classic:'#b0fbff',sunset:'#ffdb84',galaxy:'#e5baff',emerald:'#b9ffe0',pearl:'#ffffff'}[finish]||'#fff';
@@ -40,9 +43,12 @@ export function drawBowlingBall(c,x,y,r,finish='classic',time=0){
  for(const [a,b]of [[-.2,-.2],[.15,-.3],[0,.1]]){ellipse(c,a*r,b*r,r*.105,r*.13,'#102038');ellipse(c,a*r,b*r+r*.06,r*.07,r*.025,'#6d8199');}
  c.restore();ellipse(c,x-r*.35,y-r*.5,r*.22,r*.08,'#ffffff9c');
 }
-export function drawBowlingPreview(canvas,finish,time=0){
+export function drawBowlingPreview(canvas,finish,time=0){drawEquipmentPreview(canvas,'bowling',finish,time);}
+export function drawEquipmentPreview(canvas,sport,finish,time=0){
  const c=canvas.getContext('2d');c.clearRect(0,0,canvas.width,canvas.height);const g=c.createLinearGradient(0,0,0,180);g.addColorStop(0,'#13253e');g.addColorStop(1,'#364568');c.fillStyle=g;c.fillRect(0,0,320,180);
- const bob=Math.sin(time*1.7)*5;ellipse(c,160,151,57,9,'#09132688');drawBowlingBall(c,160,86+bob,61,finish,time);
+ const bob=Math.sin(time*1.7)*5;ellipse(c,160,151,57,9,'#09132688');if(sport==='bowling')drawBowlingBall(c,160,86+bob,61,finish,time);
+ else if(sport==='basketball')ball(c,160,86+bob,61,SPORTS_EQUIPMENT.basketball[finish].color,'basketball',false,finish,time);
+ else{c.save();c.translate(125,145+bob);c.scale(2.05,2.05);racket(c,0,0,SPORTS_EQUIPMENT.tennis[finish].color,0,false,finish,Math.sin(time*.7)*.12);c.restore();ball(c,235,116-bob,33,'#d5e64d','tennis',false,finish,time);}
  for(let i=0;i<6;i++){const a=time*.5+i*Math.PI/3;const x=160+Math.cos(a)*100,y=85+Math.sin(a)*55;line(c,[[x-3,y],[x+3,y]],'#d8ecff99',1);line(c,[[x,y-3],[x,y+3]],'#d8ecff99',1);}
 }
 function stands(c,sport){
@@ -57,7 +63,7 @@ function court(c,sport){
  if(sport==='tennis'){panel(c,200,155,560,380,'#487dd1',0);c.strokeStyle='#fff';c.lineWidth=3;c.strokeRect(200,155,560,380);c.strokeRect(240,155,480,380);line(c,[[240,245],[720,245]]);line(c,[[240,445],[720,445]]);line(c,[[480,245],[480,445]]);}
  if(sport==='basketball'){c.strokeStyle='#fff4d2';c.lineWidth=4;c.strokeRect(150,155,660,390);panel(c,380,155,200,145,'#bb4d49',0);c.strokeRect(380,155,200,145);c.beginPath();c.arc(480,300,100,0,Math.PI);c.stroke();c.beginPath();c.ellipse(480,175,260,270,0,0,Math.PI);c.stroke();line(c,[[150,535],[810,535]],'#fff4d2',4);}
 }
-function racket(c,x,y,color,swing,reverse=false){c.save();c.translate(x,y);c.rotate((reverse?Math.PI:0)+(swing>0?-.7:.15));line(c,[[0,0],[0,-20]],color,6);c.strokeStyle=color;c.lineWidth=4;c.beginPath();c.ellipse(0,-38,20,25,0,0,Math.PI*2);c.stroke();for(let v=-12;v<=12;v+=6)line(c,[[v,-56],[v,-20]],'#f5ffffbb',1);for(let v=-54;v<=-22;v+=7)line(c,[[-15,v],[15,v]],'#f5ffffbb',1);c.restore();}
+function racket(c,x,y,color,swing,reverse=false,finish='classic',tilt=0){c.save();c.translate(x,y);c.rotate((reverse?Math.PI:0)+(swing>0?-.7:.15)+tilt);if(drawEquipmentSprite(c,'racket',finish,0,-32,82,82)){c.restore();return;}line(c,[[0,0],[0,-20]],color,6);c.strokeStyle=color;c.lineWidth=4;c.beginPath();c.ellipse(0,-38,20,25,0,0,Math.PI*2);c.stroke();for(let v=-12;v<=12;v+=6)line(c,[[v,-56],[v,-20]],'#f5ffffbb',1);for(let v=-54;v<=-22;v+=7)line(c,[[-15,v],[15,v]],'#f5ffffbb',1);c.restore();}
 const laneX=(x,y)=>480+(x-480)*(.45+(y-120)/430*.55);
 export function drawSports(c,s,settings,playing=false){
  c.save();c.scale(c.canvas.width/960,c.canvas.height/600);const color=SPORTS_EQUIPMENT[s.sport][settings[s.sport]]?.color||'#31bad2',special=settings[s.sport]!=='classic';
@@ -76,17 +82,17 @@ export function drawSports(c,s,settings,playing=false){
   court(c,s.sport);
   if(s.sport==='tennis'){
    drawSportsAnimal(c,s.opponent.x,s.opponent.y+20,38,{...settings,animal:'dog',color:'#ad8b6b',jersey:'#e97892',accessory:'cap'},s.time,!!s.ball);
-   racket(c,s.opponent.x+28,s.opponent.y-15,'#f590b4',s.opponentSwing,true);text(c,s.tennisPlayers===2?'PLAYER 2 · A D W + SHIFT':'OPPONENT',s.opponent.x,s.opponent.y-65,12,'#153047');
+   racket(c,s.opponent.x+28,s.opponent.y-15,'#f590b4',s.opponentSwing,true,'comet');text(c,s.tennisPlayers===2?'PLAYER 2 · A D W + SHIFT':'OPPONENT',s.opponent.x,s.opponent.y-65,12,'#153047');
    // A transparent mesh net spans the blue court.
    panel(c,190,314,580,4,'#edf6fa',1);for(let x=195;x<770;x+=13)line(c,[[x,318],[x,352]],'#f3f7fa70',1);for(let y=322;y<353;y+=8)line(c,[[190,y],[770,y]],'#f3f7fa60',1);line(c,[[190,307],[190,359]],'#d1e0ed',6);line(c,[[770,307],[770,359]],'#d1e0ed',6);
-   drawSportsAnimal(c,s.player.x,s.player.y+18,55,settings,s.time,playing);racket(c,s.player.x+38,s.player.y-23,color,s.swing);if(!s.ball&&!s.done)ball(c,s.player.x-25,s.player.y-2,9,'#dbeb55','tennis');if(s.ball){ellipse(c,s.ball.x,s.ball.y+8,9,3,'#172c5555');ball(c,s.ball.x,s.ball.y,9,'#dbeb55','tennis',special);}
+   drawSportsAnimal(c,s.player.x,s.player.y+18,55,settings,s.time,playing);racket(c,s.player.x+38,s.player.y-23,color,s.swing,false,settings.tennis);if(!s.ball&&!s.done)ball(c,s.player.x-25,s.player.y-2,9,'#dbeb55','tennis',false,settings.tennis,s.time);if(s.ball){ellipse(c,s.ball.x,s.ball.y+8,9,3,'#172c5555');ball(c,s.ball.x,s.ball.y,9,'#dbeb55','tennis',special,settings.tennis,s.time);}
   }else{
    // Backboard and net stay visible above the animals.
    panel(c,430,104,100,62,'#e9f5f9b0',4);c.strokeStyle='#fff';c.lineWidth=3;c.strokeRect(455,128,50,30);for(let i=0;i<6;i++)line(c,[[455+i*10,171],[466+i*6,195]],'#f8f5e7',1);ellipse(c,480,169,28,7,'#e96e3d');ellipse(c,480,167,23,4,'#ae5438');
    s.defenders.forEach(d=>drawSportsAnimal(c,d.x,d.y,47,{...settings,animal:'dog',color:'#8c786b',jersey:'#c95664',accessory:'none'},s.time,playing));
    s.team.forEach((p,i)=>{if(i===s.active){ellipse(c,p.x,p.y+5,36,11,'#59e9ea88');text(c,'YOU',p.x,p.y-81,13,'#163c51');}else{panel(c,p.x-27,p.y-87,54,20,'#143751b0',6);text(c,'PASS',p.x,p.y-72,11);}drawSportsAnimal(c,p.x,p.y,52,settings,s.time,playing);});
    if(s.aim){const p=s.team[s.active],aligned=sportsShotAligned(s.aim);for(let i=0;i<=24;i++){const dot=sportsShotPoint({x:p.x+28,y:p.y-28},s.aim,i/24);ellipse(c,dot.x,dot.y,3,3,aligned?'#72f7b6':'#fff4b4');}c.strokeStyle=aligned?'#58f0a5':'#ffed98';c.lineWidth=3;c.beginPath();c.ellipse(s.aim.x,s.aim.y,22,10,0,0,Math.PI*2);c.stroke();text(c,aligned?'ALIGNED':'AIM AT THE RIM',480,110,16,aligned?'#75ffc2':'#fff4c5');}
-   if(s.ball)ball(c,s.ball.x,s.ball.y,13,color,'basketball',special);else{const p=s.team[s.active];ball(c,p.x+28,p.y-20+Math.abs(Math.sin(s.time*9))*16,13,color,'basketball',special);}
+   if(s.ball)ball(c,s.ball.x,s.ball.y,13,color,'basketball',special,settings.basketball,s.time);else{const p=s.team[s.active];ball(c,p.x+28,p.y-20+Math.abs(Math.sin(s.time*9))*16,13,color,'basketball',special,settings.basketball,s.time);}
   }
  }
  if(s.sport==='tennis'&&!s.ball&&!s.done){const age=s.time-s.serveStarted;if(age<2.2){const x=age<.5?-220+700*(1-Math.pow(1-age/.5,3)):age<1.6?480:480+800*Math.pow((age-1.6)/.6,2);panel(c,x-160,250,320,78,'#103858e8',20);text(c,'Serve!',x,307,54,'#fff3a5');}}

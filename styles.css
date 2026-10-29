@@ -156,3 +156,5 @@ html[data-background="aurora"]{--home-scene:url('./assets/backgrounds/aurora.svg
 .animal-sports-controls>button[hidden]{display:none}
 
 .sports-ball-preview{margin:18px auto 4px;max-width:320px;text-align:center}.sports-ball-preview canvas{display:block;width:100%;height:auto;border-radius:16px}.sports-ball-preview figcaption{margin-top:8px;font-size:14px;font-weight:700}
+
+.sports-equipment-gallery{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.sports-equipment-gallery .sports-ball-preview{width:100%}@media(max-width:650px){.sports-equipment-gallery{grid-template-columns:1fr}}
