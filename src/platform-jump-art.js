@@ -1,3 +1,4 @@
+import {drawJumpSurface} from './platform-jump-surfaces.js';
 import {drawRealJumpPet} from './platform-jump-pets.js';
 import {JUMP_DEFAULTS,createJumpState} from './platform-jump-rules.js';
 const oval=(c,x,y,rx,ry,color)=>{c.fillStyle=color;c.beginPath();c.ellipse(x,y,rx,ry,0,0,Math.PI*2);c.fill();};
@@ -19,7 +20,7 @@ export function drawJumpPet(c,x,y,s,time=0,moving=false,facing=1,pose='idle'){if
 export function drawPlatformJump(c,state,s=JUMP_DEFAULTS){const w=c.canvas.width,h=c.canvas.height;c.save();c.scale(w/900,h/650);const palettes={'Blue sky':['#4e9bd5','#d9f3ff'],'Sunset':['#8559a5','#ffc68c'],'Aurora':['#142b51','#3d858c'],'Candy clouds':['#b49ee9','#ffe0ee']},colors=palettes[s.background];const g=c.createLinearGradient(0,0,0,650);g.addColorStop(0,colors[0]);g.addColorStop(1,colors[1]);c.fillStyle=g;c.fillRect(0,0,900,650);
  if(s.background==='Aurora')for(let i=0;i<70;i++)oval(c,(i*137)%900,(i*73-state.camera*.05)%650,1.5,1.5,'#d5fff4');
  for(let i=0;i<12;i++){const x=((i*213+state.time*(4+i%3))%1100)-100,y=((i*131-state.camera*.25)%800+800)%800-80;for(let j=0;j<4;j++)oval(c,x+j*27,y-Math.sin(j)*15,38,23,'#ffffff66');}
- for(let i=0;i<state.platforms.length;i++){const p=state.platforms[i],y=p.y-state.camera;if(y< -30||y>690)continue;box(c,p.x-p.w/2,y,p.w,19,i===0?'#68a877':i===48?'#f1c45e':'#f7f5ec',7);box(c,p.x-p.w/2,y+13,p.w,12,i===48?'#ac7e36':'#8bb9c1',5);if(i>0&&i<48)text(c,String(i),p.x,y+14,11,'#426475');if(i===48){for(const side of [-1,1]){box(c,p.x+side*75-3,y-110,6,110,'#f7e7ad',2);}box(c,p.x-80,y-110,160,36,'#fff1bc',4);text(c,'FINISH!',p.x,y-85,24,'#725126');}}
+ for(let i=0;i<state.platforms.length;i++){const p=state.platforms[i],y=p.y-state.camera;if(y< -80||y>690)continue;drawJumpSurface(c,p,i,y);if(i===48){for(const side of [-1,1]){box(c,p.x+side*75-3,y-110,6,110,'#f7e7ad',2);}box(c,p.x-80,y-110,160,36,'#fff1bc',4);text(c,'FINISH!',p.x,y-85,24,'#725126');}}
  drawJumpPet(c,state.pet.x,state.pet.y-state.camera,s,state.time,Math.abs(state.vx)>0||!state.grounded,state.pet.facing||state.facing,state.pet.pose||'idle');drawJumper(c,state.x,state.y-state.camera,s,state.time,Math.abs(state.vx)>0||!state.grounded);box(c,18,18,240,64,'#153651cc');text(c,'PLATFORM JUMP',138,43,19);text(c,`${Math.max(0,Math.round(560-state.y))} m / 4800 m`,138,68,17,'#d1f4ff');if(state.done){box(c,240,220,420,130,'#17324ce8',20);text(c,'You reached the sky summit!',450,272,25);text(c,`${s.petName||'Your pet'} made it with you!`,450,312,19,'#ffeab1');}c.restore();}
 const previewFrames=new WeakMap();
 export function drawPlatformJumpPreview(canvas){
