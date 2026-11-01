@@ -9,3 +9,10 @@ test('flyover shows the start, summit, full countdown and returns without moving
 test('human gait bends joints and uses distinct jump and landing poses',()=>{
  const walk=jumperPose(.1,true),step=jumperPose(.4,true),jump=jumperPose(0,false,{pose:'jump'}),land=jumperPose(0,false,{pose:'land'});assert.notDeepEqual(walk.legs,step.legs);assert.notDeepEqual(walk.arms,step.arms);assert.notDeepEqual(jump.legs,land.legs);assert.notDeepEqual(jump.arms,land.arms);assert.ok(Math.abs(walk.bob)<=.6);
 });
+test('side profile jumping has bent knees and elbows and walking alternates legs',async()=>{
+ const {sideJumperPose}=await import('../src/platform-jump-person.js');const p=sideJumperPose(0,'jump');
+ const bend=(a,b,c)=>Math.abs((b[0]-a[0])*(c[1]-b[1])-(b[1]-a[1])*(c[0]-b[0]));
+ for(const leg of p.legs){assert.ok(bend(leg.hip,leg.knee,leg.foot)>150);assert.ok(leg.foot[1]<-8);}
+ for(const arm of p.arms)assert.ok(bend(arm.shoulder,arm.elbow,arm.hand)>100);
+ assert.notDeepEqual(sideJumperPose(.1,'walk').legs,sideJumperPose(.4,'walk').legs);
+});
