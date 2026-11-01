@@ -7,7 +7,7 @@ import {JUMP_INTRO_LOOK} from '../src/platform-jump-clips.js';
 // drawn before the player: one thrown error otherwise stops the animation loop.
 test('the whole course renders through every prop and reaches character drawing',()=>{
  let faces=0;
- const c=new Proxy({canvas:{width:900,height:650},createLinearGradient:()=>({addColorStop(){}}),measureText:()=>({width:50}),ellipse(...args){if(args[2]===14&&args[3]===18)faces++;}},{get(target,key){return key in target?target[key]:()=>{};}});
+ const c=new Proxy({canvas:{width:900,height:650},createLinearGradient:()=>({addColorStop(){}}),measureText:()=>({width:50}),ellipse(...args){if(args[2]===20&&args[3]===23)faces++;}},{get(target,key){return key in target?target[key]:()=>{};}});
  const state=createJumpState();for(const p of state.platforms){state.camera=p.y-430;assert.doesNotThrow(()=>drawPlatformJump(c,state,JUMP_DEFAULTS));}
  assert.equal(faces,state.platforms.length,'The person must be drawn on every frame');
 });
