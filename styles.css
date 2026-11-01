@@ -166,3 +166,5 @@ html[data-background="aurora"]{--home-scene:url('./assets/backgrounds/aurora.svg
 .jump-editor fieldset{align-content:start}.jump-editor select,.jump-editor input[type=text]{min-height:42px}
 
 .sports-skip-victory{display:block;margin:12px auto}.sports-skip-victory[hidden]{display:none}
+
+.jump-editor{grid-template-columns:1fr 1fr}.jump-large-preview{margin:16px 0 0;min-width:0;text-align:center}.jump-editor .jump-large-preview canvas{width:100%;max-width:420px;height:auto;border-radius:14px}.jump-large-preview figcaption{margin-top:8px;font-weight:700;font-size:14px}@media(max-width:600px){.jump-editor{grid-template-columns:1fr}.jump-editor .jump-large-preview canvas{max-width:420px}}

@@ -1,3 +1,4 @@
+import {dogMotionSprite} from './platform-dog-motion.js';
 import {PET_BREEDS} from './platform-jump-rules.js';
 export const PET_ROWS=['cat','dog','capybara','dragon','guinea pig','rabbit'];
 export function petSpriteCell(pet,breed){const row=PET_ROWS.indexOf(pet),column=PET_BREEDS[pet]?.indexOf(breed);return row>=0&&column>=0?{row,column}:null;}
@@ -16,8 +17,8 @@ function spriteBounds(image){
   }result.push(best);
  }return result;
 }
-export function drawRealJumpPet(c,x,y,settings,time,moving,facing=1){
- const image=jumpPetAtlas(),cell=petSpriteCell(settings.pet,settings.breed);if(!cell||!image?.complete||!image.naturalWidth)return false;if(!bounds)bounds=spriteBounds(image);const b=bounds[cell.row*4+cell.column],maxW=settings.pet==='guinea pig'?70:settings.pet==='dragon'?105:90,maxH=settings.pet==='guinea pig'?49:75,scale=Math.min(maxW/b.w,maxH/b.h),w=b.w*scale,h=b.h*scale,bob=moving?Math.abs(Math.sin(time*10))*2:0;
- c.save();c.translate(x,y-bob);c.scale(facing<0?-1:1,1+Math.sin(time*3)*.007);c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.drawImage(image,b.x,b.y,b.w,b.h,-w/2,-h,w,h);c.restore();
+export function drawRealJumpPet(c,x,y,settings,time,moving,facing=1,pose='idle'){
+ const image=jumpPetAtlas(),cell=petSpriteCell(settings.pet,settings.breed);if(!cell||!image?.complete||!image.naturalWidth)return false;if(!bounds)bounds=spriteBounds(image);const motion=settings.pet==='dog'&&(moving||pose!=='idle')?dogMotionSprite(settings.breed,pose==='idle'&&moving?'walk':pose,time):null,b=motion?.bounds||bounds[cell.row*4+cell.column],maxW=settings.pet==='guinea pig'?70:settings.pet==='dragon'?105:90,maxH=settings.pet==='guinea pig'?49:75,scale=Math.min(maxW/(motion?.maxW||b.w),maxH/(motion?.maxH||b.h)),w=b.w*scale,h=b.h*scale,bob=0;
+ c.save();c.translate(x,y-bob);c.scale(facing<0?-1:1,1+Math.sin(time*3)*.007);c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.drawImage(motion?.image||image,b.x,b.y,b.w,b.h,-w/2,-h,w,h);c.restore();
  if(settings.petName){c.save();c.font='700 14px system-ui';c.textAlign='center';const width=c.measureText(settings.petName).width;c.fillStyle='#ffffffe6';c.beginPath();c.roundRect(x-width/2-7,y-h-bob-29,width+14,23,8);c.fill();c.fillStyle='#000';c.fillText(settings.petName,x,y-h-bob-12);c.restore();}return true;
 }

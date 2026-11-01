@@ -20,3 +20,7 @@ test('pet editor supports requested varieties, validates saved settings and trea
 test('every pet breed maps to its own realistic artwork cell',async()=>{
  const {petSpriteCell}=await import('../src/platform-jump-pets.js');const cells=new Set();for(const [pet,breeds]of Object.entries(PET_BREEDS))for(const breed of breeds){const cell=petSpriteCell(pet,breed);assert.ok(cell);assert.ok(cell.row>=0&&cell.row<6&&cell.column>=0&&cell.column<4);cells.add(`${cell.row}:${cell.column}`);}assert.equal(cells.size,Object.values(PET_BREEDS).flat().length);assert.equal(petSpriteCell('dog','Tabby'),null);
 });
+test('dogs use different walking, takeoff, airborne and landing poses',async()=>{
+ const {dogPoseFrame,DOG_MOTION_BREEDS}=await import('../src/platform-dog-motion.js');assert.deepEqual(DOG_MOTION_BREEDS,PET_BREEDS.dog);assert.deepEqual([0,.12,.24,.36].map(t=>dogPoseFrame('walk',t)),[0,1,2,3]);assert.equal(dogPoseFrame('idle'),4);assert.equal(dogPoseFrame('crouch'),5);assert.equal(dogPoseFrame('jump'),6);assert.equal(dogPoseFrame('land'),7);
+ const s=createJumpState();tickJump(s,.02,1);assert.equal(s.pet.pose,'walk');jump(s);tickJump(s,.02,1);assert.equal(s.pet.pose,'crouch');for(let i=0;i<18;i++)tickJump(s,.02,1);assert.equal(s.pet.pose,'jump');for(let i=0;i<30;i++)tickJump(s,.02,1);assert.equal(s.pet.pose,'land');
+});
