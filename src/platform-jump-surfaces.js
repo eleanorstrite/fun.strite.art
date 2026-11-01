@@ -14,7 +14,7 @@ export function drawJumpSurface(c,p,number,y){const kind=jumpSurface(number),x=p
   for(let j=0;j<8;j++)rect(c,x+j*w/8,y,w/8+.5,14,j%2?'#fff2d5':'#df675b',2);
   for(let j=0;j<5;j++){c.fillStyle=['#e8b55c','#df6e44','#83b450'][j%3];c.beginPath();c.ellipse(x+30+j*15,y+20,6,4,0,0,Math.PI*2);c.fill();}
  }else if(kind==='wagon'){
-  for(const xx of [x+22,x+w-22])wheel(c,xx,y+46,16);rect(c,x+8,y+5,w-16,31,'#9b5037',3);for(let j=0;5+j*7<h-1;j++)wood(c,x+4,y+j*10,w-8,8);for(const xx of [x+12,x+w-17])rect(c,xx,y+3,5,30,'#634936');rect(c,x,y,w,5,'#e6b779');line(c,x+w-15,y+30,x+w+13,y+19,'#534536',4);
+  for(const xx of [x+22,x+w-22])wheel(c,xx,y+46,16);rect(c,x+8,y+5,w-16,31,'#9b5037',3);for(let j=0;j<3;j++)wood(c,x+4,y+j*10,w-8,8);for(const xx of [x+12,x+w-17])rect(c,xx,y+3,5,30,'#634936');rect(c,x,y,w,5,'#e6b779');line(c,x+w-15,y+30,x+w+13,y+19,'#534536',4);
  }else if(kind==='wheelbarrow'){
   wheel(c,x+28,y+46,14);line(c,x+w-30,y+28,x+w-21,y+49,'#51636a',4);line(c,x+29,y+40,x+w-14,y+20,'#51636a',4);rect(c,x,y,w,6,'#a7d1ab',3);c.fillStyle='#509475';c.beginPath();c.moveTo(x+3,y+6);c.lineTo(x+w-4,y+6);c.lineTo(x+w-25,y+31);c.lineTo(x+22,y+31);c.closePath();c.fill();line(c,x+w-17,y+20,x+w+12,y+15,'#966038',5);
  }else if(kind==='boards'){

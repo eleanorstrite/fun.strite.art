@@ -3,7 +3,7 @@ import {FERRET_BREEDS,ferretUnlocked} from './platform-ferrets.js';
 export const PET_BREEDS={cat:['Tabby','Calico','Black cat','White cat'],dog:['Brindle','Dachshund','Black Labrador','Golden Retriever'],capybara:['Classic','Chocolate','Cream'],dragon:['Emerald','Fire','Frost','Rainbow'],'guinea pig':['Tricolor','White','Black and white','Chocolate'],rabbit:['Tan lop','White','Black']};
 PET_BREEDS.ferret=FERRET_BREEDS;
 PET_BREEDS.hedgehog=HEDGEHOG_BREEDS;
-export const JUMP_DEFAULTS={skin:'#dba47b',hair:'#513324',shirt:'#6b67dc',pants:'#304b71',hairstyle:'Short',background:'Blue sky',pet:'dog',breed:'Golden Retriever',petName:'Davina'};
+export const JUMP_DEFAULTS={skin:'#dba47b',hair:'#513324',shirt:'#6b67dc',pants:'#304b71',hairstyle:'Short',background:'Blue sky',pet:'dog',breed:'Brindle',petName:'Davina'};
 export const JUMP_HAIR=['Short','Curls','Ponytail','Spikes','Long','Bald'];
 export const JUMP_BACKGROUNDS=['Blue sky','Sunset','Aurora','Candy clouds'];
 export function validateJumpSettings(value={},owned=[]){const s={...JUMP_DEFAULTS};if(!value||typeof value!=='object')return s;for(const key of ['skin','hair','shirt','pants'])if(/^#[0-9a-f]{6}$/i.test(value[key]))s[key]=value[key];if(JUMP_HAIR.includes(value.hairstyle))s.hairstyle=value.hairstyle;if(JUMP_BACKGROUNDS.includes(value.background))s.background=value.background;if(Object.hasOwn(PET_BREEDS,value.pet))s.pet=value.pet;s.breed=PET_BREEDS[s.pet].includes(value.breed)?value.breed:PET_BREEDS[s.pet][0];if(s.pet==='ferret'&&!ferretUnlocked(s.breed,owned))s.breed='Sable';if(s.pet==='hedgehog'&&!hedgehogUnlocked(s.breed,owned))s.breed='Salt and pepper';if(typeof value.petName==='string')s.petName=value.petName.replace(/[\u0000-\u001f\u007f]/g,'').trim().slice(0,24);return s;}
