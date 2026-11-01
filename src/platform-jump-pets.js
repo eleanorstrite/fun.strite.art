@@ -1,3 +1,4 @@
+import {petMotionSprite} from './platform-pet-motion.js';
 import {hedgehogSprite} from './platform-hedgehogs.js';
 import {ferretSprite} from './platform-ferrets.js';
 import {dogMotionSprite} from './platform-dog-motion.js';
@@ -6,6 +7,7 @@ export const PET_ROWS=['cat','dog','capybara','dragon','guinea pig','rabbit'];
 export function petSpriteCell(pet,breed){const row=PET_ROWS.indexOf(pet),column=PET_BREEDS[pet]?.indexOf(breed);return row>=0&&column>=0?{row,column}:null;}
 const ROW_EDGES=[0,222/1254,435/1254,635/1254,850/1254,1020/1254,1];
 let atlas,bounds;
+const poseTransitions=new WeakMap();
 export function jumpPetAtlas(){if(!atlas&&typeof Image!=='undefined'){atlas=new Image();atlas.src=new URL('../assets/platform-jump-pets.png',import.meta.url).href;}return atlas;}
 function spriteBounds(image){
  const canvas=document.createElement('canvas');canvas.width=image.naturalWidth;canvas.height=image.naturalHeight;const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0);const data=ctx.getImageData(0,0,canvas.width,canvas.height).data,result=[];
@@ -20,7 +22,14 @@ function spriteBounds(image){
  }return result;
 }
 export function drawRealJumpPet(c,x,y,settings,time,moving,facing=1,pose='idle'){
- const ferret=settings.pet==='ferret'?ferretSprite(settings.breed):settings.pet==='hedgehog'?hedgehogSprite(settings.breed):null;const image=ferret?.image||jumpPetAtlas(),cell=ferret?{row:0,column:0}:petSpriteCell(settings.pet,settings.breed);if(!cell||(!ferret&&(!image?.complete||!image.naturalWidth)))return false;if(!ferret&&!bounds)bounds=spriteBounds(image);const motion=settings.pet==='dog'&&(moving||pose!=='idle')?dogMotionSprite(settings.breed,pose==='idle'&&moving?'walk':pose,time):null,b=ferret?.bounds||motion?.bounds||bounds[cell.row*4+cell.column],maxW=['hedgehog','guinea pig'].includes(settings.pet)?70:settings.pet==='dragon'?105:90,maxH=['hedgehog','guinea pig'].includes(settings.pet)?49:75,scale=Math.min(maxW/(motion?.maxW||b.w),maxH/(motion?.maxH||b.h)),w=b.w*scale,h=b.h*scale,bob=0;
- c.save();c.translate(x,y-bob);c.scale(facing<0?-1:1,1+Math.sin(time*3)*.007);c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.drawImage(motion?.image||image,b.x,b.y,b.w,b.h,-w/2,-h,w,h);c.restore();
+ const ferret=settings.pet==='ferret'?ferretSprite(settings.breed):settings.pet==='hedgehog'?hedgehogSprite(settings.breed):null;const image=ferret?.image||jumpPetAtlas(),cell=ferret?{row:0,column:0}:petSpriteCell(settings.pet,settings.breed);if(!cell||(!ferret&&(!image?.complete||!image.naturalWidth)))return false;if(!ferret&&!bounds)bounds=spriteBounds(image);const motion=settings.pet==='dog'&&(moving||pose!=='idle')?dogMotionSprite(settings.breed,pose==='idle'&&moving?'walk':pose,time):petMotionSprite(settings.pet,settings.breed,pose==='idle'&&moving?'walk':pose,time),b=motion?.bounds||ferret?.bounds||bounds[cell.row*4+cell.column],maxW=['hedgehog','guinea pig'].includes(settings.pet)?70:settings.pet==='dragon'?105:90,maxH=['hedgehog','guinea pig'].includes(settings.pet)?49:75,scale=Math.min(maxW/(motion?.maxW||b.w),maxH/(motion?.maxH||b.h)),w=b.w*scale,h=b.h*scale,bob=0;
+ c.save();c.translate(x,y-bob);c.scale(facing<0?-1:1,1+Math.sin(time*3)*.007);c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';if(motion&&settings.pet!=='dog'){
+  const key=settings.pet+':'+settings.breed;let blend=poseTransitions.get(c);
+  if(!blend||blend.key!==key||time<blend.time)blend={key,current:motion,previous:null,time};
+  else if(blend.current.image!==motion.image)blend={key,current:motion,previous:blend.current,time};
+  poseTransitions.set(c,blend);const alpha=Math.min(1,Math.max(0,(time-blend.time)/.065));
+  if(blend.previous&&alpha<1){const old=blend.previous.bounds;c.globalAlpha=1-alpha;c.drawImage(blend.previous.image,old.x,old.y,old.w,old.h,-old.w*scale/2,-old.h*scale,old.w*scale,old.h*scale);c.globalAlpha=alpha;}
+  c.drawImage(motion.image,b.x,b.y,b.w,b.h,-w/2,-h,w,h);
+ }else c.drawImage(motion?.image||image,b.x,b.y,b.w,b.h,-w/2,-h,w,h);c.restore();
  if(settings.petName){c.save();c.font='700 14px system-ui';c.textAlign='center';const width=c.measureText(settings.petName).width;c.fillStyle='#ffffffe6';c.beginPath();c.roundRect(x-width/2-7,y-h-bob-29,width+14,23,8);c.fill();c.fillStyle='#000';c.fillText(settings.petName,x,y-h-bob-12);c.restore();}return true;
 }
