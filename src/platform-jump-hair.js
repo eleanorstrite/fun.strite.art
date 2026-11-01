@@ -1,7 +1,7 @@
 export const JUMP_HAIR=['Short','Side swept','Spikes','Tousled','Center part','Curls','Afro','Bob with bangs','Long','Long waves','Ponytail','High ponytail','Pigtails','Braids','Bun','Double buns','Half-up bun','Bald'];
-function oval(c,x,y,rx,ry){c.beginPath();c.ellipse(x,y,rx,ry,0,0,Math.PI*2);c.fill();}
+function oval(c,x,y,rx,ry){c.beginPath();c.ellipse(x,y,rx,ry,0,0,Math.PI*2);c.fill();c.save();c.clip();c.strokeStyle='#ffffff20';c.lineWidth=.7;for(let i=-3;i<=3;i++){c.beginPath();c.moveTo(x+i*rx/4,y-ry);c.quadraticCurveTo(x+i*rx/3-rx*.25,y,x+i*rx/4,y+ry);c.stroke();}c.restore();}
 function lock(c,x,y,w,h,angle=0){c.save();c.translate(x,y);c.rotate(angle);oval(c,0,0,w,h);c.restore();}
-export function drawJumpHair(c,style,color,layer,time=0){if(style==='Bald')return;c.save();c.fillStyle=color;const sway=Math.sin(time*2.5)*.035;
+export function drawJumpHair(c,style,color,layer,time=0){if(style==='Bald')return;c.save();const shade=c.createLinearGradient(-25,-100,24,-45);shade.addColorStop(0,color);shade.addColorStop(.4,color);shade.addColorStop(.65,'#'+[1,3,5].map(i=>Math.max(0,parseInt(color.slice(i,i+2),16)-30).toString(16).padStart(2,'0')).join(''));shade.addColorStop(1,color);c.fillStyle=shade;const sway=Math.sin(time*2.5)*.035;
  if(layer==='back'){
   if(['Long','Long waves','Half-up bun'].includes(style)){for(const side of [-1,1]){lock(c,side*19,-61,11,31,side*sway);if(style==='Long waves')for(let j=0;j<4;j++)oval(c,side*(21+j%2*3),-77+j*12,9,10);}}
   if(style==='Bob with bangs')for(const side of [-1,1])lock(c,side*19,-67,9,23);

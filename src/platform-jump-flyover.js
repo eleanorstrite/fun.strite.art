@@ -1,0 +1,5 @@
+import {drawPlatformJump} from './platform-jump-art.js';
+export const FLYOVER_SECONDS=11.5;
+const ease=t=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t);};
+export function flyoverFrame(state,time){const top=state.platforms.at(-1).y-350;let camera=0,message='Your adventure starts here';if(time>=1&&time<4.5){camera=top*ease((time-1)/3.5);message='Up to the finish!';}else if(time>=4.5&&time<9.5){camera=top;message=['Ready','3','2','1','Go!'][Math.min(4,Math.floor(time-4.5))];}else if(time>=9.5){camera=top*(1-ease((time-9.5)/2));message='Go!';}return {camera:camera||0,message};}
+export function drawCourseFlyover(c,state,settings,time){const frame=flyoverFrame(state,time);drawPlatformJump(c,{...state,camera:frame.camera,time},settings);c.save();c.scale(c.canvas.width/900,c.canvas.height/650);c.fillStyle='#17334de8';c.beginPath();c.roundRect(220,80,460,85,18);c.fill();c.font=`800 ${frame.message.length>12?26:46}px system-ui`;c.fillStyle='#fff3c4';c.textAlign='center';c.fillText(frame.message,450,137);c.restore();}
