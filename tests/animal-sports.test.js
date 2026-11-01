@@ -80,7 +80,7 @@ test('basketball has three defenders and occasional dribble steals that start op
    tickSports(s,.02,{},()=>0);assert.equal(s.turnovers,1,'Opponent possession does not trigger another defensive steal');
   }else{for(let f=0;f<20;f++)tickSports(s,.02,{},()=>{attempts++;return 1;});assert.equal(attempts,1,'Failed swats have a cooldown');}
  }
- assert.equal(steals,28);
+ assert.equal(steals,40);
 });
 test('defenders can intercept contested passes but open passes remain safe',()=>{
  let interceptions=0;
@@ -89,7 +89,7 @@ test('defenders can intercept contested passes but open passes remain safe',()=>
   for(let f=0;f<24;f++)tickSports(s,.02,{},()=>{attempts++;return i/100;});
   assert.equal(attempts,1,'Each contested pass has only one steal attempt');if(s.turnovers)interceptions++;else assert.equal(s.active,1);
  }
- assert.equal(interceptions,35);
+ assert.equal(interceptions,48);
  const open=createSportsState('basketball');open.defenseGrace=0;open.defenders.forEach(d=>{d.x=180;d.y=210;});sportsAction(open,'pass',2);for(let f=0;f<24;f++)tickSports(open,.02,{},()=>0);assert.equal(open.active,2);assert.equal(open.turnovers,0);
 });
 test('shooting mode and shots are immune to steals even with defenders touching the ball',()=>{
@@ -117,7 +117,10 @@ test('tennis random misses apply only to shots hit from the right half of the co
    let rolls=0;for(let f=0;f<80;f++)tickSports(s,.02,{},()=>{rolls++;return i/100;});
    if(s.score===1)misses++;assert.equal(rolls,x>480?1:0);
   }
-  assert.equal(misses,x>480?30:0);
+  assert.equal(misses,x>480?12:0);
  }
  const s=createSportsState('tennis');s.player.x=560;sportsAction(s,'swing');assert.equal(s.ball.allowAiMiss,true,'Serving from the right also enables occasional misses');
+});
+test('harder sports use faster tennis serves and a tighter basketball target',()=>{
+ const s=createSportsState('tennis');sportsAction(s,'swing');assert.equal(Math.abs(s.ball.vy),265);assert.equal(s.swing,.32);assert.equal(sportsShotAligned({x:491,y:170}),true);assert.equal(sportsShotAligned({x:493,y:170}),false);
 });

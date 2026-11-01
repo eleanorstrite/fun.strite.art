@@ -6,23 +6,23 @@ export function createSportsState(sport='bowling',settings={}){
 }
 function makePins(){return Array.from({length:10},(_,i)=>{let row=0;while((row+1)*(row+2)/2<=i)row++;const slot=i-row*(row+1)/2;return {x:480+(slot-row/2)*48,y:225-row*30,up:true,fall:0};});}
 export function sportsShotPoint(start,target,t){const p=clamp(t,0,1);return {x:start.x+(target.x-start.x)*p,y:start.y+(target.y-start.y)*p-Math.sin(p*Math.PI)*Math.min(170,70+Math.hypot(target.x-start.x,target.y-start.y)*.25)};}
-export function sportsShotAligned(aim){return Boolean(aim&&Math.hypot(aim.x-480,aim.y-170)<=22);}
-function tennisReturn(s,second=false){const b=s.ball,p=second?s.opponent:s.player;if(!b||(second?b.vy>=0:b.vy<=0))return false;const hitY=second?p.y+18:p.y-36;if(Math.abs(b.y-hitY)>72||Math.abs(b.x-p.x)>105)return false;b.vy=(second?1:-1)*Math.min(350,225+s.rally*12);b.vx=clamp((b.x-p.x)*3,-185,185);if(Math.abs(b.vx)<35)b.vx=p.x<480?65:-65;b.y=hitY+(second?8:-8);if(!second){b.allowAiMiss=p.x>480;b.aiAttempt=undefined;}s.rally++;s.message=second?(s.tennisPlayers===2?'Player 2 returns!':'Opponent returns!'):'Nice return!';return true;}
+export function sportsShotAligned(aim){return Boolean(aim&&Math.hypot(aim.x-480,aim.y-170)<=12);}
+function tennisReturn(s,second=false){const b=s.ball,p=second?s.opponent:s.player;if(!b||(second?b.vy>=0:b.vy<=0))return false;const hitY=second?p.y+18:p.y-36;if(Math.abs(b.y-hitY)>72||Math.abs(b.x-p.x)>105)return false;b.vy=(second?1:-1)*Math.min(410,265+s.rally*16);b.vx=clamp((b.x-p.x)*3,-185,185);if(Math.abs(b.vx)<35)b.vx=p.x<480?65:-65;b.y=hitY+(second?8:-8);if(!second){b.allowAiMiss=p.x>480;b.aiAttempt=undefined;}s.rally++;s.message=second?(s.tennisPlayers===2?'Player 2 returns!':'Opponent returns!'):'Nice return!';return true;}
 export function sportsAction(s,action,target=null){
  if(s.done)return false;
  if(s.sport==='bowling'){
   if(action!=='roll'||s.ball||s.cooldown>0)return false;s.charging=false;s.ball={x:s.player.x,y:525,startX:s.player.x,progress:0,power:s.power,knocked:0,release:s.release,gutter:false,strike:Math.abs(s.player.x-480)<=8&&Math.abs(s.release)<=.12&&s.power>=.82&&s.power<=.9};s.roll++;s.message='Rolling…';return true;
  }
  if(s.sport==='tennis'){
-  const second=action==='swing2';if(action!=='swing'&&!second||second&&s.tennisPlayers!==2)return false;const key=second?'opponentSwing':'swing';if(s[key]>.1)return false;s[key]=.42;
-  if(!s.ball&&s.cooldown<=0){const p=second?s.opponent:s.player;s.ball={x:p.x,y:second?p.y+28:p.y-45,vx:65,vy:second?225:-225,allowAiMiss:!second&&p.x>480};s.rally=0;s.message='Rally on!';return true;}
+  const second=action==='swing2';if(action!=='swing'&&!second||second&&s.tennisPlayers!==2)return false;const key=second?'opponentSwing':'swing';if(s[key]>.1)return false;s[key]=.32;
+  if(!s.ball&&s.cooldown<=0){const p=second?s.opponent:s.player;s.ball={x:p.x,y:second?p.y+28:p.y-45,vx:65,vy:second?265:-265,allowAiMiss:!second&&p.x>480};s.rally=0;s.message='Rally on!';return true;}
   // The swing remains active so an early press can connect as the ball arrives.
   tennisReturn(s,second);return true;
  }
  if(s.enemyPossession){
   if(!['aim','steal'].includes(action)||s.ball||s.playerStealCooldown>0)return false;
   s.playerStealCooldown=.65;s.playerReach=.3;const p=s.team[s.active],d=s.defenders[s.enemyCarrier];
-  if(Math.hypot(p.x-d.x,p.y-d.y)<=72){s.enemyPossession=false;s.defenseGrace=3;s.cooldown=0;s.message='You stole it! Your ball — move, pass or shoot.';}else s.message='Get closer to the ball carrier, then press Space to steal!';return true;
+  if(Math.hypot(p.x-d.x,p.y-d.y)<=56){s.enemyPossession=false;s.defenseGrace=3;s.cooldown=0;s.message='You stole it! Your ball — move, pass or shoot.';}else s.message='Get closer to the ball carrier, then press Space to steal!';return true;
  }
  if(s.ball||s.cooldown>0)return false;
  if(action==='aim'){if(!s.aim){const p=s.team[s.active];s.aim={x:p.x+28,y:215};s.message='Aim the dotted arc at the rim, then release Space / tap.';}return true;}
@@ -43,20 +43,20 @@ function basketballDefense(s,dt,random){
   d.reach=Math.max(0,(d.reach||0)-dt);
   const guarding=i===0?p:s.team[(s.active+i)%3];
   const target=s.ball?.type==='pass'?{x:s.ball.x,y:s.ball.y+20}:guarding;
-  const tx=clamp(target.x+(i===0?(s.aim?65:38):i===1?-55:55),180,780),ty=target.y-(i===0?(s.aim?55:22):48),distance=Math.hypot(tx-d.x,ty-d.y),step=Math.min(distance,110*dt);
+  const tx=clamp(target.x+(i===0?(s.aim?65:38):i===1?-55:55),180,780),ty=target.y-(i===0?(s.aim?55:22):48),distance=Math.hypot(tx-d.x,ty-d.y),step=Math.min(distance,145*dt);
   if(distance){d.x+=((tx-d.x)/distance)*step;d.y+=((ty-d.y)/distance)*step;}
  });
  // One team-wide attempt at a time, with recovery protection after turnovers.
  if(s.aim||s.ball||s.cooldown>0||s.defenseGrace>0||s.stealCooldown>0)return;
  const d=s.defenders.find(d=>Math.hypot(d.x-(p.x+22),d.y-p.y)<46);
- if(d){d.reach=.4;s.stealCooldown=1.6;if(random()<.28)knockBasketballLoose(s,d,false);}
+ if(d){d.reach=.4;s.stealCooldown=1.25;if(random()<.4)knockBasketballLoose(s,d,false);}
 }
 function interceptBasketball(s,b,from,random){
  if(s.defenseGrace>0||s.stealCooldown>0||b.contested)return;
  // Test the swept pass segment so fast passes cannot tunnel through a defender.
  const vx=b.x-from.x,vy=b.y-from.y,length=vx*vx+vy*vy;
  const d=s.defenders.find(d=>{const x=d.x,y=d.y-20,t=length?clamp(((x-from.x)*vx+(y-from.y)*vy)/length,0,1):0;return Math.hypot(x-from.x-vx*t,y-from.y-vy*t)<28;});
- if(d){b.contested=true;d.reach=.4;s.stealCooldown=1.6;if(random()<.35)knockBasketballLoose(s,d,true);}
+ if(d){b.contested=true;d.reach=.4;s.stealCooldown=1.25;if(random()<.48)knockBasketballLoose(s,d,true);}
 }
 export function tickSports(s,dt,input={},random=Math.random){
  if(s.done||dt<=0)return;dt=Math.min(dt,.05);s.time+=dt;s.cooldown=Math.max(0,s.cooldown-dt);s.swing=Math.max(0,s.swing-dt);s.opponentSwing=Math.max(0,s.opponentSwing-dt);s.pinFlash=Math.max(0,s.pinFlash-dt);
@@ -73,8 +73,8 @@ export function tickSports(s,dt,input={},random=Math.random){
   const b=s.ball;if(b){if(s.tennisPlayers===1){
     // Shots hit from the right half can cause an occasional mistimed return.
     // Decide once per incoming shot, using the hitter position at contact.
-    if(b.vy<0&&b.aiAttempt===undefined)b.aiAttempt=!b.allowAiMiss||random()>=.3;
-    s.opponent.x+=clamp(b.x-s.opponent.x,-145*dt,145*dt);
+    if(b.vy<0&&b.aiAttempt===undefined)b.aiAttempt=!b.allowAiMiss||random()>=.12;
+    s.opponent.x+=clamp(b.x-s.opponent.x,-190*dt,190*dt);
     if(b.vy<0&&(b.aiAttempt?Math.abs(b.y-(s.opponent.y+18))<48:b.y<150))s.opponentSwing=.3;
    }
    b.x+=b.vx*dt;b.y+=b.vy*dt;if(b.x<220||b.x>740){b.x=clamp(b.x,220,740);b.vx*=-1;}if(s.swing>0)tennisReturn(s);if(s.opponentSwing>0&&(s.tennisPlayers===2||b.aiAttempt!==false))tennisReturn(s,true);
@@ -86,7 +86,7 @@ export function tickSports(s,dt,input={},random=Math.random){
   s.playerStealCooldown=Math.max(0,s.playerStealCooldown-dt);s.playerReach=Math.max(0,s.playerReach-dt);
   if(s.enemyPossession){
    s.enemyAttackTime+=dt;const carrier=s.defenders[s.enemyCarrier];
-   s.defenders.forEach((d,i)=>{const tx=i===s.enemyCarrier?480:((i+3-s.enemyCarrier)%3===1?300:660),ty=i===s.enemyCarrier?230:290,dist=Math.hypot(tx-d.x,ty-d.y),step=Math.min(dist,72*dt);if(dist){d.x+=(tx-d.x)/dist*step;d.y+=(ty-d.y)/dist*step;}});
+   s.defenders.forEach((d,i)=>{const tx=i===s.enemyCarrier?480:((i+3-s.enemyCarrier)%3===1?300:660),ty=i===s.enemyCarrier?230:290,dist=Math.hypot(tx-d.x,ty-d.y),step=Math.min(dist,100*dt);if(dist){d.x+=(tx-d.x)/dist*step;d.y+=(ty-d.y)/dist*step;}});
    if(!s.ball&&carrier.y<=232&&s.enemyAttackTime>1){s.ball={type:'enemy-shot',x:carrier.x+28,y:carrier.y-28,startX:carrier.x+28,startY:carrier.y-28,endX:480,endY:170,progress:0};s.message='Opponent shoots!';}
   }else basketballDefense(s,dt,random);
   if(s.ball){const b=s.ball,from={x:b.x,y:b.y};b.progress+=dt/(b.type==='pass'?.45:b.type==='loose'?1:1.1);const mate=s.team[b.target],to=b.type==='pass'?{x:mate.x,y:mate.y-20}:{x:b.endX,y:b.endY};

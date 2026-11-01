@@ -17,3 +17,6 @@ test('pet editor supports requested varieties, validates saved settings and trea
  for(const pet of ['cat','dog','capybara','dragon','guinea pig','rabbit'])for(const breed of PET_BREEDS[pet])assert.equal(validateJumpSettings({pet,breed}).breed,breed);
  assert.equal(validateJumpSettings({pet:'dog',breed:'Tabby'}).breed,'Brindle');assert.equal(validateJumpSettings({petName:'Davina'}).petName,'Davina');assert.equal(validateJumpSettings({petName:'a'.repeat(80)}).petName.length,24);assert.equal(validateJumpSettings({pet:'__proto__'}).pet,'dog');assert.equal(validateJumpSettings({hair:'bad'}).hair,'#513324');assert.equal(validateJumpSettings({hairstyle:'Curls',background:'Aurora'}).hairstyle,'Curls');
 });
+test('every pet breed maps to its own realistic artwork cell',async()=>{
+ const {petSpriteCell}=await import('../src/platform-jump-pets.js');const cells=new Set();for(const [pet,breeds]of Object.entries(PET_BREEDS))for(const breed of breeds){const cell=petSpriteCell(pet,breed);assert.ok(cell);assert.ok(cell.row>=0&&cell.row<6&&cell.column>=0&&cell.column<4);cells.add(`${cell.row}:${cell.column}`);}assert.equal(cells.size,Object.values(PET_BREEDS).flat().length);assert.equal(petSpriteCell('dog','Tabby'),null);
+});
