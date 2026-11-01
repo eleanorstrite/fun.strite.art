@@ -1,0 +1,8 @@
+Platform Jump ferret sprite artwork
+Generated with the built-in imagegen tool on 2026-11-01.
+Source references: user-supplied photographs of natural ferrets, rainbow lighting, a pink tutu and bow, and a tuxedo.
+Output: assets/platform-ferrets.png (transparent PNG; original alpha preserved).
+Runtime extracts individual connected silhouettes to preserve noses and tails that extend across grid boundaries.
+
+Final generation prompt:
+Create a photorealistic game sprite sheet of pet ferrets, transparent background. Exactly 8 cells in a regular 2 column by 4 row grid, generous transparent margins around each whole animal. All full body including paws tail and ears, facing right in three-quarter side view, consistent size, beautiful realistic fine fur and bright eyes, natural ferret anatomy (long flexible torso, short legs), studio soft light, no text no borders no shadows outside silhouette. Row1: left sable brown cream face dark mask ferret, right black ferret with white muzzle. Row2: left albino white ferret pink nose, right chocolate brown ferret. Row3: left cream ferret with luminous pastel rainbow fur highlights, right sable ferret wearing a delicate pink tulle tutu and pink bow on head. Row4: left sable ferret wearing fitted black tuxedo white shirt and black tie, right same natural sable ferret in an extended jumping pose. These are lifelike photographed animals, NOT clay, cartoon or plush. Ensure clean separated cells aligned exactly in equal quarters vertically and halves horizontally. Asset for Platform Jump matching user's supplied ferret coat and costume references.

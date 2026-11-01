@@ -1,3 +1,4 @@
+import {ferretAtlas,ferretSprite} from './platform-ferrets.js';
 import { VAN_LEVELS } from './van-adventure.js';
 import { drawAirplane, formatRaceTime } from './air-race.js';
 import { FLIGHT_VIEWS, FLIGHT_LEVELS, FLIGHT_ANIMALS, FLIGHT_BACKGROUNDS, PIPE_STYLES } from './flight-settings.js';
@@ -195,6 +196,7 @@ function renderShop(){
     const consumable=item.group==='gameplay',owned=state.upgrades.includes(item.id),canBuy=state.unlimitedCoins||state.coins>=item.cost,blocked=consumable&&item.id!=='snack'&&full;
     const card=document.createElement('article');card.className='shop-card';card.dataset.upgrade=item.id;
     card.innerHTML=`<div class="shop-icon">${item.icon}</div><small>${item.category}</small><h4>${item.name}</h4><p>${item.description}${item.id==='snack'?' '+state.boosts.snack+' uses stored.':consumable?' '+state.boosts[item.id]+' stored · Bag '+(mazeBagCount(state.boosts))+'/3.':''}</p><button class="button outline" ${owned||!canBuy||blocked?'disabled':''}><span>${owned?'Owned ✓':blocked?'Boost bag full':canBuy?consumable?'Buy one boost':(item.action||'Unlock upgrade'):`Earn ${item.cost-state.coins} more coins`}</span><span>${owned?'✓':`✦ ${item.cost}`}</span></button>`;
+    if(item.ferret){const preview=document.createElement('canvas');preview.width=300;preview.height=190;preview.style.width='100%';preview.setAttribute('aria-label',item.name);card.querySelector('.shop-icon').replaceChildren(preview);const paint=()=>{const sprite=ferretSprite(item.ferret);if(!sprite)return;const b=sprite.bounds,scale=Math.min(280/b.w,175/b.h);preview.getContext('2d').drawImage(sprite.image,b.x,b.y,b.w,b.h,(300-b.w*scale)/2,(190-b.h*scale)/2,b.w*scale,b.h*scale);};const image=ferretAtlas();if(image.complete)paint();else image.addEventListener('load',paint,{once:true});}
     card.querySelector('button').onclick=()=>{try{system.buy(item.id);notify(`${item.name} ${consumable?'added to your inventory':'unlocked'}!`);}catch(e){notify(e.message);}};
     $('#shop-'+item.group).append(card);
   }

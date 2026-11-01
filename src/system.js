@@ -1,3 +1,4 @@
+import {FERRET_SHOP_ITEMS} from './platform-ferrets.js';
 import {SPORTS_SHOP_ITEMS} from './animal-sports-settings.js';
 import { CITY_FOOD, CITY_FOOD_UNLOCKS, cityFoodUnlocked } from './city-shop.js';
 import { ICE_SHOP_ITEMS } from './ice-settings.js';
@@ -40,6 +41,7 @@ export const PLANE_DEFAULTS={color:'#ed6e40',style:'sport',difficulty:'sloth',ba
 export const KNIGHT_DEFAULTS = { armor: 'silver', helmet: 'plume', cape: true, shield: false, dragon: 'classic' };
 export const UPGRADES = [
   ...SPORTS_SHOP_ITEMS,
+  ...FERRET_SHOP_ITEMS,
   {id:'ward',name:'Dragon shield',group:'gameplay',category:'KNIGHTS AND DRAGONS ONLY',icon:'🛡️',cost:600,description:'One use: dragons cannot take a life for 15 seconds. Activate above the maze. Uses one slot in your three-boost bag.'},
   {id:'frost',name:'Frost spell',group:'gameplay',category:'KNIGHTS AND DRAGONS ONLY',icon:'❄️',cost:700,description:'One use: slow every dragon to half speed for 15 seconds. Activate above the maze. Uses one slot in your three-boost bag.'},
   ...['sapphire','sunset'].map(id=>({id:ARMORS[id].upgrade,name:ARMORS[id].name+' armor',group:'appearance',category:'KNIGHTS AND DRAGONS ARMOR',icon:'♜',cost:250,description:'Permanently unlock this armor color in the knight customizer. Appearance only; works in 2D and 3D.'})),
