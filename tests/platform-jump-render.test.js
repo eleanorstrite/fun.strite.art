@@ -16,3 +16,10 @@ test('fresh settings match the front-page and opening characters without erasing
  assert.equal(JUMP_DEFAULTS.breed,'Brindle');assert.equal(JUMP_DEFAULTS.petName,'Davina');
  assert.equal(validateJumpSettings({pet:'cat',breed:'Calico',petName:'Mittens'}).breed,'Calico');
 });
+
+test('starter kid uses the reference outfit and upgrades only the old default look',()=>{
+ assert.equal(JUMP_DEFAULTS.hairstyle,'Short waves');assert.equal(JUMP_DEFAULTS.shirt,'#efb17f');assert.equal(JUMP_DEFAULTS.pants,'#82935a');
+ const old={skin:'#dba47b',hair:'#513324',shirt:'#6b67dc',pants:'#304b71',hairstyle:'Short',pet:'cat',breed:'Calico',petName:'Mittens'};
+ const upgraded=validateJumpSettings(old);assert.equal(upgraded.hairstyle,'Short waves');assert.equal(upgraded.petName,'Mittens');assert.equal(upgraded.breed,'Calico');
+ assert.equal(validateJumpSettings({...old,shirt:'#ff1122'}).shirt,'#ff1122');assert.equal(validateJumpSettings({...old,shirt:'#ff1122'}).hairstyle,'Short');
+});
