@@ -29,14 +29,19 @@ export function createJumpState(difficulty='Medium'){if(!Object.hasOwn(JUMP_LEVE
   platforms.push({x,y,w:i===48?200:level.width+Math.floor(random()*level.widthRange)});
  }
  return {difficulty,summit:48*level.rise,x:450,y:560,vx:0,vy:0,grounded:true,platform:0,platforms,time:0,camera:0,highest:0,done:false,jumps:0,trail:[],pet:{x:370,y:560,pose:'idle',facing:1},facing:1};}
-export function jump(s){if(!s.done&&s.grounded){s.vy=-640;s.grounded=false;s.jumps++;return true;}return false;}
-export function tickJump(s,dt,input=0){if(s.done||dt<=0)return;dt=Math.min(dt,.04);s.time+=dt;s.vx=Math.max(-1,Math.min(1,input))*290;if(input)s.facing=input<0?-1:1;const oldY=s.y;s.x=Math.max(18,Math.min(882,s.x+s.vx*dt));if(s.grounded){const p=s.platforms[s.platform];if(Math.abs(s.x-p.x)>p.w/2+12){s.grounded=false;s.vy=0;}}
- if(!s.grounded){s.vy=Math.min(1400,s.vy+1300*dt);s.y+=s.vy*dt;if(s.vy>=0){let landing=null;for(let i=0;i<s.platforms.length;i++){const p=s.platforms[i];if(oldY<=p.y&&s.y>=p.y&&Math.abs(s.x-p.x)<p.w/2+12&&(!landing||p.y<landing.p.y))landing={p,i};}if(landing){s.y=landing.p.y;s.vy=0;s.grounded=true;s.platform=landing.i;s.tapTarget=null;if(s.platform===48)s.done=true;}}}
+export function jump(s){if(!s.done&&s.grounded){s.vy=-640;s.landingLimit=s.platform+1;s.grounded=false;s.jumps++;return true;}return false;}
+export function tickJump(s,dt,input=0){if(s.done||dt<=0)return;dt=Math.min(dt,.04);s.time+=dt;s.vx=Math.max(-1,Math.min(1,input))*(s.tapTarget?.speed||290);if(input)s.facing=input<0?-1:1;const oldY=s.y;s.x=Math.max(18,Math.min(882,s.x+s.vx*dt));if(s.grounded){const p=s.platforms[s.platform];if(Math.abs(s.x-p.x)>p.w/2+12){s.grounded=false;s.vy=0;}}
+ if(!s.grounded){s.vy=Math.min(1400,s.vy+1300*dt);s.y+=s.vy*dt;if(s.vy>=0){let landing=null;for(let i=0;i<s.platforms.length;i++){const p=s.platforms[i];if(i<=(s.landingLimit??48)&&oldY<=p.y&&s.y>=p.y&&Math.abs(s.x-p.x)<p.w/2+12&&(!landing||p.y<landing.p.y))landing={p,i};}if(landing){s.y=landing.p.y;s.vy=0;s.grounded=true;s.platform=landing.i;s.tapTarget=null;if(s.platform===48)s.done=true;}}}
  s.highest=Math.max(s.highest,560-s.y);const cameraTarget=Math.min(0,s.y-430);s.camera+=(cameraTarget-s.camera)*Math.min(1,dt*8);s.trail.push({time:s.time,x:s.x-80*s.facing,y:s.y,vx:s.vx,vy:s.vy,grounded:s.grounded,facing:s.facing});while(s.trail.length>1&&s.trail[1].time<s.time-.28)s.trail.shift();const target=s.trail[0];s.pet.restTime=target.grounded&&Math.abs(target.vx)<1?(s.pet.restTime||0)+dt:0;s.pet.facing=target.facing;s.pet.pose=target.grounded?(!s.grounded&&s.vy<0?'crouch':Math.abs(target.vx)>0?'walk':s.pet.restTime>2.5&&s.pet.restTime%10<8?'sit':'idle'):target.vy<0?'jump':'land';s.pet.x+=(target.x-s.pet.x)*Math.min(1,dt*12);s.pet.y+=(target.y-s.pet.y)*Math.min(1,dt*12);
 }
 // Pointer coordinates are normalized to the game's 900 × 650 world by the UI.
 export function tapJump(s,x,screenY){if(s.done||!Number.isFinite(x)||!Number.isFinite(screenY))return false;const worldY=screenY+s.camera;
- const nearby=s.platforms.filter((p,i)=>i>0&&Math.abs(p.y-worldY)<=65&&Math.abs(p.x-x)<=p.w/2+18).sort((a,b)=>Math.abs(a.y-worldY)-Math.abs(b.y-worldY))[0];
- s.tapTarget={x:Math.max(18,Math.min(882,nearby?nearby.x:x)),y:nearby?nearby.y:worldY};if(s.grounded)jump(s);return true;
+ const nextIndex=Math.min(48,(s.grounded?s.platform+1:(s.landingLimit??s.platform+1))),next=s.platforms[nextIndex];
+ // Only the next numbered landing spot can attract a tap. Sky taps stay free aim.
+ const nearby=Math.abs(next.y-worldY)<=65&&Math.abs(next.x-x)<=next.w/2+30;
+ const targetX=Math.max(18,Math.min(882,nearby?next.x:x));
+ if(s.grounded){jump(s);const rise=Math.max(640*640/2600,Math.min(s.y-worldY,s.y-next.y+60));s.vy=-Math.sqrt(2600*rise);}
+ const speed=Math.max(290,Math.min(1800,Math.abs(targetX-s.x)/Math.max(.16,-s.vy/1300)));
+ s.tapTarget={x:targetX,y:nearby?next.y:Math.max(next.y-60,worldY),speed};return true;
 }
-export function tapJumpDirection(s,dt){return s.tapTarget?Math.max(-1,Math.min(1,(s.tapTarget.x-s.x)/(290*Math.max(dt,.001)))):0;}
+export function tapJumpDirection(s,dt){return s.tapTarget?Math.max(-1,Math.min(1,(s.tapTarget.x-s.x)/((s.tapTarget.speed||290)*Math.max(dt,.001)))):0;}
