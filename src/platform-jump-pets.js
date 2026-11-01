@@ -1,3 +1,4 @@
+import {hedgehogSprite} from './platform-hedgehogs.js';
 import {ferretSprite} from './platform-ferrets.js';
 import {dogMotionSprite} from './platform-dog-motion.js';
 import {PET_BREEDS} from './platform-jump-rules.js';
@@ -19,7 +20,7 @@ function spriteBounds(image){
  }return result;
 }
 export function drawRealJumpPet(c,x,y,settings,time,moving,facing=1,pose='idle'){
- const ferret=settings.pet==='ferret'?ferretSprite(settings.breed):null;const image=ferret?.image||jumpPetAtlas(),cell=ferret?{row:0,column:0}:petSpriteCell(settings.pet,settings.breed);if(!cell||(!ferret&&(!image?.complete||!image.naturalWidth)))return false;if(!ferret&&!bounds)bounds=spriteBounds(image);const motion=settings.pet==='dog'&&(moving||pose!=='idle')?dogMotionSprite(settings.breed,pose==='idle'&&moving?'walk':pose,time):null,b=ferret?.bounds||motion?.bounds||bounds[cell.row*4+cell.column],maxW=settings.pet==='guinea pig'?70:settings.pet==='dragon'?105:90,maxH=settings.pet==='guinea pig'?49:75,scale=Math.min(maxW/(motion?.maxW||b.w),maxH/(motion?.maxH||b.h)),w=b.w*scale,h=b.h*scale,bob=0;
+ const ferret=settings.pet==='ferret'?ferretSprite(settings.breed):settings.pet==='hedgehog'?hedgehogSprite(settings.breed):null;const image=ferret?.image||jumpPetAtlas(),cell=ferret?{row:0,column:0}:petSpriteCell(settings.pet,settings.breed);if(!cell||(!ferret&&(!image?.complete||!image.naturalWidth)))return false;if(!ferret&&!bounds)bounds=spriteBounds(image);const motion=settings.pet==='dog'&&(moving||pose!=='idle')?dogMotionSprite(settings.breed,pose==='idle'&&moving?'walk':pose,time):null,b=ferret?.bounds||motion?.bounds||bounds[cell.row*4+cell.column],maxW=['hedgehog','guinea pig'].includes(settings.pet)?70:settings.pet==='dragon'?105:90,maxH=['hedgehog','guinea pig'].includes(settings.pet)?49:75,scale=Math.min(maxW/(motion?.maxW||b.w),maxH/(motion?.maxH||b.h)),w=b.w*scale,h=b.h*scale,bob=0;
  c.save();c.translate(x,y-bob);c.scale(facing<0?-1:1,1+Math.sin(time*3)*.007);c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.drawImage(motion?.image||image,b.x,b.y,b.w,b.h,-w/2,-h,w,h);c.restore();
  if(settings.petName){c.save();c.font='700 14px system-ui';c.textAlign='center';const width=c.measureText(settings.petName).width;c.fillStyle='#ffffffe6';c.beginPath();c.roundRect(x-width/2-7,y-h-bob-29,width+14,23,8);c.fill();c.fillStyle='#000';c.fillText(settings.petName,x,y-h-bob-12);c.restore();}return true;
 }
