@@ -24,3 +24,9 @@ test('dogs use different walking, takeoff, airborne and landing poses',async()=>
  const {dogPoseFrame,DOG_MOTION_BREEDS}=await import('../src/platform-dog-motion.js');assert.deepEqual(DOG_MOTION_BREEDS,PET_BREEDS.dog);assert.deepEqual([0,.12,.24,.36].map(t=>dogPoseFrame('walk',t)),[0,1,2,3]);assert.equal(dogPoseFrame('idle'),4);assert.equal(dogPoseFrame('crouch'),5);assert.equal(dogPoseFrame('jump'),6);assert.equal(dogPoseFrame('land'),7);
  const s=createJumpState();tickJump(s,.02,1);assert.equal(s.pet.pose,'walk');jump(s);tickJump(s,.02,1);assert.equal(s.pet.pose,'crouch');for(let i=0;i<18;i++)tickJump(s,.02,1);assert.equal(s.pet.pose,'jump');for(let i=0;i<30;i++)tickJump(s,.02,1);assert.equal(s.pet.pose,'land');
 });
+test('scattered course leaves meaningful falls while keeping its summit and restart layout',()=>{
+ const course=createJumpState();assert.deepEqual(course.platforms,createJumpState().platforms);assert.equal(course.platforms.at(-1).y,-4240);
+ const gaps=course.platforms.slice(1).map((p,i)=>course.platforms[i].y-p.y);assert.ok(new Set(gaps).size>8);
+ let longerFalls=0;for(let i=5;i<48;i++){const s=createJumpState(),p=s.platforms[i];s.x=p.x;s.y=p.y+2;s.vy=10;s.grounded=false;for(let frame=0;frame<1000&&!s.grounded;frame++)tickJump(s,.02);assert.ok(s.grounded);if(i-s.platform>=3)longerFalls++;}
+ assert.ok(longerFalls>=20,'Missed jumps should often pass multiple lower landing spots');
+});
