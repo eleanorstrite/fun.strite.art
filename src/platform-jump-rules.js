@@ -5,24 +5,30 @@ import {FERRET_BREEDS,ferretUnlocked} from './platform-ferrets.js';
 export const PET_BREEDS={cat:['Tabby','Calico','Black cat','White cat'],dog:['Brindle','Dachshund','Black Labrador','Golden Retriever'],capybara:['Classic','Chocolate','Cream'],dragon:['Emerald','Fire','Frost','Rainbow'],'guinea pig':['Tricolor','White','Black and white','Chocolate'],rabbit:['Tan lop','White','Black']};
 PET_BREEDS.ferret=FERRET_BREEDS;
 PET_BREEDS.hedgehog=HEDGEHOG_BREEDS;
-export const JUMP_DEFAULTS={skin:'#dba47b',hair:'#513324',shirt:'#6b67dc',pants:'#304b71',hairstyle:'Short',background:'Blue sky',pet:'dog',breed:'Brindle',petName:'Davina'};
+export const JUMP_DEFAULTS={skin:'#dba47b',hair:'#513324',shirt:'#6b67dc',pants:'#304b71',hairstyle:'Short',background:'Blue sky',pet:'dog',breed:'Brindle',petName:'Davina',difficulty:'Medium'};
 export const JUMP_BACKGROUNDS=['Blue sky','Sunset','Aurora','Candy clouds'];
-export function validateJumpSettings(value={},owned=[]){const s={...JUMP_DEFAULTS};if(!value||typeof value!=='object')return s;for(const key of ['skin','hair','shirt','pants'])if(/^#[0-9a-f]{6}$/i.test(value[key]))s[key]=value[key];if(JUMP_HAIR.includes(value.hairstyle))s.hairstyle=value.hairstyle;if(JUMP_BACKGROUNDS.includes(value.background))s.background=value.background;if(Object.hasOwn(PET_BREEDS,value.pet))s.pet=value.pet;s.breed=PET_BREEDS[s.pet].includes(value.breed)?value.breed:PET_BREEDS[s.pet][0];if(s.pet==='ferret'&&!ferretUnlocked(s.breed,owned))s.breed='Sable';if(s.pet==='hedgehog'&&!hedgehogUnlocked(s.breed,owned))s.breed='Salt and pepper';if(typeof value.petName==='string')s.petName=value.petName.replace(/[\u0000-\u001f\u007f]/g,'').trim().slice(0,24);return s;}
-export function createJumpState(){const platforms=[{x:450,y:560,w:900}];let x=450,y=560,seed=73129,gap=100;
+export const JUMP_LEVELS={
+ Easy:{rise:80,variation:10,minTravel:75,maxTravel:145,width:180,widthRange:31,description:'Wide landing spots, close together. A gentle first climb.'},
+ Medium:{rise:100,variation:18,minTravel:135,maxTravel:225,width:110,widthRange:31,description:'Scattered landing spots with moderate gaps.'},
+ Hard:{rise:110,variation:8,minTravel:160,maxTravel:235,width:96,widthRange:20,description:'Higher jumps, wider gaps, and narrower landing spots.'},
+ Expert:{rise:120,variation:6,minTravel:185,maxTravel:220,width:76,widthRange:20,description:'The narrowest landing spots and longest, highest jumps. Aim carefully!'}
+};
+export function validateJumpSettings(value={},owned=[]){const s={...JUMP_DEFAULTS};if(!value||typeof value!=='object')return s;for(const key of ['skin','hair','shirt','pants'])if(/^#[0-9a-f]{6}$/i.test(value[key]))s[key]=value[key];if(Object.hasOwn(JUMP_LEVELS,value.difficulty))s.difficulty=value.difficulty;if(JUMP_HAIR.includes(value.hairstyle))s.hairstyle=value.hairstyle;if(JUMP_BACKGROUNDS.includes(value.background))s.background=value.background;if(Object.hasOwn(PET_BREEDS,value.pet))s.pet=value.pet;s.breed=PET_BREEDS[s.pet].includes(value.breed)?value.breed:PET_BREEDS[s.pet][0];if(s.pet==='ferret'&&!ferretUnlocked(s.breed,owned))s.breed='Sable';if(s.pet==='hedgehog'&&!hedgehogUnlocked(s.breed,owned))s.breed='Salt and pepper';if(typeof value.petName==='string')s.petName=value.petName.replace(/[\u0000-\u001f\u007f]/g,'').trim().slice(0,24);return s;}
+export function createJumpState(difficulty='Medium'){if(!Object.hasOwn(JUMP_LEVELS,difficulty))difficulty='Medium';const level=JUMP_LEVELS[difficulty];const platforms=[{x:450,y:560,w:900}];let x=450,y=560,seed=73129,gap=level.rise;
  // A fixed seed keeps restarts learnable while avoiding repeating zigzag columns.
  const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
  for(let i=1;i<=48;i++){
-  if(i%2)gap=82+Math.floor(random()*37);else gap=200-gap;
+  if(i%2)gap=level.rise-level.variation+Math.floor(random()*(level.variation*2+1));else gap=level.rise*2-gap;
   let best=x,bestScore=-Infinity;
-  for(let attempt=0;attempt<40;attempt++){const candidate=100+random()*700,travel=Math.abs(candidate-x);if(travel<135||travel>225)continue;
+  for(let attempt=0;attempt<40;attempt++){const candidate=100+random()*700,travel=Math.abs(candidate-x);if(travel<level.minTravel||travel>level.maxTravel)continue;
    const overlap=platforms.slice(Math.max(1,platforms.length-4),-1).reduce((sum,p)=>sum+Math.max(0,105-Math.abs(candidate-p.x)),0),score=random()*75-overlap;
    if(score>bestScore){best=candidate;bestScore=score;}
   }
   // Guaranteed reachable fallback if the sampled candidates all missed the range.
-  x=Math.round(bestScore===-Infinity?x+(x>450?-175:175):best);y-=gap;
-  platforms.push({x,y,w:i===48?200:110+Math.floor(random()*31)});
+  x=Math.round(bestScore===-Infinity?x+(x>450?-1:1)*(level.minTravel+level.maxTravel)/2:best);y-=gap;
+  platforms.push({x,y,w:i===48?200:level.width+Math.floor(random()*level.widthRange)});
  }
- return {x:450,y:560,vx:0,vy:0,grounded:true,platform:0,platforms,time:0,camera:0,highest:0,done:false,jumps:0,trail:[],pet:{x:370,y:560,pose:'idle',facing:1},facing:1};}
+ return {difficulty,summit:48*level.rise,x:450,y:560,vx:0,vy:0,grounded:true,platform:0,platforms,time:0,camera:0,highest:0,done:false,jumps:0,trail:[],pet:{x:370,y:560,pose:'idle',facing:1},facing:1};}
 export function jump(s){if(!s.done&&s.grounded){s.vy=-640;s.grounded=false;s.jumps++;return true;}return false;}
 export function tickJump(s,dt,input=0){if(s.done||dt<=0)return;dt=Math.min(dt,.04);s.time+=dt;s.vx=Math.max(-1,Math.min(1,input))*290;if(input)s.facing=input<0?-1:1;const oldY=s.y;s.x=Math.max(18,Math.min(882,s.x+s.vx*dt));if(s.grounded){const p=s.platforms[s.platform];if(Math.abs(s.x-p.x)>p.w/2+12){s.grounded=false;s.vy=0;}}
  if(!s.grounded){s.vy=Math.min(1400,s.vy+1300*dt);s.y+=s.vy*dt;if(s.vy>=0){let landing=null;for(let i=0;i<s.platforms.length;i++){const p=s.platforms[i];if(oldY<=p.y&&s.y>=p.y&&Math.abs(s.x-p.x)<p.w/2+12&&(!landing||p.y<landing.p.y))landing={p,i};}if(landing){s.y=landing.p.y;s.vy=0;s.grounded=true;s.platform=landing.i;s.tapTarget=null;if(s.platform===48)s.done=true;}}}
