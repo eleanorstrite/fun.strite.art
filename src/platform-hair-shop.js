@@ -22,6 +22,18 @@ export function drawShopHair(c,style,layer,time=0){
  const width=72,height=80,left=-width/2,top=-101;
  c.save();
  if(layer==='front'){
+  // Fit an opaque, textured crown directly over the scalp. The atlas alone
+  // has a narrow opening that cannot match our wider head at this scale.
+  c.save();c.beginPath();c.moveTo(-20,-63);
+  c.bezierCurveTo(-27,-80,-16,-93,0,-92);
+  c.bezierCurveTo(16,-93,27,-80,20,-63);
+  c.lineTo(17,-71);c.quadraticCurveTo(13,-78,3,-78);
+  c.quadraticCurveTo(-2,-82,-8,-77);
+  c.quadraticCurveTo(-15,-75,-17,-68);
+  c.closePath();c.clip();
+  // Sample the solid center of the matching back hair for a seamless color.
+  c.drawImage(image,item.column*w+w*.3,h*.15,w*.4,h*.4,-24,-94,48,33);
+  c.restore();
   // Only the hair around the head goes in front of the person.
   c.beginPath();c.rect(left-1,top-1,width+2,-51-top+1);c.clip();
   // Leave space for the face below the hairline, rather than cutting out
