@@ -8,4 +8,5 @@ export const HAIR_SHOP_ITEMS=SHOP_HAIR.map(h=>({...h,hairstyle:h.name,group:'app
 export const hairUnlocked=(style,owned=[])=>{const item=SHOP_HAIR.find(h=>h.name===style);return !item||owned.includes(item.id);};
 let atlas;
 export function hairAtlas(){if(!atlas&&typeof Image!=='undefined'){atlas=new Image();atlas.src=new URL('../assets/reference-hairstyles.png',import.meta.url).href;}return atlas;}
-export function drawShopHair(c,style,layer,time=0){const item=SHOP_HAIR.find(h=>h.name===style);if(!item)return false;const image=hairAtlas();if(!image?.complete||!image.naturalWidth)return false;const w=image.naturalWidth/4,h=image.naturalHeight/2;c.save();c.translate(Math.sin(time*2.5)*.45,0);c.drawImage(image,item.column*w,layer==='back'?0:h,w,h,-58,-117,116,116);c.restore();return true;}
+export function drawShopHair(c,style,layer,time=0){const item=SHOP_HAIR.find(h=>h.name===style);if(!item)return false;const image=hairAtlas();if(!image?.complete||!image.naturalWidth)return false;const w=image.naturalWidth/4,h=image.naturalHeight/2;c.save();if(layer==='front'){// Keep only the hair around the head in front; long lengths stay behind the body.
+ c.beginPath();c.rect(-64,-130,128,79);c.clip();}c.translate(Math.sin(time*2.5)*.45,0);c.drawImage(image,item.column*w,layer==='back'?0:h,w,h,-58,-117,116,116);c.restore();return true;}
