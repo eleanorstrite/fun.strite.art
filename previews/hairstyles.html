@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Animated hairstyle preview</title>
+<style>body{margin:24px;background:#e9eff2;color:#253644;font:16px system-ui}main{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px}figure{margin:0;text-align:center;background:white;border-radius:18px;padding:12px}canvas{width:180px;height:220px}input{vertical-align:middle}a{color:inherit}</style>
+<h1>Hairstyles in motion</h1><p>Live previews of the hairstyles used in the game. <label>Hair color <input id="color" type="color" value="#30221c"></label> <a href="../index.html">Back to the games</a></p><main></main>
+<script type="module">
+import {JUMP_HAIR,drawJumpHair} from '../src/platform-jump-hair.js';
+const tiles=JUMP_HAIR.map(style=>{const f=document.createElement('figure'),c=document.createElement('canvas'),label=document.createElement('figcaption');c.width=360;c.height=440;label.textContent=style;f.append(c,label);document.querySelector('main').append(f);return {style,c};});
+function frame(ms){for(const {style,c} of tiles){const x=c.getContext('2d');x.clearRect(0,0,360,440);x.save();x.translate(180,410);x.scale(3,3);x.fillStyle='#65878a';x.beginPath();x.ellipse(0,-25,29,22,0,0,Math.PI*2);x.fill();drawJumpHair(x,style,color.value,'back',ms/1000);x.fillStyle='#dba985';x.beginPath();x.ellipse(0,-66,20,23,0,0,Math.PI*2);x.fill();drawJumpHair(x,style,color.value,'front',ms/1000);x.fillStyle='#302b32';for(const side of [-1,1]){x.beginPath();x.ellipse(side*7,-66,1.6,2.3,0,0,Math.PI*2);x.fill();}x.strokeStyle='#985e59';x.lineWidth=1;x.beginPath();x.arc(0,-59,4,.3,Math.PI-.3);x.stroke();x.restore();}requestAnimationFrame(frame);}requestAnimationFrame(frame);
+</script></html>
