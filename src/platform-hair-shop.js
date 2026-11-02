@@ -55,7 +55,8 @@ export function drawShopHair(c,style,layer,time=0){
   const y=top+band*bandHeight,shift=hairBreezeOffset(y,time);
   const shear=(hairBreezeOffset(y+bandHeight,time)-shift)/bandHeight;
   c.save();c.transform(1,0,shear,1,shift-shear*y,0);
-  c.drawImage(image,item.column*w,(layer==='back'?0:h)+band*h/bands,w,h/bands,left,y,width,bandHeight);
+  const overlap=band===bands-1?0:.15;
+  c.drawImage(image,item.column*w,(layer==='back'?0:h)+band*h/bands,w,h/bands+overlap*h/height,left,y,width,bandHeight+overlap);
   c.restore();
  }
  c.restore();return true;

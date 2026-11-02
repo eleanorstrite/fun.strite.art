@@ -25,7 +25,7 @@ export function drawPlatformJump(c,state,s=JUMP_DEFAULTS){const w=c.canvas.width
 const previewFrames=new WeakMap();
 export function drawPlatformJumpPreview(canvas){
  if(previewFrames.has(canvas))cancelAnimationFrame(previewFrames.get(canvas));
- const settings={...JUMP_DEFAULTS,hairstyle:'Sunset blossom waves',hair:'#ee702e',pet:'dog',breed:'Brindle',petName:'Davina'};
+ const settings={...JUMP_DEFAULTS,hairstyle:'Sunset blossom waves',hair:'#ee702e',outfit:'Charcoal bomber & skirt',pet:'dog',breed:'Brindle',petName:'Davina'};
  function island(c,x,y,w){
   oval(c,x,y+46,w*.42,16,'#315b8030');
   c.fillStyle='#648ca3';c.beginPath();c.moveTo(x-w/2+7,y+5);c.lineTo(x-w*.22,y+54);c.lineTo(x+w*.12,y+73);c.lineTo(x+w/2-7,y+5);c.closePath();c.fill();
@@ -52,7 +52,7 @@ export function drawPlatformJumpPreview(canvas){
   box(c,909,92,4,75,'#fff7df',2);c.fillStyle='#ee795d';c.beginPath();c.moveTo(913,92);c.lineTo(947,103);c.lineTo(913,117);c.closePath();c.fill();
   // Feature the shop's orange-haired girl and her companion at thumbnail size.
   oval(c,294,454,52,9,'#426c7640');oval(c,458,454,54,9,'#426c7640');
-  c.save();c.translate(294,448-Math.sin(t*1.5)*3);c.scale(2.55,2.55);drawJumper(c,0,0,settings,t,false,true);c.restore();
+  c.save();c.translate(294,448-Math.sin(t*1.5)*3);c.scale(2.55,2.55);drawJumper(c,0,0,settings,t,false,false);c.restore();
   c.save();c.translate(460,449);c.scale(2.35,2.35);drawJumpPet(c,0,0,{...settings,petName:''},t,false,1,'idle');c.restore();
   box(c,50,55,247,34,'#ffffffde',17);text(c,'YOU + YOUR BEST FRIEND',173,78,16,'#286583');
   c.save();c.shadowColor='#28608255';c.shadowBlur=12;c.shadowOffsetY=3;c.font='800 48px system-ui';c.textAlign='left';c.fillStyle='#fffcef';c.fillText('Up, up & away!',50,144);c.restore();
