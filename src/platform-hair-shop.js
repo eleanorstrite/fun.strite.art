@@ -11,6 +11,7 @@ export function hairAtlas(){if(!atlas&&typeof Image!=='undefined'){atlas=new Ima
 // Wind builds below the crown, with a delayed ripple toward the tips.
 export function hairBreezeOffset(y,time=0){
  const length=Math.max(0,Math.min(1,(y+78)/57));
+ if(length===0)return 0;
  return length*length*(3+Math.sin(time*1.7-length*1.8)*4+Math.sin(time*3.1-length*3)*1.2);
 }
 export function drawShopHair(c,style,layer,time=0){
