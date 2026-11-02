@@ -10,14 +10,14 @@ export function drawJumpHair(c,style,color,layer,time=0){
  c.save();
  const shade=c.createLinearGradient(-25,-90,28,-35);shade.addColorStop(0,color);shade.addColorStop(.42,color);shade.addColorStop(1,'#171321');c.fillStyle=shade;
  const long=['Long','Long waves','Half-up bun'].includes(style),bob=style==='Bob with bangs';
- const sway=1.5+Math.sin(time*1.7)*3+Math.sin(time*3.1)*.7;
+ const sway=2.5+Math.sin(time*2.1)*6.5+Math.sin(time*4.2)*1.5;
  if(layer==='back'){
   if(long||bob){const bottom=bob?-48:-25;shape(c,[['moveTo',-18,-83],['bezierCurveTo',-34,-70,-23,-58,-29+sway,bottom-12],['bezierCurveTo',-34+sway,bottom+3,-17,bottom+7,-10,bottom-3],['lineTo',12,bottom-3],['bezierCurveTo',30,bottom+6,36,bottom-5,28+sway,bottom-19],['bezierCurveTo',22,-66,32,-73,17,-85]]);
    if(style==='Long waves'){for(const side of [-1,1]){c.save();c.scale(side,1);shape(c,[['moveTo',17,-80],['bezierCurveTo',40,-65,17,-59,29,-47],['bezierCurveTo',43,-31,19,-28,25,-16],['bezierCurveTo',8,-24,30,-33,18,-43],['bezierCurveTo',5,-58,29,-65,17,-80]]);c.restore();}}
    c.strokeStyle='#ffffff28';c.lineWidth=.7;for(const side of [-1,1])for(let j=0;j<4;j++)strand(c,side*(16+j*2),-78,side*(14+j*3)+sway,bottom,side*5);
   }
   const braid=style==='Braids';
-  if(['Ponytail','High ponytail','Pigtails','Braids'].includes(style))for(const side of (['Pigtails','Braids'].includes(style)?[-1,1]:[1])){c.save();c.translate(side*22,style==='High ponytail'?-86:-72);c.rotate(side*.13+Math.sin(time*2.5)*.035);
+  if(['Ponytail','High ponytail','Pigtails','Braids'].includes(style))for(const side of (['Pigtails','Braids'].includes(style)?[-1,1]:[1])){c.save();c.translate(side*22,style==='High ponytail'?-86:-72);c.rotate(side*.13+Math.sin(time*2.1)*.15);
    if(braid){for(let j=0;j<7;j++){shape(c,[['moveTo',-2,-2+j*6],['bezierCurveTo',-12+j*.6,j*6,7-j*.4,10+j*6,3,10+j*6],['bezierCurveTo',13-j*.8,6+j*6,-2,1+j*6,-2,-2+j*6]]);}shape(c,[['moveTo',0,43],['lineTo',-3,51],['quadraticCurveTo',7,49,4,43]]);}
    else shape(c,[['moveTo',-3,0],['bezierCurveTo',21,-8,23,16,12,26],['bezierCurveTo',5,34,14,39,5,43],['bezierCurveTo',9,29,-8,26,-6,14],['quadraticCurveTo',-8,5,-3,0]]);
    c.strokeStyle='#ffffff30';c.lineWidth=.8;for(let j=0;j<3;j++)strand(c,j*3,2,3+j,braid?42:32,6);c.restore();}

@@ -15,7 +15,9 @@ test('reference hairstyles require their own permanent unlock',()=>{
 });
 
 test('breeze anchors the crown and bends the ends over time',()=>{
- for(const time of [0,1,2,5,10]){assert.equal(hairBreezeOffset(-101,time),0);assert.equal(hairBreezeOffset(-78,time),0);assert.ok(Math.abs(hairBreezeOffset(-21,time))<=8.2);}
+ for(const time of [0,1,2,5,10]){assert.equal(hairBreezeOffset(-101,time),0);assert.equal(hairBreezeOffset(-78,time),0);assert.ok(Math.abs(hairBreezeOffset(-21,time))<=19);}
+ const tips=Array.from({length:121},(_,i)=>hairBreezeOffset(-21,i/20));
+ assert.ok(Math.max(...tips)-Math.min(...tips)>20,'tips should visibly sweep in the wind');
  assert.notEqual(hairBreezeOffset(-21,0),hairBreezeOffset(-21,1));
  assert.ok(Math.abs(hairBreezeOffset(-21,1)-hairBreezeOffset(-21,1.001))<.05);
 });

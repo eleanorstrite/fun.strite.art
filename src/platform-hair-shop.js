@@ -8,11 +8,11 @@ export const HAIR_SHOP_ITEMS=SHOP_HAIR.map(h=>({...h,hairstyle:h.name,group:'app
 export const hairUnlocked=(style,owned=[])=>{const item=SHOP_HAIR.find(h=>h.name===style);return !item||owned.includes(item.id);};
 let atlas;
 export function hairAtlas(){if(!atlas&&typeof Image!=='undefined'){atlas=new Image();atlas.src=new URL('../assets/reference-hairstyles.png',import.meta.url).href;}return atlas;}
-// Wind builds below the crown, with a delayed ripple toward the tips.
+// Stronger gusts bend the lengths and send a delayed ripple toward the tips.
 export function hairBreezeOffset(y,time=0){
  const length=Math.max(0,Math.min(1,(y+78)/57));
  if(length===0)return 0;
- return length*length*(3+Math.sin(time*1.7-length*1.8)*4+Math.sin(time*3.1-length*3)*1.2);
+ return Math.pow(length,1.5)*(5+Math.sin(time*2.1-length*1.8)*11+Math.sin(time*4.2-length*3)*3);
 }
 export function drawShopHair(c,style,layer,time=0){
  const item=SHOP_HAIR.find(h=>h.name===style);if(!item)return false;
