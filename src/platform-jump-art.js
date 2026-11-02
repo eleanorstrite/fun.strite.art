@@ -24,7 +24,7 @@ export function drawPlatformJump(c,state,s=JUMP_DEFAULTS){const w=c.canvas.width
 const previewFrames=new WeakMap();
 export function drawPlatformJumpPreview(canvas){
  if(previewFrames.has(canvas))cancelAnimationFrame(previewFrames.get(canvas));
- const settings={...JUMP_DEFAULTS,pet:'dog',breed:'Brindle',petName:'Davina'};
+ const settings={...JUMP_DEFAULTS,hairstyle:'Sunset blossom waves',hair:'#ee702e',pet:'dog',breed:'Brindle',petName:'Davina'};
  function paint(now=0){const c=canvas.getContext('2d'),t=now/1000;c.save();c.scale(canvas.width/900,canvas.height/650);const g=c.createLinearGradient(0,0,0,650);g.addColorStop(0,'#6bb6dc');g.addColorStop(1,'#e0f6ff');c.fillStyle=g;c.fillRect(0,0,900,650);for(let i=0;i<7;i++)for(let j=0;j<3;j++)oval(c,80+i*145+j*30,140+(i%3)*100,55,25,'#ffffff9c');box(c,170,510,560,28,'#fff6df',12);box(c,180,532,540,22,'#8bb9c1',9);c.save();c.translate(320,500);c.scale(2.2,2.2);drawJumper(c,0,0,settings,t,false,true);c.restore();c.save();c.translate(590,500);c.scale(2.4,2.4);drawJumpPet(c,0,0,settings,t,false,1,'idle');c.restore();c.restore();}
  paint();function frame(now){if(!canvas.isConnected){previewFrames.delete(canvas);return;}if(!document.hidden&&!document.querySelector('dialog[open]'))paint(now);previewFrames.set(canvas,requestAnimationFrame(frame));}previewFrames.set(canvas,requestAnimationFrame(frame));
 }
