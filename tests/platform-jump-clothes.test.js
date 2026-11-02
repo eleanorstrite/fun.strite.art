@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {JUMP_OUTFITS,drawJumpOutfit,outfitCell,CLOTHING_SHOP_ITEMS,outfitUnlocked,drawOutfitBody} from '../src/platform-jump-clothes.js';
+import {JUMP_OUTFITS,drawJumpOutfit,outfitCell,CLOTHING_SHOP_ITEMS,outfitUnlocked,drawOutfitBody,SCIENCE_TOPS,outfitUsesPants} from '../src/platform-jump-clothes.js';
 import {JUMP_DEFAULTS,validateJumpSettings} from '../src/platform-jump-rules.js';
 import {drawJumper} from '../src/platform-jump-person.js';
-test('all nineteen reference outfits save without changing the default or skin color',()=>{
- assert.equal(JUMP_OUTFITS.length,20);assert.equal(new Set(JUMP_OUTFITS).size,20);
+test('all twenty-two reference clothing choices save without changing the default or skin color',()=>{
+ assert.equal(JUMP_OUTFITS.length,23);assert.equal(new Set(JUMP_OUTFITS).size,23);
  for(const outfit of JUMP_OUTFITS){const s=validateJumpSettings({outfit,skin:'#9c684a'},CLOTHING_SHOP_ITEMS.map(item=>item.id));assert.equal(s.outfit,outfit);assert.equal(s.skin,'#9c684a');}
  assert.equal(validateJumpSettings({outfit:'unknown'}).outfit,'Classic colors');assert.equal(JUMP_DEFAULTS.outfit,'Classic colors');
 });
@@ -18,7 +18,7 @@ test('each outfit uses its own atlas cell and preserves the existing head dimens
   assert.equal(images[0][7]>0&&images[0][7]<=62,true);assert.equal(images[0][8]>0&&images[0][8]<=58,true);
   for(const wave of [false,true,'clap'])assert.doesNotThrow(()=>drawJumper(c,0,0,{...JUMP_DEFAULTS,hairstyle:'Bald',outfit},1,true,wave));
  }
- assert.equal(cells.size,19);assert.equal(heads.filter(a=>a[2]===20&&a[3]===23).length,57);
+ assert.equal(cells.size,22);assert.equal(heads.filter(a=>a[2]===20&&a[3]===23).length,66);
  assert.equal(drawJumpOutfit(c,'Classic colors'),false);
 });
 
@@ -31,7 +31,7 @@ test('dressed bodies fit the garments instead of drawing the old bare torso and 
   rects.length=0;translations.length=0;
   drawJumper(c,0,0,{...JUMP_DEFAULTS,hairstyle:'Bald',outfit},1,true,pose);
   assert.equal(rects.some(a=>a[0]===-17&&a[1]===-51&&a[2]===34&&a[3]===33),false,'The old bare torso must not show around clothing');
-  assert.equal(rects.filter(a=>(a[2]===8||a[2]===5)&&(a[1]===-18||a[1]===-28)).length,2,'Legs should follow the narrower shorts/skirt silhouette');
+  assert.equal(rects.filter(a=>(a[2]===8||a[2]===5)&&(a[1]===-18||a[1]===-28||a[1]===-22)).length,2,'Legs should follow the narrower shorts/skirt silhouette');
   assert.equal(translations.some(a=>a[0]===0&&a[1]===-3),true,'Head should sit just above the shoulders');
   assert.equal(rects.some(a=>a[0]===-4&&a[1]===-52&&a[2]===8&&a[3]===7),true,'Use a short neck hidden under the jaw and collar');
  }
@@ -69,4 +69,17 @@ test('waving sleeves include the shoulder and share the arm joint instead of rot
   const cell=outfitCell(outfit);for(const image of images)assert.equal(image[3],image[0].naturalWidth/cell.columns,'Retain the complete sleeve artwork, including its inner seam');
   if(!sleeveless){assert.equal(sleeveAngles[0],bodyAngles[1]);assert.equal(bodyJoints.some(a=>a[0]===15&&a[1]===-43),true);assert.equal(sleeveJoints.some(a=>a[0]===15&&a[1]===-43),true);}
  }
+});
+
+test('science tops are free and allow independent pants colors',t=>{
+ const previous=globalThis.Image;t.after(()=>{globalThis.Image=previous;});globalThis.Image=class{constructor(){this.complete=true;this.naturalWidth=1536;this.naturalHeight=512;}};
+ assert.equal(SCIENCE_TOPS.length,3);
+ for(const outfit of SCIENCE_TOPS){
+  assert.equal(outfitUnlocked(outfit),true);assert.equal(outfitUsesPants(outfit),true);
+  const settings=validateJumpSettings({outfit,pants:'#304b71'});assert.equal(settings.outfit,outfit);assert.equal(settings.pants,'#304b71');
+  const cell=outfitCell(outfit);assert.equal(cell.file,'platform-jump-science-shirts.png');assert.equal(cell.columns,3);assert.equal(cell.rows,1);
+  const fills=[];let c;const target={roundRect(x,y,w,h){if(y===-22&&w===8)fills.push(c.fillStyle);}};c=new Proxy(target,{get:(o,k)=>k in o?o[k]:()=>{}});
+  drawOutfitBody(c,settings);assert.equal(fills.length,2);assert.equal(fills.every(color=>color===settings.pants),true);
+ }
+ assert.equal(outfitUsesPants('Orange monarch butterfly dress'),false);assert.equal(CLOTHING_SHOP_ITEMS.length,4);
 });
