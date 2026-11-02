@@ -37,7 +37,7 @@ export function drawOutfitBody(c,s,time=0,moving=false,waving=false){
  const stride=moving?Math.sin(time*13)*4:0;
  // Fully covered torsos have no skin rectangle underneath the artwork.
  c.fillStyle=s.skin;c.beginPath();c.roundRect(-5,-59,10,13,3);c.fill();
- if(fit.shoulder){c.beginPath();c.ellipse(10,-46,5,7,0,0,Math.PI*2);c.fill();}
+ if(fit.shoulder){c.beginPath();c.ellipse(10,-46,3.8,6,0,0,Math.PI*2);c.fill();}
  if(fit.midriff){c.beginPath();c.roundRect(-8,-30,16,8,2);c.fill();}
  for(const side of [-1,1]){
   const step=side*stride*.5;
@@ -48,9 +48,9 @@ export function drawOutfitBody(c,s,time=0,moving=false,waving=false){
   c.save();c.translate(pose.x,pose.y);c.rotate(pose.angle);
   const sleeve=fit.arms?.[side]??fit;
   const handX=side*(sleeve.cuffX-19),handY=sleeve.cuffY+42;
-  if(sleeve.armTop!==undefined){c.strokeStyle=s.skin;c.lineWidth=6;c.lineCap='round';c.beginPath();c.moveTo(handX,sleeve.armTop+42);c.lineTo(handX,handY);c.stroke();}
+  if(sleeve.armTop!==undefined){c.strokeStyle=s.skin;c.lineWidth=3.8;c.lineCap='round';c.beginPath();c.moveTo(handX,sleeve.armTop+42);c.lineTo(handX,handY);c.stroke();}
   // Oversized cuffs cover the hands; only short sleeves expose the forearms.
-  if(sleeve.armTop!==undefined){c.fillStyle=s.skin;c.beginPath();c.ellipse(handX,handY,3.5,4.5,0,0,Math.PI*2);c.fill();}
+  if(sleeve.armTop!==undefined){c.fillStyle=s.skin;c.beginPath();c.ellipse(handX,handY,2.5,3.5,0,0,Math.PI*2);c.fill();}
   c.restore();
  }
 }
