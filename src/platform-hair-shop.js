@@ -24,6 +24,11 @@ export function drawShopHair(c,style,layer,time=0){
  if(layer==='front'){
   // Only the hair around the head goes in front of the person.
   c.beginPath();c.rect(left-1,top-1,width+2,-51-top+1);c.clip();
+  // The atlas openings are narrower than the game's face. Keep a full-size
+  // face opening fixed to the head, including while the hair blows sideways.
+  c.beginPath();c.rect(-100,-150,200,200);
+  c.moveTo(19,-65);c.ellipse(0,-65,19,21,0,0,Math.PI*2);
+  c.clip('evenodd');
  }
  // Connected bands bend the hair rather than sliding the whole hairstyle.
  const bands=32,bandHeight=height/bands;
