@@ -32,7 +32,8 @@ test('dressed bodies fit the garments instead of drawing the old bare torso and 
   drawJumper(c,0,0,{...JUMP_DEFAULTS,hairstyle:'Bald',outfit},1,true,pose);
   assert.equal(rects.some(a=>a[0]===-17&&a[1]===-51&&a[2]===34&&a[3]===33),false,'The old bare torso must not show around clothing');
   assert.equal(rects.filter(a=>a[2]===8&&a[1]===-18).length,2,'Legs should follow the narrower shorts/skirt silhouette');
-  assert.equal(translations.some(a=>a[0]===0&&a[1]===-9),true,'Head should meet the outfit neckline');
+  assert.equal(translations.some(a=>a[0]===0&&a[1]===-3),true,'Head should sit just above the shoulders');
+  assert.equal(rects.some(a=>a[0]===-4&&a[1]===-52&&a[2]===8&&a[3]===7),true,'Use a short neck hidden under the jaw and collar');
  }
  rects.length=0;drawJumper(c,0,0,{...JUMP_DEFAULTS,hairstyle:'Bald'},1);
  assert.equal(rects.some(a=>a[0]===-17&&a[1]===-51&&a[2]===34&&a[3]===33),true,'Classic colors should keep the original body');

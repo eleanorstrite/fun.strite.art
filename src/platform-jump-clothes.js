@@ -27,7 +27,7 @@ const OUTFIT_FITS=[
  {cuffX:25,cuffY:-3,arms:{'-1':{cuffX:18,cuffY:-13,armTop:-34}}},
  {cuffX:25,cuffY:-3,boots:true,shoulder:true},{cuffX:18,cuffY:-13,armTop:-34,boots:true}
 ];
-export const outfitHeadOffset=style=>JUMP_OUTFITS.indexOf(style)>0?-9:0;
+export const outfitHeadOffset=style=>JUMP_OUTFITS.indexOf(style)>0?-3:0;
 function armPose(side,time,moving,waving){
  const raised=waving==='clap'||(waving&&side===1);
  return {x:side*19,y:-42,angle:raised?-side*(waving==='clap'?2.3:2):0};
@@ -36,7 +36,7 @@ export function drawOutfitBody(c,s,time=0,moving=false,waving=false){
  const fit=OUTFIT_FITS[JUMP_OUTFITS.indexOf(s.outfit)-1];if(!fit)return;
  const stride=moving?Math.sin(time*13)*4:0;
  // Fully covered torsos have no skin rectangle underneath the artwork.
- c.fillStyle=s.skin;c.beginPath();c.roundRect(-5,-59,10,13,3);c.fill();
+ c.fillStyle=s.skin;c.beginPath();c.roundRect(-4,-52,8,7,2);c.fill();
  if(fit.shoulder){c.beginPath();c.ellipse(10,-46,3.8,6,0,0,Math.PI*2);c.fill();}
  if(fit.midriff){c.beginPath();c.roundRect(-8,-30,16,8,2);c.fill();}
  for(const side of [-1,1]){
