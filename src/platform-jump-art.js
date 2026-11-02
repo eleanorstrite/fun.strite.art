@@ -25,6 +25,37 @@ const previewFrames=new WeakMap();
 export function drawPlatformJumpPreview(canvas){
  if(previewFrames.has(canvas))cancelAnimationFrame(previewFrames.get(canvas));
  const settings={...JUMP_DEFAULTS,hairstyle:'Sunset blossom waves',hair:'#ee702e',pet:'dog',breed:'Brindle',petName:'Davina'};
- function paint(now=0){const c=canvas.getContext('2d'),t=now/1000;c.save();c.scale(canvas.width/900,canvas.height/650);const g=c.createLinearGradient(0,0,0,650);g.addColorStop(0,'#6bb6dc');g.addColorStop(1,'#e0f6ff');c.fillStyle=g;c.fillRect(0,0,900,650);for(let i=0;i<7;i++)for(let j=0;j<3;j++)oval(c,80+i*145+j*30,140+(i%3)*100,55,25,'#ffffff9c');box(c,170,510,560,28,'#fff6df',12);box(c,180,532,540,22,'#8bb9c1',9);c.save();c.translate(320,500);c.scale(2.2,2.2);drawJumper(c,0,0,settings,t,false,true);c.restore();c.save();c.translate(590,500);c.scale(2.4,2.4);drawJumpPet(c,0,0,settings,t,false,1,'idle');c.restore();c.restore();}
+ function island(c,x,y,w){
+  oval(c,x,y+46,w*.42,16,'#315b8030');
+  c.fillStyle='#648ca3';c.beginPath();c.moveTo(x-w/2+7,y+5);c.lineTo(x-w*.22,y+54);c.lineTo(x+w*.12,y+73);c.lineTo(x+w/2-7,y+5);c.closePath();c.fill();
+  c.fillStyle='#95bbbd';c.beginPath();c.moveTo(x-w*.22,y+11);c.lineTo(x+w*.12,y+73);c.lineTo(x+w*.3,y+13);c.closePath();c.fill();
+  box(c,x-w/2,y-5,w,22,'#f7f4db',11);box(c,x-w/2+6,y-7,w-12,9,'#b3dca4',5);
+ }
+ function paint(now=0){
+  const c=canvas.getContext('2d'),t=now/1000;c.save();c.scale(canvas.width/960,canvas.height/540);
+  const sky=c.createLinearGradient(0,0,850,540);sky.addColorStop(0,'#3e8dcc');sky.addColorStop(.55,'#9bd9ed');sky.addColorStop(1,'#fff0cd');c.fillStyle=sky;c.fillRect(0,0,960,540);
+  const glow=c.createRadialGradient(825,75,10,825,75,210);glow.addColorStop(0,'#fff5c6b0');glow.addColorStop(1,'#fff5c600');c.fillStyle=glow;c.fillRect(600,0,360,300);oval(c,825,75,43,43,'#fff6d4');
+  for(let layer=0;layer<2;layer++){
+   c.fillStyle=layer?'#83b6c7':'#a5cbd5';c.beginPath();c.moveTo(0,540);
+   for(let i=-1;i<7;i++){const x=i*195+layer*70,y=365+layer*65+(i%2)*32;c.lineTo(x,y+130);c.lineTo(x+95,y);c.lineTo(x+195,y+130);}c.lineTo(960,540);c.closePath();c.fill();
+  }
+  for(const [x,y,size] of [[60,255,1.1],[540,160,.7],[905,405,1.1],[120,510,1.5]]){
+   c.save();c.translate(x+Math.sin(t*.2+x)*6,y);c.scale(size,size);
+   for(let j=0;j<4;j++)oval(c,(j-1.5)*35,-Math.sin(j)*16,47,24,'#ffffffa0');c.restore();
+  }
+  c.save();c.setLineDash([3,13]);c.lineWidth=3;c.strokeStyle='#fff8dfb0';c.beginPath();c.moveTo(510,405);c.bezierCurveTo(620,290,680,340,730,260);c.bezierCurveTo(785,180,820,220,876,156);c.stroke();c.restore();
+  island(c,360,454,410);island(c,655,370,145);island(c,795,270,125);island(c,893,170,110);
+  for(const [i,x,y] of [[0,605,297],[1,742,200],[2,858,102]]){
+   const bob=Math.sin(t*2+i)*5;oval(c,x,y+bob,12,16,'#d69a34');oval(c,x-1,y-2+bob,9,13,'#ffe08a');c.strokeStyle='#fff5c9';c.lineWidth=2;c.beginPath();c.moveTo(x-1,y-8+bob);c.lineTo(x-1,y+5+bob);c.stroke();
+  }
+  box(c,909,92,4,75,'#fff7df',2);c.fillStyle='#ee795d';c.beginPath();c.moveTo(913,92);c.lineTo(947,103);c.lineTo(913,117);c.closePath();c.fill();
+  // Feature the shop's orange-haired girl and her companion at thumbnail size.
+  oval(c,294,454,52,9,'#426c7640');oval(c,458,454,54,9,'#426c7640');
+  c.save();c.translate(294,448-Math.sin(t*1.5)*3);c.scale(2.55,2.55);drawJumper(c,0,0,settings,t,false,true);c.restore();
+  c.save();c.translate(460,449);c.scale(2.35,2.35);drawJumpPet(c,0,0,{...settings,petName:''},t,false,1,'idle');c.restore();
+  box(c,50,55,247,34,'#ffffffde',17);text(c,'YOU + YOUR BEST FRIEND',173,78,16,'#286583');
+  c.save();c.shadowColor='#28608255';c.shadowBlur=12;c.shadowOffsetY=3;c.font='800 48px system-ui';c.textAlign='left';c.fillStyle='#fffcef';c.fillText('Up, up & away!',50,144);c.restore();
+  c.restore();
+ }
  paint();function frame(now){if(!canvas.isConnected){previewFrames.delete(canvas);return;}if(!document.hidden&&!document.querySelector('dialog[open]'))paint(now);previewFrames.set(canvas,requestAnimationFrame(frame));}previewFrames.set(canvas,requestAnimationFrame(frame));
 }
