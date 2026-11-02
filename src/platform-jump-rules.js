@@ -29,10 +29,17 @@ export function createJumpState(difficulty='Medium'){if(!Object.hasOwn(JUMP_LEVE
   x=Math.round(bestScore===-Infinity?x+(x>450?-1:1)*(level.minTravel+level.maxTravel)/2:best);y-=gap;
   platforms.push({x,y,w:i===48?200:level.width+Math.floor(random()*level.widthRange)});
  }
- return {difficulty,summit:48*level.rise,x:450,y:560,vx:0,vy:0,grounded:true,platform:0,platforms,time:0,camera:0,highest:0,done:false,jumps:0,trail:[],pet:{x:370,y:560,pose:'idle',facing:1},facing:1};}
+ return {difficulty,summit:48*level.rise,x:450,y:560,vx:0,vy:0,grounded:true,platform:0,platforms,coins:platforms.map(p=>({x:p.x,y:p.y-58,collected:false})),collectedCoins:0,time:0,camera:0,highest:0,done:false,jumps:0,trail:[],pet:{x:370,y:560,pose:'idle',facing:1},facing:1};}
+export function collectJumpCoins(s){
+ for(let i=0;i<s.coins.length;i++){
+  const coin=s.coins[i];
+  if(!coin.collected&&i<=(s.landingLimit??s.platform)&&((i>0&&s.grounded&&s.platform===i)||(Math.abs(s.x-coin.x)<=30&&Math.abs(s.y-50-coin.y)<=38))){coin.collected=true;s.collectedCoins++;}
+ }
+}
 export function jump(s){if(!s.done&&s.grounded){s.vy=-640;s.landingLimit=s.platform+1;s.grounded=false;s.jumps++;return true;}return false;}
 export function tickJump(s,dt,input=0){if(s.done||dt<=0)return;dt=Math.min(dt,.04);s.time+=dt;s.vx=Math.max(-1,Math.min(1,input))*(s.tapTarget?.speed||290);if(input)s.facing=input<0?-1:1;const oldY=s.y;s.x=Math.max(18,Math.min(882,s.x+s.vx*dt));if(s.grounded){const p=s.platforms[s.platform];if(Math.abs(s.x-p.x)>p.w/2+12){s.grounded=false;s.vy=0;}}
  if(!s.grounded){s.vy=Math.min(1400,s.vy+1300*dt);s.y+=s.vy*dt;if(s.vy>=0){let landing=null;for(let i=0;i<s.platforms.length;i++){const p=s.platforms[i];if(i<=(s.landingLimit??48)&&oldY<=p.y&&s.y>=p.y&&Math.abs(s.x-p.x)<p.w/2+12&&(!landing||p.y<landing.p.y))landing={p,i};}if(landing){s.y=landing.p.y;s.vy=0;s.grounded=true;s.platform=landing.i;s.tapTarget=null;if(s.platform===48)s.done=true;}}}
+ collectJumpCoins(s);
  s.highest=Math.max(s.highest,560-s.y);const cameraTarget=Math.min(0,s.y-430);s.camera+=(cameraTarget-s.camera)*Math.min(1,dt*8);s.trail.push({time:s.time,x:s.x-80*s.facing,y:s.y,vx:s.vx,vy:s.vy,grounded:s.grounded,facing:s.facing});while(s.trail.length>1&&s.trail[1].time<s.time-.28)s.trail.shift();const target=s.trail[0];s.pet.restTime=target.grounded&&Math.abs(target.vx)<1?(s.pet.restTime||0)+dt:0;s.pet.facing=target.facing;s.pet.pose=target.grounded?(!s.grounded&&s.vy<0?'crouch':Math.abs(target.vx)>0?'walk':s.pet.restTime>2.5&&s.pet.restTime%10<8?'sit':'idle'):target.vy<0?'jump':'land';s.pet.x+=(target.x-s.pet.x)*Math.min(1,dt*12);s.pet.y+=(target.y-s.pet.y)*Math.min(1,dt*12);
 }
 // Pointer coordinates are normalized to the game's 900 × 650 world by the UI.

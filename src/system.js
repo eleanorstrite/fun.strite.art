@@ -175,15 +175,19 @@ export function createSystem(storage, onStorageError = () => {}, checkWalletPass
     // A session settles once, including early exits, so the same run cannot pay twice.
     beginSession(gameId) {
       if (!/^[a-z][a-z0-9-]{0,40}$/.test(gameId)) throw new Error('Invalid game ID.');
-      let settled = false;
-      return { finish(coins,timeMs=null,score=null) {
+      let settled = false, credited = 0;
+      return { credit(coins) {
+        if(settled)return false;
+        if(!Number.isSafeInteger(coins)||coins<0||credited+coins>1000000000)throw new Error('Invalid session credit.');
+        credited+=coins;state.coins=Math.min(1000000000,state.coins+coins);persist();return true;
+      }, finish(coins,timeMs=null,score=null) {
         if (settled) return false;
-        if (!Number.isSafeInteger(coins) || coins < 0 || coins > 1000000000) throw new Error('Invalid session reward.');
+        if (!Number.isSafeInteger(coins) || coins < credited || coins > 1000000000) throw new Error('Invalid session reward.');
         if(timeMs!==null&&(!Number.isSafeInteger(timeMs)||timeMs<=0||timeMs>1000000000))throw Error('Invalid finish time.');
         if(score!==null&&(!Number.isSafeInteger(score)||score<0||score>1000000000))throw Error('Invalid score.');
         settled = true;
         const previous = Object.hasOwn(state.stats, gameId) ? state.stats[gameId] : { plays: 0, best: 0 };
-        state.coins = Math.min(1000000000, state.coins + coins);
+        state.coins = Math.min(1000000000, state.coins + coins - credited);
         state.stats[gameId] = { plays: Math.min(1000000000, previous.plays + 1), best: Math.max(previous.best, coins),...((previous.bestScore!==undefined||score!==null)?{bestScore:Math.max(previous.bestScore??0,score??0)}:{}),...((previous.bestTimeMs!==undefined||timeMs!==null)?{bestTimeMs:timeMs===null?previous.bestTimeMs:Math.min(previous.bestTimeMs??timeMs,timeMs)}:{}) };
         persist(); return true;
       } };

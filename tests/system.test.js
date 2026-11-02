@@ -215,3 +215,17 @@ test('white celebration cake recipe persists and each serving costs five shared 
 test('potato chips are available without a recipe and cost exactly two shared coins',()=>{
  const storage=memory(),system=createSystem(storage);system.beginSession('test').finish(3);system.buyCityFood('chips');assert.equal(system.snapshot().coins,1);assert.equal(createSystem(storage).snapshot().coins,1);assert.throws(()=>system.buyCityFood('chips'));assert.equal(system.snapshot().coins,1);
 });
+
+test('live coin credits persist immediately and finishing does not pay them twice',()=>{
+ const storage=memory(),system=createSystem(storage),run=system.beginSession('platform-jump');
+ assert.equal(run.credit(1),true);assert.equal(system.snapshot().coins,1);
+ assert.equal(createSystem(storage).snapshot().coins,1,'Leaving early keeps the collected coin');
+ run.credit(1);assert.equal(run.finish(2),true);assert.equal(system.snapshot().coins,2);
+ assert.equal(run.credit(1),false);assert.equal(run.finish(2),false);assert.equal(system.snapshot().coins,2);
+ assert.equal(system.snapshot().stats['platform-jump'].best,2);
+});
+test('live coin credits validate amounts and settle remaining rewards exactly once',()=>{
+ const system=createSystem(memory()),run=system.beginSession('platform-jump');
+ for(const amount of [-1,1.5,NaN,1000000001])assert.throws(()=>run.credit(amount));
+ run.credit(2);assert.throws(()=>run.finish(1));run.finish(5);assert.equal(system.snapshot().coins,5);
+});
