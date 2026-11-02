@@ -1,3 +1,4 @@
+import {drawEndingValley,drawEndingCanopy} from './platform-jump-valley.js';
 import {FLYOVER_SECONDS} from './platform-jump-flyover.js';
 import {drawJumper,drawJumpPet} from './platform-jump-art.js';
 import {JUMP_DEFAULTS} from './platform-jump-rules.js';
@@ -31,11 +32,11 @@ export function drawJumpClip(c,kind,time,custom){const t=Math.max(0,time),s=kind
   if(t>3){const q=ease((t-3)/2);px=lerp(350,720,q);dx=lerp(550,855,q);py=500-Math.sin(q*Math.PI)*100;dy=500-Math.sin(q*Math.PI)*90;}
   person(c,px,py,s,t,1.7,t<3?'clap':true);pet(c,dx,dy,s,t,1.5,t<1?'jump':t<2?'land':t<3?'idle':'jump');if(t>=2&&t<3.5)speak(c,'We made it!',450,225);
  }else{
-  const flight=t-5;sky(c,flight,true);const cx=450+Math.sin(flight*.55)*45,cy=350+Math.sin(flight*.8)*18;
+  const flight=t-5;if(!drawEndingValley(c))sky(c,0,true);const cx=450+Math.sin(flight*.55)*45,cy=350+Math.sin(flight*.8)*18;
   c.save();c.translate(cx,cy);c.rotate(Math.sin(flight*.55)*.035);
   // Shared paraglider with visible suspension lines and a secure pet sling.
-  for(let i=0;i<7;i++)line(c,-210+i*70,-155,i<3?-50:65,40,'#f4f5e3',1.5);
-  c.save();c.beginPath();c.ellipse(0,-145,230,100,0,Math.PI,Math.PI*2);c.lineTo(230,-145);c.quadraticCurveTo(0,-205,-230,-145);c.closePath();c.clip();for(let i=0;i<7;i++){c.fillStyle=['#eb6779','#f39d5c','#f6d573','#7bc5a1','#66b8dc','#8e8aca','#c991c9'][i];c.fillRect(-235+i*68,-250,70,130);}c.restore();
+  for(let i=0;i<7;i++)line(c,-135+i*45,-115,i<3?-50:65,40,'#f4f5e3',1.5);
+  if(!drawEndingCanopy(c)){c.save();c.beginPath();c.ellipse(0,-145,230,100,0,Math.PI,Math.PI*2);c.lineTo(230,-145);c.quadraticCurveTo(0,-205,-230,-145);c.closePath();c.clip();for(let i=0;i<7;i++){c.fillStyle=['#2868c6','#58b7e9','#f5f5e9','#3679d1','#f5f5e9','#58b7e9','#2868c6'][i];c.fillRect(-235+i*68,-250,70,130);}c.restore();}
   person(c,-55,98,s,t,1.2,false);pet(c,78,106,s,t,1.1,'idle');line(c,-75,49,-36,70,'#293d53',8);line(c,-36,70,-41,95,'#293d53',8);panel(c,31,88,96,27,'#354c69');line(c,36,90,45,57,'#354c69',5);line(c,121,90,113,57,'#354c69',5);
   if(flight>2){line(c,-35,45,25,10,s.skin,9);oval(c,25,10,7,7,s.skin);}c.restore();
   for(let i=0;i<4;i++)bird(c,680+i*60-flight*12,220+i%2*36,flight+i,.8);

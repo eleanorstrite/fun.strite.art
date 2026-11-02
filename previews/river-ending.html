@@ -1,0 +1,4 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>River flight ending preview</title>
+<style>body{margin:0;background:#142b39;color:#fff;font:16px system-ui;text-align:center}canvas{display:block;max-height:90vh;max-width:100%;width:auto;margin:auto}a{color:#bde9ff}</style>
+<p>River flight ending · Fixed scenery, moving glider · <a href="./river-ending.svg">Animated picture</a> · <a href="../index.html">Games</a></p><canvas width="900" height="650" aria-label="Animated river valley flight ending"></canvas>
+<script type="module">import {drawJumpClip} from '../src/platform-jump-clips.js';import {JUMP_DEFAULTS} from '../src/platform-jump-rules.js';const c=document.querySelector('canvas').getContext('2d');function frame(ms){drawJumpClip(c,'win',5+(ms/1000)%11,{...JUMP_DEFAULTS,hairstyle:'Sunset blossom waves'});requestAnimationFrame(frame);}requestAnimationFrame(frame);</script></html>
