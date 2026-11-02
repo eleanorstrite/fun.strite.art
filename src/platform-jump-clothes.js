@@ -3,12 +3,26 @@ export const JUMP_OUTFITS=[
  'Fur-collar parka','Lace collar & skirt','Lilac bell sleeves','Corset & lace-up shorts',
  'Lilac shirt & shorts','Oversized black coat',
  'Peach tie-waist dress','Sunset sleeves & olive shorts','Daisy denim overalls',
- 'Cocoa heart overalls','Sage jacket & pleated skirt','Duck bag & denim shorts'
+ 'Cocoa heart overalls','Sage jacket & pleated skirt','Duck bag & denim shorts',
+ 'Orange monarch butterfly dress','Stained-glass butterfly dress','Green monarch butterfly dress','Butterfly blouse & brown skirt'
 ];
+export const CLOTHING_SHOP_ITEMS=JUMP_OUTFITS.slice(16).map((outfit,index)=>({
+ id:['jump-outfit-monarch','jump-outfit-stained-glass','jump-outfit-green-monarch','jump-outfit-butterfly-blouse'][index],
+ name:outfit,outfit,group:'appearance',category:'PLATFORM JUMP · BUTTERFLY CLOTHING',icon:'🦋',cost:50,
+ description:[
+  'A black corset bodice and orange monarch wing skirt with scalloped, spotted edges.',
+  'A black corset bodice with a rainbow stained-glass butterfly overskirt.',
+  'A black corset bodice and sage-green butterfly wing overskirt.',
+  'A black butterfly top, sheer cream sleeves, brown ruffled skirt and ivory lace-up boots.'
+ ][index]+' Permanently unlock in Platform Jump → Design your character & pet → Clothing.'
+}));
+export function outfitUnlocked(style,owned=[]){const item=CLOTHING_SHOP_ITEMS.find(item=>item.outfit===style);return !item||owned.includes(item.id);}
 const atlases=new Map();
 export function outfitCell(style){
  const index=JUMP_OUTFITS.indexOf(style)-1;if(index<0)return null;
- return index<9?{file:'platform-jump-outfits.png',columns:3,rows:3,index}:{file:'platform-jump-pastel-outfits.png',columns:2,rows:3,index:index-9};
+ if(index<9)return {file:'platform-jump-outfits.png',columns:3,rows:3,index};
+ if(index<15)return {file:'platform-jump-pastel-outfits.png',columns:2,rows:3,index:index-9};
+ return {file:'platform-jump-butterfly-outfits.png',columns:2,rows:2,index:index-15};
 }
 export function outfitAtlas(style=JUMP_OUTFITS[1]){
  const cell=outfitCell(style);if(!cell)return;
@@ -25,7 +39,11 @@ const OUTFIT_FITS=[
  {cuffX:18,cuffY:-13,armTop:-35},{cuffX:25,cuffY:-5},
  {cuffX:25,cuffY:-3,arms:{'-1':{cuffX:18,cuffY:-13,armTop:-34}}},
  {cuffX:25,cuffY:-3,arms:{'-1':{cuffX:18,cuffY:-13,armTop:-34}}},
- {cuffX:25,cuffY:-3,boots:true,shoulder:true},{cuffX:18,cuffY:-13,armTop:-34,boots:true}
+ {cuffX:25,cuffY:-3,boots:true,shoulder:true},{cuffX:18,cuffY:-13,armTop:-34,boots:true},
+ {cuffX:18,cuffY:-14,armTop:-44,chest:true,legTop:-28},
+ {cuffX:18,cuffY:-14,armTop:-44,chest:true,legTop:-28},
+ {cuffX:18,cuffY:-14,armTop:-44,chest:true,legTop:-28},
+ {cuffX:25,cuffY:-5,chest:true,midriff:true,boots:true,bootColor:'#e9e1d0',legX:6,legWidth:5,shoeRadius:3.8,shoeHeight:2.3}
 ];
 export const outfitHeadOffset=style=>JUMP_OUTFITS.indexOf(style)>0?-3:0;
 function armPose(side,time,moving,waving){
@@ -37,13 +55,14 @@ export function drawOutfitBody(c,s,time=0,moving=false,waving=false){
  const stride=moving?Math.sin(time*13)*4:0;
  // Fully covered torsos have no skin rectangle underneath the artwork.
  c.fillStyle=s.skin;c.beginPath();c.roundRect(-4,-52,8,7,2);c.fill();
+ if(fit.chest){c.beginPath();c.moveTo(-4,-51);c.lineTo(4,-51);c.quadraticCurveTo(9,-47,15,-45);c.lineTo(12,-36);c.lineTo(-12,-36);c.lineTo(-15,-45);c.quadraticCurveTo(-9,-47,-4,-51);c.fill();}
  if(fit.shoulder){c.beginPath();c.ellipse(10,-46,3.8,6,0,0,Math.PI*2);c.fill();}
  if(fit.midriff){c.beginPath();c.roundRect(-8,-30,16,8,2);c.fill();}
  for(const side of [-1,1]){
-  const step=side*stride*.5;
-  c.fillStyle=s.skin;c.beginPath();c.roundRect(side*8-4,-18,8,19+step,4);c.fill();
-  if(fit.boots){c.fillStyle='#79543c';c.beginPath();c.roundRect(side*8-4,-11+step,8,13,3);c.fill();}
-  c.fillStyle=fit.boots?'#6b4635':'#f6f1e8';c.beginPath();c.ellipse(side*8,step+1,6,4,0,0,Math.PI*2);c.fill();
+  const step=side*stride*.5,legTop=fit.legTop??-18,legX=fit.legX??8,legWidth=fit.legWidth??8;
+  c.fillStyle=s.skin;c.beginPath();c.roundRect(side*legX-legWidth/2,legTop,legWidth,1-legTop+step,Math.min(4,legWidth/2));c.fill();
+  if(fit.boots){c.fillStyle=fit.bootColor||'#79543c';c.beginPath();c.roundRect(side*legX-legWidth/2,-11+step,legWidth,13,Math.min(3,legWidth/2));c.fill();}
+  c.fillStyle=fit.boots?(fit.bootColor||'#6b4635'):'#f6f1e8';c.beginPath();c.ellipse(side*legX,step+1,fit.shoeRadius??6,fit.shoeHeight??4,0,0,Math.PI*2);c.fill();
   const pose=armPose(side,time,moving,waving);
   c.save();c.translate(pose.x,pose.y);c.rotate(pose.angle);
   const sleeve=fit.arms?.[side]??fit;

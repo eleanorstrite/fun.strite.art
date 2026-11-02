@@ -229,3 +229,12 @@ test('live coin credits validate amounts and settle remaining rewards exactly on
  for(const amount of [-1,1.5,NaN,1000000001])assert.throws(()=>run.credit(amount));
  run.credit(2);assert.throws(()=>run.finish(1));run.finish(5);assert.equal(system.snapshot().coins,5);
 });
+
+test('butterfly outfits cost 50 shared coins and persist as separate unlocks',()=>{
+ const storage=memory(),system=createSystem(storage);
+ const items=UPGRADES.filter(item=>item.outfit);assert.equal(items.length,4);
+ system.beginSession('wardrobe-fund').finish(200);
+ for(const item of items){assert.equal(item.cost,50);system.buy(item.id);assert.ok(system.snapshot().upgrades.includes(item.id));assert.throws(()=>system.buy(item.id));}
+ assert.equal(system.snapshot().coins,0);
+ assert.ok(items.every(item=>createSystem(storage).snapshot().upgrades.includes(item.id)));
+});
