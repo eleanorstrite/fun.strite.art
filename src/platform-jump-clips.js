@@ -18,7 +18,17 @@ function sky(c,t,mountains=false){const g=c.createLinearGradient(0,0,0,650);g.ad
 function platform(c,x,y,w,finish=false){panel(c,x-w/2,y,w,25,'#fff7dc');panel(c,x-w/2+10,y+20,w-20,18,'#8aafb1');if(finish){line(c,x-140,y,x-140,y-180,'#fbf6e3',7);line(c,x+140,y,x+140,y-180,'#fbf6e3',7);panel(c,x-148,y-180,296,48,'#f3c769');text(c,'FINISH',x,y-147,30);}}
 function person(c,x,y,s,t,scale=1.7,pose=false){c.save();c.translate(x,y);c.scale(scale,scale);drawJumper(c,0,0,s,t,false,pose);c.restore();}
 function pet(c,x,y,s,t,scale=1.65,pose='idle',facing=1){c.save();c.translate(x,y);c.scale(scale,scale);if(s.pet!=='dog')c.rotate(pose==='jump'?-.13:pose==='land'?.1:0);drawJumpPet(c,0,0,s,t,pose!=='idle',facing,pose);c.restore();}
-function bird(c,x,y,t,size=1){c.save();c.translate(x,y);c.scale(size,size);const flap=Math.sin(t*7)*13;c.strokeStyle='#344b65';c.lineWidth=4;c.beginPath();c.moveTo(-28,-flap);c.quadraticCurveTo(-13,-18,0,0);c.quadraticCurveTo(13,-18,28,-flap);c.stroke();oval(c,0,0,5,10,'#e9ede6');c.restore();}
+// Pointed swept wings and a forked tail follow the supplied swallow reference.
+function bird(c,x,y,t,size=1){
+ c.save();c.translate(x,y);c.scale(size,size);c.rotate(-.3);
+ const flap=Math.sin(t*4)*5;
+ c.fillStyle='#252b30';c.strokeStyle='#f4f6ef';c.lineWidth=1.3;
+ c.beginPath();c.moveTo(0,-13);c.lineTo(4,-8);c.lineTo(6,-3);
+ c.lineTo(28,-19+flap);c.quadraticCurveTo(19,-1,6,5);
+ c.lineTo(11,25);c.lineTo(0,15);c.lineTo(-11,25);c.lineTo(-6,5);
+ c.quadraticCurveTo(-20,-1,-28,-19-flap);c.lineTo(-5,-4);
+ c.lineTo(-3,-10);c.closePath();c.fill();c.stroke();c.restore();
+}
 export function drawJumpClip(c,kind,time,custom){const t=Math.max(0,time),s=kind==='intro'?JUMP_INTRO_LOOK:custom;c.save();c.scale(c.canvas.width/900,c.canvas.height/650);
  if(kind==='intro'){
   sky(c,t);platform(c,450,510,620);let px=310,dx=590,py=500,dy=500,pose='idle',arms=false;
@@ -32,14 +42,14 @@ export function drawJumpClip(c,kind,time,custom){const t=Math.max(0,time),s=kind
   if(t>3){const q=ease((t-3)/2);px=lerp(350,720,q);dx=lerp(550,855,q);py=500-Math.sin(q*Math.PI)*100;dy=500-Math.sin(q*Math.PI)*90;}
   person(c,px,py,s,t,1.7,t<3?'clap':true);pet(c,dx,dy,s,t,1.5,t<1?'jump':t<2?'land':t<3?'idle':'jump');if(t>=2&&t<3.5)speak(c,'We made it!',450,225);
  }else{
-  const flight=t-5;if(!drawEndingValley(c))sky(c,0,true);const cx=450+Math.sin(flight*.55)*45,cy=350+Math.sin(flight*.8)*18;
-  c.save();c.translate(cx,cy);c.rotate(Math.sin(flight*.55)*.035);
+  const flight=t-5;if(!drawEndingValley(c))sky(c,0,true);const cx=450+Math.sin(flight*.55)*45,cy=245+Math.sin(flight*.8)*12;
+  c.save();c.translate(cx,cy);c.scale(.7,.7);c.rotate(Math.sin(flight*.55)*.035);
   // Shared paraglider with visible suspension lines and a secure pet sling.
   for(let i=0;i<7;i++)line(c,-135+i*45,-115,i<3?-50:65,40,'#f4f5e3',1.5);
   if(!drawEndingCanopy(c)){c.save();c.beginPath();c.ellipse(0,-145,230,100,0,Math.PI,Math.PI*2);c.lineTo(230,-145);c.quadraticCurveTo(0,-205,-230,-145);c.closePath();c.clip();for(let i=0;i<7;i++){c.fillStyle=['#2868c6','#58b7e9','#f5f5e9','#3679d1','#f5f5e9','#58b7e9','#2868c6'][i];c.fillRect(-235+i*68,-250,70,130);}c.restore();}
   person(c,-55,98,s,t,1.2,false);pet(c,78,106,s,t,1.1,'idle');line(c,-75,49,-36,70,'#293d53',8);line(c,-36,70,-41,95,'#293d53',8);panel(c,31,88,96,27,'#354c69');line(c,36,90,45,57,'#354c69',5);line(c,121,90,113,57,'#354c69',5);
   if(flight>2){line(c,-35,45,25,10,s.skin,9);oval(c,25,10,7,7,s.skin);}c.restore();
-  for(let i=0;i<4;i++)bird(c,680+i*60-flight*12,220+i%2*36,flight+i,.8);
+  for(let i=0;i<4;i++)bird(c,680+i*60-flight*12,150+i%2*58,flight+i,.65);
   if(flight>2&&flight<5)speak(c,'Look at those birds!',450,93);else if(flight>=5&&flight<8)speak(c,'Snowy peaks and a sparkling river!',450,93);else if(flight>=8){panel(c,285,46,330,80,'#fff8deef');text(c,'You win.',450,101,43);}
  }
  c.fillStyle='#fff0b5';c.fillRect(0,644,900*clamp(t/JUMP_CLIP_LENGTH[kind]),6);c.restore();}
