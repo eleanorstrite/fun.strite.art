@@ -10,7 +10,7 @@ export function drawJumpHair(c,style,color,layer,time=0){
  c.save();
  const shade=c.createLinearGradient(-25,-90,28,-35);shade.addColorStop(0,color);shade.addColorStop(.42,color);shade.addColorStop(1,'#171321');c.fillStyle=shade;
  const long=['Long','Long waves','Half-up bun'].includes(style),bob=style==='Bob with bangs';
- const sway=Math.sin(time*2.5)*1.3;
+ const sway=1.5+Math.sin(time*1.7)*3+Math.sin(time*3.1)*.7;
  if(layer==='back'){
   if(long||bob){const bottom=bob?-48:-25;shape(c,[['moveTo',-18,-83],['bezierCurveTo',-34,-70,-23,-58,-29+sway,bottom-12],['bezierCurveTo',-34+sway,bottom+3,-17,bottom+7,-10,bottom-3],['lineTo',12,bottom-3],['bezierCurveTo',30,bottom+6,36,bottom-5,28+sway,bottom-19],['bezierCurveTo',22,-66,32,-73,17,-85]]);
    if(style==='Long waves'){for(const side of [-1,1]){c.save();c.scale(side,1);shape(c,[['moveTo',17,-80],['bezierCurveTo',40,-65,17,-59,29,-47],['bezierCurveTo',43,-31,19,-28,25,-16],['bezierCurveTo',8,-24,30,-33,18,-43],['bezierCurveTo',5,-58,29,-65,17,-80]]);c.restore();}}
