@@ -1,9 +1,12 @@
-export const JUMP_HAIR=['Short','Short waves','Side swept','Spikes','Tousled','Center part','Curls','Afro','Bob with bangs','Long','Long waves','Ponytail','High ponytail','Pigtails','Braids','Bun','Double buns','Half-up bun','Bald'];
+import {SHOP_HAIR,drawShopHair} from './platform-hair-shop.js';
+export const JUMP_HAIR=['Short','Short waves','Side swept','Spikes','Tousled','Center part','Curls','Afro','Bob with bangs','Long','Long waves','Ponytail','High ponytail','Pigtails','Braids','Bun','Double buns','Half-up bun','Bald',...SHOP_HAIR.map(h=>h.name)];
 // Continuous silhouettes and directional strands keep the hair readable at game scale.
 function shape(c,commands){c.beginPath();for(const [method,...args] of commands)c[method](...args);c.closePath();c.fill();}
 function strand(c,x,y,endX,endY,bend=0){c.beginPath();c.moveTo(x,y);c.bezierCurveTo(x+bend,y+8,endX-bend,endY-9,endX,endY);c.stroke();}
 export function drawJumpHair(c,style,color,layer,time=0){
  if(style==='Bald')return;
+ if(drawShopHair(c,style,layer,time))return;
+ if(SHOP_HAIR.some(h=>h.name===style)){style='Long waves';}
  c.save();
  const shade=c.createLinearGradient(-25,-90,28,-35);shade.addColorStop(0,color);shade.addColorStop(.42,color);shade.addColorStop(1,'#171321');c.fillStyle=shade;
  const long=['Long','Long waves','Half-up bun'].includes(style),bob=style==='Bob with bangs';

@@ -1,3 +1,4 @@
+import {HAIR_SHOP_ITEMS} from './platform-hair-shop.js';
 import {HEDGEHOG_SHOP_ITEMS} from './platform-hedgehogs.js';
 import {FERRET_SHOP_ITEMS} from './platform-ferrets.js';
 import {SPORTS_SHOP_ITEMS} from './animal-sports-settings.js';
@@ -41,6 +42,7 @@ export const airRecordId=difficulty=>difficulty==='sloth'?'hoop-flight':'hoop-fl
 export const PLANE_DEFAULTS={color:'#ed6e40',style:'sport',difficulty:'sloth',background:'valley',hat:'none',scarf:'none',accessoryColor:'#d34c65'};
 export const KNIGHT_DEFAULTS = { armor: 'silver', helmet: 'plume', cape: true, shield: false, dragon: 'classic' };
 export const UPGRADES = [
+  ...HAIR_SHOP_ITEMS,
   ...SPORTS_SHOP_ITEMS,
   ...FERRET_SHOP_ITEMS,
   ...HEDGEHOG_SHOP_ITEMS,
