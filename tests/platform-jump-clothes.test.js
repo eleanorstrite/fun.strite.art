@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {JUMP_OUTFITS,drawJumpOutfit,outfitCell,CLOTHING_SHOP_ITEMS,outfitUnlocked} from '../src/platform-jump-clothes.js';
+import {JUMP_OUTFITS,drawJumpOutfit,outfitCell,CLOTHING_SHOP_ITEMS,outfitUnlocked,drawOutfitBody} from '../src/platform-jump-clothes.js';
 import {JUMP_DEFAULTS,validateJumpSettings} from '../src/platform-jump-rules.js';
 import {drawJumper} from '../src/platform-jump-person.js';
 test('all nineteen reference outfits save without changing the default or skin color',()=>{
@@ -55,4 +55,18 @@ test('butterfly clothing requires its own permanent shop unlock',()=>{
   const cell=outfitCell(item.outfit);assert.equal(cell.file,'platform-jump-butterfly-outfits.png');assert.equal(cell.columns,2);assert.equal(cell.rows,2);
  }
  for(const outfit of JUMP_OUTFITS.slice(0,16))assert.equal(outfitUnlocked(outfit),true);
+});
+
+test('waving sleeves include the shoulder and share the arm joint instead of rotating edge strips',t=>{
+ const previous=globalThis.Image;t.after(()=>{globalThis.Image=previous;});
+ globalThis.Image=class{constructor(){this.complete=true;this.naturalWidth=1236;this.naturalHeight=1236;}};
+ for(const outfit of JUMP_OUTFITS.slice(1))for(const time of [0,.4,1]){
+  const images=[],bodyAngles=[],sleeveAngles=[],bodyJoints=[],sleeveJoints=[];
+  const body=new Proxy({rotate:a=>bodyAngles.push(a),translate:(...a)=>bodyJoints.push(a)},{get:(o,k)=>k in o?o[k]:()=>{}});
+  const clothes=new Proxy({drawImage:(...a)=>images.push(a),rotate:a=>sleeveAngles.push(a),translate:(...a)=>sleeveJoints.push(a)},{get:(o,k)=>k in o?o[k]:()=>{}});
+  drawOutfitBody(body,{...JUMP_DEFAULTS,outfit},time,false,true);drawJumpOutfit(clothes,outfit,time,false,true);
+  const sleeveless=outfit.endsWith('butterfly dress');assert.equal(images.length,sleeveless?1:3);
+  const cell=outfitCell(outfit);for(const image of images)assert.equal(image[3],image[0].naturalWidth/cell.columns,'Retain the complete sleeve artwork, including its inner seam');
+  if(!sleeveless){assert.equal(sleeveAngles[0],bodyAngles[1]);assert.equal(bodyJoints.some(a=>a[0]===15&&a[1]===-43),true);assert.equal(sleeveJoints.some(a=>a[0]===15&&a[1]===-43),true);}
+ }
 });

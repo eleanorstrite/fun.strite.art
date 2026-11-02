@@ -48,8 +48,17 @@ const OUTFIT_FITS=[
 export const outfitHeadOffset=style=>JUMP_OUTFITS.indexOf(style)>0?-3:0;
 function armPose(side,time,moving,waving){
  const raised=waving==='clap'||(waving&&side===1);
- return {x:side*19,y:-42,angle:raised?-side*(waving==='clap'?2.3:2):0};
+ return {x:side*15,y:-43,raised,angle:raised?-side*(waving==='clap'?2.3:1.85+Math.sin(time*5)*.12):0};
 }
+function sleeveFit(fit,side){return fit.arms?.[side]??fit;}
+function hasSleeve(fit){return !(fit.chest&&fit.armTop===-44);}
+function sleevePath(c,side,endY){
+ // Include the shoulder cap and inner seam, not just the outer edge of the atlas.
+ c.moveTo(side*9,-47);c.lineTo(side*18,-50);c.lineTo(side*31,-40);
+ c.lineTo(side*34,endY);c.lineTo(side*20,endY);
+ c.lineTo(side*14,Math.min(-27,endY-3));c.lineTo(side*11,-35);c.closePath();
+}
+const SLEEVE_COLORS=['#444950','#b4a7bb','#45454a','#4e5656','#51545b','#b8a8bd','#b6a8bb','#b5a7b8','#303c3b','#f2ce92','#edb17c','#e9d492','#eee1c5','#a1a375','#f1cf91','#22222a','#22222a','#29342b','#eee2cf'];
 export function drawOutfitBody(c,s,time=0,moving=false,waving=false){
  const fit=OUTFIT_FITS[JUMP_OUTFITS.indexOf(s.outfit)-1];if(!fit)return;
  const stride=moving?Math.sin(time*13)*4:0;
@@ -65,11 +74,11 @@ export function drawOutfitBody(c,s,time=0,moving=false,waving=false){
   c.fillStyle=fit.boots?(fit.bootColor||'#6b4635'):'#f6f1e8';c.beginPath();c.ellipse(side*legX,step+1,fit.shoeRadius??6,fit.shoeHeight??4,0,0,Math.PI*2);c.fill();
   const pose=armPose(side,time,moving,waving);
   c.save();c.translate(pose.x,pose.y);c.rotate(pose.angle);
-  const sleeve=fit.arms?.[side]??fit;
-  const handX=side*(sleeve.cuffX-19),handY=sleeve.cuffY+42;
-  if(sleeve.armTop!==undefined){c.strokeStyle=s.skin;c.lineWidth=3.8;c.lineCap='round';c.beginPath();c.moveTo(handX,sleeve.armTop+42);c.lineTo(handX,handY);c.stroke();}
+  const sleeve=sleeveFit(fit,side);
+  const handX=side*sleeve.cuffX-pose.x,handY=sleeve.cuffY-pose.y;
+  if(sleeve.armTop!==undefined||pose.raised){c.strokeStyle=s.skin;c.lineWidth=3.8;c.lineCap='round';c.beginPath();if(pose.raised)c.moveTo(0,0);else c.moveTo(handX,sleeve.armTop-pose.y);c.lineTo(handX,handY);c.stroke();}
   // Oversized cuffs cover the hands; only short sleeves expose the forearms.
-  if(sleeve.armTop!==undefined){c.fillStyle=s.skin;c.beginPath();c.ellipse(handX,handY,2.5,3.5,0,0,Math.PI*2);c.fill();}
+  if(sleeve.armTop!==undefined||pose.raised){c.fillStyle=s.skin;c.beginPath();c.ellipse(handX,handY,2.5,3.5,0,0,Math.PI*2);c.fill();}
   c.restore();
  }
 }
@@ -88,16 +97,24 @@ export function drawJumpOutfit(c,style,time=0,moving=false,waving=false){
   c.drawImage(image,x0,y0,x1-x0,y1-y0,dx+(x0-sx)/sw*dw,dy+(y0-sy)/sh*dh,dw*(x1-x0)/sw,dh*(y1-y0)/sh);
  }
 
- if(!waving){part(col*w,row*h,w,h,left,top,width,height);return true;}
- // Separate sleeve strips follow the same raised arms used by the character.
- for(const side of [-1,1]){
+ const fit=OUTFIT_FITS[JUMP_OUTFITS.indexOf(style)-1];
+ const raised=[-1,1].filter(side=>armPose(side,time,moving,waving).raised&&hasSleeve(fit));
+ if(!raised.length){part(col*w,row*h,w,h,left,top,width,height);return true;}
+ // Draw the complete outfit, removing only the sleeves that actually move.
+ // Skirts, the resting sleeve, and accessories retain their original artwork.
+ const ends=new Map(raised.map(side=>[side,sleeveFit(fit,side).armTop??sleeveFit(fit,side).cuffY-2]));
+ c.save();c.beginPath();c.rect(-100,-150,200,200);
+ for(const side of raised)sleevePath(c,side,ends.get(side));
+ c.clip('evenodd');part(col*w,row*h,w,h,left,top,width,height);c.restore();
+ for(const side of raised){
   const pose=armPose(side,time,moving,waving);
-  c.save();c.translate(pose.x,pose.y);c.rotate(pose.angle);
-  const sx=side<0?0:.8;
-  part((col+sx)*w,row*h,w*.2,h*.72,left+sx*width-pose.x,top-pose.y,width*.2,height*.72);
-  c.restore();
+  // A small textured shoulder cap joins the bodice and rotated sleeve.
+  c.save();c.beginPath();c.ellipse(pose.x,pose.y,5,5,0,0,Math.PI*2);c.clip();
+  c.fillStyle=SLEEVE_COLORS[JUMP_OUTFITS.indexOf(style)-1];c.fill();
+  part(col*w,row*h,w,h,left,top,width,height);c.restore();
+  c.save();c.translate(pose.x,pose.y);c.rotate(pose.angle);c.translate(-pose.x,-pose.y);
+  c.beginPath();sleevePath(c,side,ends.get(side));c.clip();
+  part(col*w,row*h,w,h,left,top,width,height);c.restore();
  }
- // Center strip includes the collar, bodice, skirt or shorts, and hanging straps.
- part((col+.2)*w,row*h,w*.6,h,left+width*.2,top,width*.6,height);
  return true;
 }
