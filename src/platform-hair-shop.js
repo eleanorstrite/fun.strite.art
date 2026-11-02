@@ -24,11 +24,18 @@ export function drawShopHair(c,style,layer,time=0){
  if(layer==='front'){
   // Only the hair around the head goes in front of the person.
   c.beginPath();c.rect(left-1,top-1,width+2,-51-top+1);c.clip();
-  // The atlas openings are narrower than the game's face. Keep a full-size
-  // face opening fixed to the head, including while the hair blows sideways.
+  // Leave space for the face below the hairline, rather than cutting out
+  // the entire round head. The crown and bangs overlap the forehead;
+  // the sides overlap the temples without crowding the eyes or cheeks.
   c.beginPath();c.rect(-100,-150,200,200);
-  c.moveTo(19,-65);c.ellipse(0,-65,19,21,0,0,Math.PI*2);
-  c.clip('evenodd');
+  c.moveTo(0,-77);
+  c.bezierCurveTo(-7,-80,-13,-77,-16,-72);
+  c.bezierCurveTo(-19,-68,-20,-60,-16,-53);
+  c.bezierCurveTo(-12,-46,-5,-43,0,-43);
+  c.bezierCurveTo(5,-43,12,-46,16,-53);
+  c.bezierCurveTo(20,-60,19,-68,16,-72);
+  c.bezierCurveTo(13,-77,7,-80,0,-77);
+  c.closePath();c.clip('evenodd');
  }
  // Connected bands bend the hair rather than sliding the whole hairstyle.
  const bands=32,bandHeight=height/bands;
