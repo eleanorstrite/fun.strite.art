@@ -174,3 +174,5 @@ html[data-background="aurora"]{--home-scene:url('./assets/backgrounds/aurora.svg
 .jump-level-picker{padding:14px;margin-bottom:12px;background:#edf3f6;border:1px solid #bfd1dc;border-radius:12px}.jump-level-picker label{display:grid;gap:8px;font-weight:700}.jump-level-picker select{width:100%;min-height:44px;border:1px solid #9eb6c5;border-radius:6px;background:white;color:#263d49;padding:8px}.jump-level-picker p{font-size:13px;margin:8px 0 0;line-height:1.5}
 
 .jump-outfit-gallery{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0}.jump-outfit-gallery canvas{display:block;width:100%;height:auto}.jump-outfit-gallery .jump-hair-choice{min-width:0}.jump-outfit-gallery span{font-size:12px}
+
+nav .shop-shortcut{padding:12px 18px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;color:#fff}nav{align-items:center}@media(max-width:650px){nav .shop-shortcut{padding:10px 13px}}
