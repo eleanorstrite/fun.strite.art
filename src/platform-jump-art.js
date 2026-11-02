@@ -25,7 +25,7 @@ export function drawPlatformJump(c,state,s=JUMP_DEFAULTS){const w=c.canvas.width
 const previewFrames=new WeakMap();
 export function drawPlatformJumpPreview(canvas){
  if(previewFrames.has(canvas))cancelAnimationFrame(previewFrames.get(canvas));
- const settings={...JUMP_DEFAULTS,hairstyle:'Sunset blossom waves',hair:'#ee702e',outfit:'Stained-glass butterfly dress',pet:'dog',breed:'Brindle',petName:'Davina'};
+ const settings={...JUMP_DEFAULTS,hairstyle:'Sunset blossom waves',hair:'#ee702e',outfit:'Strappy top & shorts',pet:'dog',breed:'Brindle',petName:'Davina'};
  function island(c,x,y,w){
   oval(c,x,y+46,w*.42,16,'#315b8030');
   c.fillStyle='#648ca3';c.beginPath();c.moveTo(x-w/2+7,y+5);c.lineTo(x-w*.22,y+54);c.lineTo(x+w*.12,y+73);c.lineTo(x+w/2-7,y+5);c.closePath();c.fill();
