@@ -29,6 +29,7 @@ jobs:
           cp index.html styles.css _site/
           cp -R src _site/src
           cp -R assets _site/assets
+          cp -R previews _site/previews
           touch _site/.nojekyll
       - uses: actions/upload-pages-artifact@v3
         with:
