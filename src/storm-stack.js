@@ -1,3 +1,4 @@
+import {drawStormWizard,loadStormWizard,saveStormWizard,mountStormWizardChoices} from './storm-wizards.js';
 import {animateStormCover} from './storm-cover.js';
 import { createMazeAudio } from './maze-audio.js';
 export const STORM_WIDTH=10,STORM_ROWS=24,STORM_TARGET=18,STORM_SECONDS=30;
@@ -13,7 +14,7 @@ function nextPiece(s){
 }
 export function createStormState(random=Math.random,roundHazard=STORM_HAZARDS[Math.min(3,Math.floor(random()*4))],mode='race'){
   const s={board:Array.from({length:STORM_ROWS},()=>Array(STORM_WIDTH).fill(0)),random,bag:[],piece:null,next:null,status:'ready',remaining:STORM_SECONDS,fall:0,height:0,locked:0,tumbling:[],balanceNotice:0,clip:0,won:false,hazard:null,roundHazard:STORM_HAZARDS.includes(roundHazard)?roundHazard:STORM_HAZARDS[0]};
-  s.mode=Object.hasOwn(STORM_MODES,mode)?mode:'race';s.remaining=STORM_MODES[s.mode].seconds;s.target=STORM_MODES[s.mode].target;s.elapsed=0;s.gust=0;s.misses=0;s.combo=0;s.spells=1;s.ward=false;s.particles=[];
+  s.wizard='sorceress';s.mode=Object.hasOwn(STORM_MODES,mode)?mode:'race';s.remaining=STORM_MODES[s.mode].seconds;s.target=STORM_MODES[s.mode].target;s.elapsed=0;s.gust=0;s.misses=0;s.combo=0;s.spells=1;s.ward=false;s.particles=[];
   s.piece=nextPiece(s);s.next=nextPiece(s);return s;
 }
 function endStorm(s,won,emit){s.won=won;s.status='ending';s.clip=0;if(!won){s.hazard=s.roundHazard;emit('bell');}else emit('win');}
@@ -121,7 +122,7 @@ function wizard(c,x,y,time){
  c.strokeStyle='#ffdcbb';c.lineWidth=7;c.beginPath();c.moveTo(15,15);c.lineTo(33,3);c.stroke();c.strokeStyle='#86624b';c.lineWidth=4;c.beginPath();c.moveTo(30,11);c.lineTo(43,-19);c.stroke();oval(c,44,-22,6,6,'#fff3ae');c.restore();
 }
 export function drawStormEnding(c,s,reduced=false){
-  const t=s.clip;scenery(c);rect(c,30,27,540,95,'#384569e8',20);rect(c,0,680,600,100,'#243d50');
+  const t=s.clip;scenery(c);drawStormWizard(c,s.wizard,58,680,reduced?0:t,s.won);rect(c,30,27,540,95,'#384569e8',20);rect(c,0,680,600,100,'#243d50');
   if(!s.won&&t<4.5){
     label(c,'DING! TIME’S UP',300,65,30);label(c,s.hazard+' incoming!',300,100,20,'#ffd88d');
     const p=clamp((t-.7)/3,0,1);
@@ -164,7 +165,7 @@ export function drawStorm(c,s,width,height,reduced=false){
   const ox=120,oy=116,cell=24;
   rect(c,ox-10,oy-9,260,592,'#ffffff28',14);
   c.fillStyle='#9980ac';c.beginPath();c.moveTo(96,703);c.lineTo(245,774);c.lineTo(385,703);c.fill();rect(c,94,690,294,19,'#77b78d',8);rect(c,105,689,272,7,'#c8e8a5',3);
-  wizard(c,64,660,reduced?0:s.elapsed);
+  if(!drawStormWizard(c,s.wizard,57,713,reduced?0:s.elapsed,s.ward))wizard(c,64,660,reduced?0:s.elapsed);
   for(let y=0;y<24;y++)for(let x=0;x<10;x++){if(s.board[y][x])block(c,ox+x*cell,oy+y*cell,cell,COLORS[s.board[y][x]-1]);}
   if(s.piece){let gy=s.piece.y;while(stormFits(s,s.piece.cells,s.piece.x,gy+1))gy++;
     const balanced=stormBalance(s,{...s.piece,y:gy}).stable;
@@ -192,7 +193,8 @@ export function createStormStack({canvas,onHud,onFinish,controls=document.queryS
   const c=canvas.getContext('2d');if(!c)throw Error('Canvas is unavailable.');
   const audio=createMazeAudio(),controller=new AbortController(),options={signal:controller.signal};
   let hazardIndex=0;try{const saved=Number(localStorage.getItem('sidequest.storm.next-hazard'));if(Number.isInteger(saved)&&saved>=0&&saved<4)hazardIndex=saved;}catch{}
-  let selectedMode='race';let s=createStormState(Math.random,STORM_HAZARDS[hazardIndex],selectedMode),active=false,paused=false,destroyed=false,last=0,frame;const held=new Set();
+  let selectedMode='race',selectedWizard=loadStormWizard();let s=createStormState(Math.random,STORM_HAZARDS[hazardIndex],selectedMode),active=false,paused=false,destroyed=false,last=0,frame;const held=new Set();
+  s.wizard=selectedWizard;
   const reduced=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false;
   const clear=()=>held.clear(),canPlay=()=>active&&!paused&&!document.hidden&&s.status==='playing';
   const act=name=>{if(!canPlay())return;audio.unlock();if(name==='left')stormMove(s,-1);if(name==='right')stormMove(s,1);if(name==='rotate')stormRotate(s);if(name==='drop')stormHardDrop(s,cue);if(name==='spell')stormSpell(s,cue);};
@@ -200,8 +202,9 @@ export function createStormStack({canvas,onHud,onFinish,controls=document.queryS
   globalThis.window?.addEventListener('keyup',e=>{if(e.key==='ArrowDown')held.delete('keyboard');},options);canvas.addEventListener('blur',clear,options);
   document.addEventListener('visibilitychange',()=>{last=0;clear();if(document.hidden)audio.stop();},options);
   const buttons=[];controls.replaceChildren();
+  const wizardChoices=mountStormWizardChoices(controls,selectedWizard,id=>{if(active)return;selectedWizard=saveStormWizard(id);s.wizard=selectedWizard;});
   const modes=document.createElement('div');modes.className='storm-modes';controls.append(modes);const modeButtons=[];
-  for(const [id,mode] of Object.entries(STORM_MODES)){const b=document.createElement('button');b.type='button';b.className='button outline';b.textContent=mode.name;b.setAttribute?.('aria-pressed',String(id===selectedMode));b.onclick=()=>{if(active)return;selectedMode=id;s=createStormState(Math.random,s.roundHazard,id);for(const [modeId,button]of modeButtons)button.setAttribute?.('aria-pressed',String(modeId===id));};modes.append(b);modeButtons.push([id,b]);}
+  for(const [id,mode] of Object.entries(STORM_MODES)){const b=document.createElement('button');b.type='button';b.className='button outline';b.textContent=mode.name;b.setAttribute?.('aria-pressed',String(id===selectedMode));b.onclick=()=>{if(active)return;selectedMode=id;s=createStormState(Math.random,s.roundHazard,id);s.wizard=selectedWizard;for(const [modeId,button]of modeButtons)button.setAttribute?.('aria-pressed',String(modeId===id));};modes.append(b);modeButtons.push([id,b]);}
   const row=document.createElement('div');row.className='storm-buttons';controls.append(row);
   for(const [name,title] of [['left','← Left'],['rotate','↻ Rotate'],['right','Right →'],['down','Hold ↓ Faster'],['drop','↓ Drop now'],['spell','✦ Magic anchor (X)']]){
     const b=document.createElement('button');b.type='button';b.className='button outline';b.textContent=title;row.append(b);buttons.push(b);
@@ -217,7 +220,7 @@ export function createStormStack({canvas,onHud,onFinish,controls=document.queryS
   function finish(){if(!active)return;active=false;clear();audio.stop();const completed=s.status==='finished';onFinish(completed?(s.won?25:5):0,{title:completed?(s.won?'You beat the storm!':'The hazards win this round!'):'Stack saved.',detail:STORM_MODES[s.mode].name+' · '+s.height+' blocks high'+(s.hazard?' · '+s.hazard:''),score:s.height});}
   skip.onclick=()=>{if(active&&!paused&&!document.hidden&&s.status==='ending'){s.status='finished';finish();}};
   const cue=name=>{if(name==='sayWin')audio.sayWin();else if(name==='sayLose')audio.sayLose();else audio.play(name);};
-  function tick(now){if(destroyed)return;const dt=last?Math.min(.1,(now-last)/1000):0;last=now;if(active&&!paused&&!document.hidden){tickStorm(s,dt,held.size>0,cue);if(s.status!=='playing')clear();if(s.status==='finished')finish();}for(const [id,b]of modeButtons)b.disabled=active;for(const b of buttons)b.disabled=!canPlay()||(b===buttons.at(-1)&&(s.spells<=0||s.ward));skip.hidden=s.status!=='ending';skip.disabled=paused;drawStorm(c,s,canvas.width,canvas.height,reduced);onHud({text:s.status==='ending'?'Watch the storm showdown!':`${STORM_MODES[s.mode].name} · ${Number.isFinite(s.remaining)?Math.ceil(s.remaining)+'s':'No timer'} · ${s.height} high · ${s.spells} spells${s.mode==='survival'?' · '+(3-s.misses)+' lives':''}`});frame=requestAnimationFrame(tick);}
+  function tick(now){if(destroyed)return;const dt=last?Math.min(.1,(now-last)/1000):0;last=now;if(active&&!paused&&!document.hidden){tickStorm(s,dt,held.size>0,cue);if(s.status!=='playing')clear();if(s.status==='finished')finish();}wizardChoices.setDisabled(active);for(const [id,b]of modeButtons)b.disabled=active;for(const b of buttons)b.disabled=!canPlay()||(b===buttons.at(-1)&&(s.spells<=0||s.ward));skip.hidden=s.status!=='ending';skip.disabled=paused;drawStorm(c,s,canvas.width,canvas.height,reduced);onHud({text:s.status==='ending'?'Watch the storm showdown!':`${STORM_MODES[s.mode].name} · ${Number.isFinite(s.remaining)?Math.ceil(s.remaining)+'s':'No timer'} · ${s.height} high · ${s.spells} spells${s.mode==='survival'?' · '+(3-s.misses)+' lives':''}`});frame=requestAnimationFrame(tick);}
   frame=requestAnimationFrame(tick);
-  return {start(){audio.stop();audio.unlock();clear();s=createStormState(Math.random,STORM_HAZARDS[hazardIndex],selectedMode);hazardIndex=(hazardIndex+1)%STORM_HAZARDS.length;try{localStorage.setItem('sidequest.storm.next-hazard',String(hazardIndex));}catch{}s.status='playing';active=true;paused=false;last=0;canvas.focus();},pause(value){paused=value;last=0;clear();if(value)audio.stop();},setMuted:value=>audio.setMuted(value),destroy(){if(destroyed)return;destroyed=true;finish();controller.abort();cancelAnimationFrame(frame);audio.destroy();controls.replaceChildren();}};
+  return {start(){audio.stop();audio.unlock();clear();s=createStormState(Math.random,STORM_HAZARDS[hazardIndex],selectedMode);s.wizard=selectedWizard;hazardIndex=(hazardIndex+1)%STORM_HAZARDS.length;try{localStorage.setItem('sidequest.storm.next-hazard',String(hazardIndex));}catch{}s.status='playing';active=true;wizardChoices.setDisabled(true);paused=false;last=0;canvas.focus();},pause(value){paused=value;last=0;clear();if(value)audio.stop();},setMuted:value=>audio.setMuted(value),destroy(){if(destroyed)return;destroyed=true;finish();controller.abort();cancelAnimationFrame(frame);audio.destroy();controls.replaceChildren();}};
 }
