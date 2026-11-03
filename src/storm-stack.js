@@ -1,5 +1,7 @@
+import {animateStormCover} from './storm-cover.js';
 import { createMazeAudio } from './maze-audio.js';
 export const STORM_WIDTH=10,STORM_ROWS=24,STORM_TARGET=18,STORM_SECONDS=30;
+export const STORM_MODES={race:{name:'Sky race',seconds:30,target:18},survival:{name:'Storm survival',seconds:45,target:24},practice:{name:'Magic practice',seconds:Infinity,target:18}};
 export const STORM_HAZARDS=['Hurricane','Tornado','Tsunami','Wildfire'];
 const SHAPES=[[[0,0],[1,0],[2,0],[3,0]],[[0,0],[1,0],[0,1],[1,1]],[[1,0],[0,1],[1,1],[2,1]],[[1,0],[2,0],[0,1],[1,1]],[[0,0],[1,0],[1,1],[2,1]],[[0,0],[0,1],[1,1],[2,1]],[[2,0],[0,1],[1,1],[2,1]]];
 const COLORS=['#70dce8','#f9d65c','#bc8bea','#8fce73','#f092b4','#789ee5','#f6a465'];
@@ -9,8 +11,9 @@ function nextPiece(s){
   if(!s.bag.length){s.bag=[0,1,2,3,4,5,6];for(let i=6;i>0;i--){const j=Math.floor(s.random()*(i+1));[s.bag[i],s.bag[j]]=[s.bag[j],s.bag[i]];}}
   const kind=s.bag.pop();return {kind,cells:SHAPES[kind].map(p=>[...p]),x:3,y:0};
 }
-export function createStormState(random=Math.random,roundHazard=STORM_HAZARDS[Math.min(3,Math.floor(random()*4))]){
+export function createStormState(random=Math.random,roundHazard=STORM_HAZARDS[Math.min(3,Math.floor(random()*4))],mode='race'){
   const s={board:Array.from({length:STORM_ROWS},()=>Array(STORM_WIDTH).fill(0)),random,bag:[],piece:null,next:null,status:'ready',remaining:STORM_SECONDS,fall:0,height:0,locked:0,tumbling:[],balanceNotice:0,clip:0,won:false,hazard:null,roundHazard:STORM_HAZARDS.includes(roundHazard)?roundHazard:STORM_HAZARDS[0]};
+  s.mode=Object.hasOwn(STORM_MODES,mode)?mode:'race';s.remaining=STORM_MODES[s.mode].seconds;s.target=STORM_MODES[s.mode].target;s.elapsed=0;s.gust=0;s.misses=0;s.combo=0;s.spells=1;s.ward=false;s.particles=[];
   s.piece=nextPiece(s);s.next=nextPiece(s);return s;
 }
 function endStorm(s,won,emit){s.won=won;s.status='ending';s.clip=0;if(!won){s.hazard=s.roundHazard;emit('bell');}else emit('win');}
@@ -32,17 +35,29 @@ export function stormBalance(s,p){
   const edge=supports.find(([x])=>direction<0?x===left:x+1===right);
   return {stable,direction,pivotX:direction<0?left:right,pivotY:edge[1]+1};
 }
+export function stormSpell(s,emit=()=>{}){
+  if(s.status!=='playing'||s.spells<=0||s.ward)return false;
+  s.spells--;s.ward=true;emit('bounce');return true;
+}
+export function stormHardDrop(s,emit=()=>{}){
+  if(s.status!=='playing')return false;
+  while(stormFits(s,s.piece.cells,s.piece.x,s.piece.y+1))s.piece.y++;
+  s.fall=0;dropRow(s,emit);return true;
+}
 function dropRow(s,emit){
   const p=s.piece;
   if(stormFits(s,p.cells,p.x,p.y+1)){p.y++;return;}
   const balance=stormBalance(s,p);
-  if(balance.stable){
+  if(balance.stable||s.ward){
     for(const [dx,dy] of p.cells)s.board[p.y+dy][p.x+dx]=p.kind+1;
+    s.ward=false;s.combo++;if(s.combo%3===0)s.spells=Math.min(3,s.spells+1);
+    for(const [dx,dy] of p.cells)s.particles.push({x:p.x+dx+.5,y:p.y+dy+.5,age:0,color:COLORS[p.kind]});
     s.locked++;const top=s.board.findIndex(row=>row.some(Boolean));s.height=top<0?0:STORM_ROWS-top;emit('bounce');
-    if(s.height>=STORM_TARGET){endStorm(s,true,emit);return;}
+    if(s.mode!=='survival'&&s.height>=s.target){endStorm(s,true,emit);return;}
   }else{
     s.tumbling.push({...balance,kind:p.kind,cells:p.cells.map(([x,y])=>[p.x+x,p.y+y]),age:0});
-    s.balanceNotice=2;emit('whoosh');
+    s.balanceNotice=2;s.combo=0;s.misses++;emit('whoosh');
+    if(s.mode==='survival'&&s.misses>=3){endStorm(s,false,emit);return;}
   }
   s.piece=s.next;s.next=nextPiece(s);
   if(!stormFits(s,s.piece.cells,s.piece.x,s.piece.y))endStorm(s,false,emit);
@@ -59,11 +74,16 @@ export function tickStorm(s,dt,fast=false,emit=()=>{}){
     if(s.clip>=(s.won?7:9))s.status='finished';return;
   }
   if(s.status!=='playing')return;
+  s.elapsed+=dt;s.gust=Math.max(0,s.gust-dt);
+  for(const particle of s.particles)particle.age+=dt;
+  s.particles=s.particles.filter(p=>p.age<.8);
+  // Survival gusts nudge the falling piece; landed supports remain predictable.
+  if(s.mode==='survival'&&Math.floor(s.elapsed/7)>Math.floor((s.elapsed-dt)/7)){s.gust=1.3;if(!s.ward)stormMove(s,Math.floor(s.elapsed/7)%2?1:-1);emit('whoosh');}
   s.balanceNotice=Math.max(0,s.balanceNotice-dt);
   for(const piece of s.tumbling)piece.age+=dt;
   s.tumbling=s.tumbling.filter(piece=>piece.age<3.2);
   s.remaining=Math.max(0,s.remaining-dt);
-  if(s.remaining<=1e-7){s.remaining=0;endStorm(s,false,emit);return;}
+  if(s.remaining<=1e-7){s.remaining=0;endStorm(s,s.mode==='survival',emit);return;}
   s.fall+=dt;const interval=fast?.032:.48;
   while(s.fall>=interval&&s.status==='playing'){s.fall-=interval;dropRow(s,emit);}
 }
@@ -89,9 +109,19 @@ function hazard(c,type,x,y,size,time,clap=false){
   for(const ex of [-11,11]){oval(c,ex,-20,5,7,'#fff');oval(c,ex+1,-19,2,3,'#203349');}
   c.strokeStyle='#203349';c.lineWidth=3;c.beginPath();c.arc(0,-9,10,0,Math.PI);c.stroke();c.restore();
 }
-function scenery(c){const g=c.createLinearGradient(0,0,0,780);g.addColorStop(0,'#172b4a');g.addColorStop(.65,'#345a78');g.addColorStop(1,'#73919b');c.fillStyle=g;c.fillRect(0,0,600,780);for(let i=0;i<30;i++)oval(c,(i*139)%600,30+(i*71)%430,1,1,'#b9dfdf88');}
+function scenery(c,time=0){
+  const g=c.createLinearGradient(0,0,0,780);g.addColorStop(0,'#76cfe3');g.addColorStop(.5,'#d0c5ed');g.addColorStop(1,'#fff0d1');c.fillStyle=g;c.fillRect(0,0,600,780);
+  oval(c,475,105,55,55,'#fff1bd');
+  for(let i=0;i<9;i++){const x=((i*193+time*5)%780)-90,y=120+(i*83)%560;oval(c,x,y,80,19,'#ffffff66');oval(c,x+25,y-13,43,24,'#ffffff66');}
+  for(const [x,y,k] of [[45,360,.65],[530,295,.5],[70,575,.4]]){c.save();c.translate(x,y);c.scale(k,k);rect(c,-45,0,90,15,'#8bcda0',7);c.fillStyle='#8f84b2';c.beginPath();c.moveTo(-45,12);c.lineTo(3,65);c.lineTo(45,12);c.fill();rect(c,-13,-60,28,60,'#a69ccc',4);c.fillStyle='#7565a2';c.beginPath();c.moveTo(-22,-60);c.lineTo(0,-88);c.lineTo(22,-60);c.fill();c.restore();}
+}
+function wizard(c,x,y,time){
+ c.save();c.translate(x,y+Math.sin(time*2)*3);c.fillStyle='#377f98';c.beginPath();c.moveTo(-18,5);c.lineTo(-30,50);c.quadraticCurveTo(0,65,30,50);c.lineTo(15,5);c.fill();oval(c,0,0,16,19,'#ffdcbb');
+ c.fillStyle='#356581';c.beginPath();c.moveTo(-28,-14);c.lineTo(-4,-60);c.lineTo(12,-23);c.lineTo(30,-14);c.fill();rect(c,-28,-17,57,7,'#ffe3a0',3);oval(c,-5,0,2,3,'#334462');oval(c,6,0,2,3,'#334462');
+ c.strokeStyle='#ffdcbb';c.lineWidth=7;c.beginPath();c.moveTo(15,15);c.lineTo(33,3);c.stroke();c.strokeStyle='#86624b';c.lineWidth=4;c.beginPath();c.moveTo(30,11);c.lineTo(43,-19);c.stroke();oval(c,44,-22,6,6,'#fff3ae');c.restore();
+}
 export function drawStormEnding(c,s,reduced=false){
-  const t=s.clip;scenery(c);rect(c,0,680,600,100,'#243d50');
+  const t=s.clip;scenery(c);rect(c,30,27,540,95,'#384569e8',20);rect(c,0,680,600,100,'#243d50');
   if(!s.won&&t<4.5){
     label(c,'DING! TIME’S UP',300,65,30);label(c,s.hazard+' incoming!',300,100,20,'#ffd88d');
     const p=clamp((t-.7)/3,0,1);
@@ -113,7 +143,7 @@ export function drawStormEnding(c,s,reduced=false){
   for(let i=0;i<4;i++){
     const hit=s.won?clamp((t-2.2)/.75,0,1):0;
     c.save();c.translate(85+i*145+(i<2?-1:1)*hit*650,510-hit*300);c.rotate(reduced?0:(i%2?1:-1)*hit*5);hazard(c,STORM_HAZARDS[i],0,0,100,sceneTime,true);c.restore();
-    if(!s.won)label(c,STORM_HAZARDS[i],85+i*145,585,14);
+    if(!s.won)label(c,STORM_HAZARDS[i],85+i*145,585,14,'#38436b');
   }
   if(s.won){
     const y=t<2.2?-140+clamp((t-1.3)/.9,0,1)**2*600:460;
@@ -130,13 +160,15 @@ export function drawStormEnding(c,s,reduced=false){
 export function drawStorm(c,s,width,height,reduced=false){
   c.save();c.fillStyle='#172b4a';c.fillRect(0,0,width,height);const scale=Math.min(width/600,height/780);c.translate((width-600*scale)/2,(height-780*scale)/2);c.scale(scale,scale);
   if(s.status==='ending'||s.status==='finished'){drawStormEnding(c,s,reduced);c.restore();return;}
-  scenery(c);label(c,'STORM STACK',300,43,30);label(c,'Build high. Beat the weather.',300,68,15,'#b7d8df');
+  scenery(c,reduced?0:s.elapsed);label(c,'STORM STACK',300,43,30,'#38436b');label(c,STORM_MODES[s.mode].name+' · A little balance. A little magic.',300,68,15,'#535079');
   const ox=120,oy=116,cell=24;
-  rect(c,ox-8,oy-8,256,592,'#8ba5b8',9);rect(c,ox,oy,240,576,'#12243b');
-  for(let y=0;y<24;y++)for(let x=0;x<10;x++){c.strokeStyle='#9bd2dc12';c.lineWidth=.5;c.strokeRect(ox+x*cell,oy+y*cell,cell,cell);if(s.board[y][x])block(c,ox+x*cell,oy+y*cell,cell,COLORS[s.board[y][x]-1]);}
+  rect(c,ox-10,oy-9,260,592,'#ffffff28',14);
+  c.fillStyle='#9980ac';c.beginPath();c.moveTo(96,703);c.lineTo(245,774);c.lineTo(385,703);c.fill();rect(c,94,690,294,19,'#77b78d',8);rect(c,105,689,272,7,'#c8e8a5',3);
+  wizard(c,64,660,reduced?0:s.elapsed);
+  for(let y=0;y<24;y++)for(let x=0;x<10;x++){if(s.board[y][x])block(c,ox+x*cell,oy+y*cell,cell,COLORS[s.board[y][x]-1]);}
   if(s.piece){let gy=s.piece.y;while(stormFits(s,s.piece.cells,s.piece.x,gy+1))gy++;
     const balanced=stormBalance(s,{...s.piece,y:gy}).stable;
-    c.globalAlpha=.3;for(const [x,y] of s.piece.cells)block(c,ox+(s.piece.x+x)*cell,oy+(gy+y)*cell,cell,balanced?COLORS[s.piece.kind]:'#f28559');c.globalAlpha=1;
+    c.globalAlpha=.3;for(const [x,y] of s.piece.cells)block(c,ox+(s.piece.x+x)*cell,oy+(gy+y)*cell,cell,balanced||s.ward?COLORS[s.piece.kind]:'#f28559');c.globalAlpha=1;
     for(const [x,y] of s.piece.cells)block(c,ox+(s.piece.x+x)*cell,oy+(s.piece.y+y)*cell,cell,COLORS[s.piece.kind]);
   }
   for(const piece of s.tumbling){
@@ -144,28 +176,34 @@ export function drawStorm(c,s,width,height,reduced=false){
     c.save();c.translate(ox+piece.pivotX*cell+piece.direction*150*fall*fall,oy+piece.pivotY*cell+280*fall*fall);c.rotate(angle);
     for(const [x,y] of piece.cells)block(c,(x-piece.pivotX)*cell,(y-piece.pivotY)*cell,cell,COLORS[piece.kind]);c.restore();
   }
-  const targetY=oy+(24-STORM_TARGET)*cell;c.strokeStyle='#ffe296';c.lineWidth=3;c.setLineDash([8,6]);c.beginPath();c.moveTo(ox-12,targetY);c.lineTo(ox+250,targetY);c.stroke();c.setLineDash([]);label(c,'GOAL',68,targetY+6,15,'#ffe296');
-  label(c,Math.ceil(s.remaining)+'s',470,156,40,s.remaining<=10?'#ffb39b':'#ffe296');label(c,'TIME LEFT',470,182,13);rect(c,404,199,132,7,'#15283f',3);rect(c,404,199,132*s.remaining/STORM_SECONDS,7,'#8cd4ca',3);
-  label(c,s.height+' / '+STORM_TARGET,470,254,28);label(c,'STACK HEIGHT',470,279,12);label(c,'NEXT',470,340,15);
+  for(const particle of s.particles){c.globalAlpha=1-particle.age/.8;oval(c,ox+particle.x*cell+Math.sin(particle.x*5)*particle.age*65,oy+particle.y*cell-particle.age*65,3,3,particle.color);}c.globalAlpha=1;
+  if(s.ward){c.strokeStyle='#fff3a6';c.lineWidth=3;c.beginPath();c.ellipse(240,oy+s.piece.y*cell+30,75,20,0,0,Math.PI*2);c.stroke();}
+  const targetY=oy+(24-s.target)*cell;c.strokeStyle='#ffe296';c.lineWidth=3;c.setLineDash([8,6]);c.beginPath();c.moveTo(ox-12,targetY);c.lineTo(ox+250,targetY);c.stroke();c.setLineDash([]);label(c,'GOAL',68,targetY+6,15,'#ffe296');
+  rect(c,397,116,148,502,'#384569e8',20);
+  label(c,Number.isFinite(s.remaining)?Math.ceil(s.remaining)+'s':'∞',470,156,40,s.remaining<=10?'#ffb39b':'#ffe296');label(c,s.mode==='practice'?'TAKE YOUR TIME':'TIME LEFT',470,182,13);
+  rect(c,411,199,118,7,'#15283f',3);rect(c,411,199,118*(Number.isFinite(s.remaining)?s.remaining/STORM_MODES[s.mode].seconds:1),7,'#8cd4ca',3);
+  label(c,s.mode==='survival'?(3-s.misses)+' lives':s.height+' / '+s.target,470,254,28);label(c,s.mode==='survival'?'SURVIVE THE GUSTS':'STACK HEIGHT',470,279,12);label(c,s.combo>1?s.combo+' perfect landings!':'NEXT SPELL AT 3',470,311,12,'#b7f4d5');label(c,'NEXT',470,340,15);
   for(const [x,y] of s.next.cells)block(c,420+x*23,363+y*23,23,COLORS[s.next.kind]);
-  hazard(c,s.roundHazard,470,520,80,0);label(c,s.roundHazard,470,552,14,'#ffe296');label(c,s.balanceNotice>0?'Oops! Too wobbly!':'Keep it balanced!',470,577,15,s.balanceNotice>0?'#ffbd89':'#c2dce2');
-  label(c,'← → Move   ↑ Rotate   Hold ↓ Fast drop',300,735,17);label(c,'Orange landing preview = tipping risk.',300,761,14,'#c2dce2');c.restore();
+  hazard(c,s.roundHazard,470,520,80,0);label(c,s.roundHazard,470,552,14,'#ffe296');label(c,s.gust>0?'GUST! Watch out!':s.balanceNotice>0?'Oops! Too wobbly!':s.ward?'Magic anchor armed!':'Keep it balanced!',470,577,13,s.balanceNotice>0?'#ffbd89':'#c2dce2');label(c,'✦ '+s.spells+' anchor spells',470,601,13,'#ffe296');
+  label(c,'← → Move   ↑ Rotate   ↓ Faster   Space Drop',300,735,15,'#38436b');label(c,'X · Magic anchor     3 balanced landings = a spell',300,758,13,'#535079');c.restore();
 }
-export function drawStormPreview(canvas){const c=canvas.getContext('2d');if(!c)return;const s=createStormState(()=>.45);for(let y=12;y<24;y++)for(let x=0;x<10;x++)if(y>21||x>=3&&x<=6&&y>14||x===4)s.board[y][x]=1+(x+y)%7;s.height=12;drawStorm(c,s,canvas.width,canvas.height);}
+export function drawStormPreview(canvas){animateStormCover(canvas);}
 export function createStormStack({canvas,onHud,onFinish,controls=document.querySelector('#storm-controls')}){
   const c=canvas.getContext('2d');if(!c)throw Error('Canvas is unavailable.');
   const audio=createMazeAudio(),controller=new AbortController(),options={signal:controller.signal};
   let hazardIndex=0;try{const saved=Number(localStorage.getItem('sidequest.storm.next-hazard'));if(Number.isInteger(saved)&&saved>=0&&saved<4)hazardIndex=saved;}catch{}
-  let s=createStormState(Math.random,STORM_HAZARDS[hazardIndex]),active=false,paused=false,destroyed=false,last=0,frame;const held=new Set();
+  let selectedMode='race';let s=createStormState(Math.random,STORM_HAZARDS[hazardIndex],selectedMode),active=false,paused=false,destroyed=false,last=0,frame;const held=new Set();
   const reduced=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false;
   const clear=()=>held.clear(),canPlay=()=>active&&!paused&&!document.hidden&&s.status==='playing';
-  const act=name=>{if(!canPlay())return;audio.unlock();if(name==='left')stormMove(s,-1);if(name==='right')stormMove(s,1);if(name==='rotate')stormRotate(s);};
-  canvas.addEventListener('keydown',e=>{const name={ArrowLeft:'left',ArrowRight:'right',ArrowUp:'rotate',ArrowDown:'down'}[e.key];if(!name)return;e.preventDefault();if(name==='down'){if(canPlay())held.add('keyboard');}else if(!e.repeat||name!=='rotate')act(name);},options);
+  const act=name=>{if(!canPlay())return;audio.unlock();if(name==='left')stormMove(s,-1);if(name==='right')stormMove(s,1);if(name==='rotate')stormRotate(s);if(name==='drop')stormHardDrop(s,cue);if(name==='spell')stormSpell(s,cue);};
+  canvas.addEventListener('keydown',e=>{const name={ArrowLeft:'left',ArrowRight:'right',ArrowUp:'rotate',ArrowDown:'down',' ':'drop',x:'spell',X:'spell'}[e.key];if(!name)return;e.preventDefault();if(name==='down'){if(canPlay())held.add('keyboard');}else if(!e.repeat||['left','right'].includes(name))act(name);},options);
   globalThis.window?.addEventListener('keyup',e=>{if(e.key==='ArrowDown')held.delete('keyboard');},options);canvas.addEventListener('blur',clear,options);
   document.addEventListener('visibilitychange',()=>{last=0;clear();if(document.hidden)audio.stop();},options);
   const buttons=[];controls.replaceChildren();
+  const modes=document.createElement('div');modes.className='storm-modes';controls.append(modes);const modeButtons=[];
+  for(const [id,mode] of Object.entries(STORM_MODES)){const b=document.createElement('button');b.type='button';b.className='button outline';b.textContent=mode.name;b.setAttribute?.('aria-pressed',String(id===selectedMode));b.onclick=()=>{if(active)return;selectedMode=id;s=createStormState(Math.random,s.roundHazard,id);for(const [modeId,button]of modeButtons)button.setAttribute?.('aria-pressed',String(modeId===id));};modes.append(b);modeButtons.push([id,b]);}
   const row=document.createElement('div');row.className='storm-buttons';controls.append(row);
-  for(const [name,title] of [['left','← Left'],['rotate','↻ Rotate'],['right','Right →'],['down','Hold ↓ Drop faster']]){
+  for(const [name,title] of [['left','← Left'],['rotate','↻ Rotate'],['right','Right →'],['down','Hold ↓ Faster'],['drop','↓ Drop now'],['spell','✦ Magic anchor (X)']]){
     const b=document.createElement('button');b.type='button';b.className='button outline';b.textContent=title;row.append(b);buttons.push(b);
     if(name==='down'){
       b.addEventListener('pointerdown',e=>{e.preventDefault();if(canPlay()){b.setPointerCapture?.(e.pointerId);held.add('touch'+e.pointerId);}},options);
@@ -174,12 +212,12 @@ export function createStormStack({canvas,onHud,onFinish,controls=document.queryS
       b.addEventListener('keyup',()=>held.delete('button'),options);b.addEventListener('blur',clear,options);
     }else b.onclick=()=>{act(name);canvas.focus({preventScroll:true});};
   }
-  const tip=document.createElement('p');tip.textContent='Reach 18 blocks high in 30 seconds. Balance each piece over its supports or it tips offscreen! An orange landing preview warns of a risky placement. Rows stay in place. Finish a round for 5 coins, or win for 25 coins.';controls.append(tip);
+  const tip=document.createElement('p');tip.textContent='Sky race: reach 18 high in 30 seconds. Survival: last 45 seconds with 3 lives and gusts every 7 seconds. Practice: no timer. Magic anchor saves your next wobbly landing; earn another every 3 balanced landings. Space drops instantly. Finish for 5 coins, win for 25.';controls.append(tip);
   const skip=document.createElement('button');skip.type='button';skip.className='button outline';skip.textContent='Skip ending';controls.append(skip);skip.hidden=true;
-  function finish(){if(!active)return;active=false;clear();audio.stop();const completed=s.status==='finished';onFinish(completed?(s.won?25:5):0,{title:completed?(s.won?'You beat the storm!':'The hazards win this round!'):'Stack saved.',detail:s.height+' / 18 blocks high'+(s.hazard?' · '+s.hazard:''),score:s.height});}
+  function finish(){if(!active)return;active=false;clear();audio.stop();const completed=s.status==='finished';onFinish(completed?(s.won?25:5):0,{title:completed?(s.won?'You beat the storm!':'The hazards win this round!'):'Stack saved.',detail:STORM_MODES[s.mode].name+' · '+s.height+' blocks high'+(s.hazard?' · '+s.hazard:''),score:s.height});}
   skip.onclick=()=>{if(active&&!paused&&!document.hidden&&s.status==='ending'){s.status='finished';finish();}};
   const cue=name=>{if(name==='sayWin')audio.sayWin();else if(name==='sayLose')audio.sayLose();else audio.play(name);};
-  function tick(now){if(destroyed)return;const dt=last?Math.min(.1,(now-last)/1000):0;last=now;if(active&&!paused&&!document.hidden){tickStorm(s,dt,held.size>0,cue);if(s.status!=='playing')clear();if(s.status==='finished')finish();}for(const b of buttons)b.disabled=!canPlay();skip.hidden=s.status!=='ending';skip.disabled=paused;drawStorm(c,s,canvas.width,canvas.height,reduced);onHud({text:s.status==='ending'?'Watch the storm showdown!':`${Math.ceil(s.remaining)} seconds · ${s.height} / 18 blocks high`});frame=requestAnimationFrame(tick);}
+  function tick(now){if(destroyed)return;const dt=last?Math.min(.1,(now-last)/1000):0;last=now;if(active&&!paused&&!document.hidden){tickStorm(s,dt,held.size>0,cue);if(s.status!=='playing')clear();if(s.status==='finished')finish();}for(const [id,b]of modeButtons)b.disabled=active;for(const b of buttons)b.disabled=!canPlay()||(b===buttons.at(-1)&&(s.spells<=0||s.ward));skip.hidden=s.status!=='ending';skip.disabled=paused;drawStorm(c,s,canvas.width,canvas.height,reduced);onHud({text:s.status==='ending'?'Watch the storm showdown!':`${STORM_MODES[s.mode].name} · ${Number.isFinite(s.remaining)?Math.ceil(s.remaining)+'s':'No timer'} · ${s.height} high · ${s.spells} spells${s.mode==='survival'?' · '+(3-s.misses)+' lives':''}`});frame=requestAnimationFrame(tick);}
   frame=requestAnimationFrame(tick);
-  return {start(){audio.stop();audio.unlock();clear();s=createStormState(Math.random,STORM_HAZARDS[hazardIndex]);hazardIndex=(hazardIndex+1)%STORM_HAZARDS.length;try{localStorage.setItem('sidequest.storm.next-hazard',String(hazardIndex));}catch{}s.status='playing';active=true;paused=false;last=0;canvas.focus();},pause(value){paused=value;last=0;clear();if(value)audio.stop();},setMuted:value=>audio.setMuted(value),destroy(){if(destroyed)return;destroyed=true;finish();controller.abort();cancelAnimationFrame(frame);audio.destroy();controls.replaceChildren();}};
+  return {start(){audio.stop();audio.unlock();clear();s=createStormState(Math.random,STORM_HAZARDS[hazardIndex],selectedMode);hazardIndex=(hazardIndex+1)%STORM_HAZARDS.length;try{localStorage.setItem('sidequest.storm.next-hazard',String(hazardIndex));}catch{}s.status='playing';active=true;paused=false;last=0;canvas.focus();},pause(value){paused=value;last=0;clear();if(value)audio.stop();},setMuted:value=>audio.setMuted(value),destroy(){if(destroyed)return;destroyed=true;finish();controller.abort();cancelAnimationFrame(frame);audio.destroy();controls.replaceChildren();}};
 }

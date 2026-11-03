@@ -83,3 +83,26 @@ test('the displayed round hazard is the one that destroys the tower',()=>{
   assert.equal(s.roundHazard,hazard);tickStorm(s,.01);assert.equal(s.hazard,hazard);
  }
 });
+
+test('magic anchor rescues one overhang, consumes a charge, then expires',async()=>{
+ const {stormSpell,stormHardDrop}=await import('../src/storm-stack.js');
+ const s=ready();s.board[23][4]=1;s.piece={kind:0,cells:[[0,0],[1,0],[2,0],[3,0]],x:4,y:22};
+ assert.equal(stormSpell(s),true);assert.equal(stormSpell(s),false);assert.equal(s.spells,0);
+ stormHardDrop(s);assert.equal(s.locked,1);assert.equal(s.ward,false);assert.equal(s.misses,0);assert.equal(stormSpell(s),false);
+});
+test('three balanced instant drops earn a spell without dropping the following piece',async()=>{
+ const {stormHardDrop}=await import('../src/storm-stack.js');const s=ready();
+ for(let i=0;i<3;i++){s.piece={kind:1,cells:[[0,0],[1,0],[0,1],[1,1]],x:i*2,y:0};stormHardDrop(s);assert.equal(s.locked,i+1);assert.equal(s.piece.y,0);}
+ assert.equal(s.combo,3);assert.equal(s.spells,2);
+});
+test('survival has three chances and wins by lasting through the timer',async()=>{
+ const {stormHardDrop}=await import('../src/storm-stack.js');
+ const s=createStormState(()=>.42,'Tornado','survival');s.status='playing';
+ for(let i=0;i<3;i++){s.board[23][4]=1;s.piece={kind:0,cells:[[0,0],[1,0],[2,0],[3,0]],x:4,y:22};stormHardDrop(s);assert.equal(s.misses,i+1);}
+ assert.equal(s.status,'ending');assert.equal(s.won,false);
+ const win=createStormState(()=>.42,'Tornado','survival');win.status='playing';win.remaining=.01;tickStorm(win,.02);assert.equal(win.won,true);
+});
+test('practice has no deadline and survival gusts respect an armed anchor',()=>{
+ const practice=createStormState(()=>.42,'Tornado','practice');practice.status='playing';advance(practice,1);assert.equal(practice.remaining,Infinity);
+ for(const ward of [false,true]){const s=createStormState(()=>.42,'Tornado','survival');s.status='playing';s.elapsed=6.99;s.ward=ward;const x=s.piece.x;tickStorm(s,.02);assert.equal(s.piece.x,x+(ward?0:1));assert.ok(s.gust>0);}
+});
