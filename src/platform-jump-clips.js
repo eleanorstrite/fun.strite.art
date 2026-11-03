@@ -37,7 +37,7 @@ export function drawJumpClip(c,kind,time,custom){const t=Math.max(0,time),s=kind
   if(t<3){const phase=t*Math.PI*2/1.1;px+=Math.sin(phase)*45;dx+=Math.sin(phase+.3)*45;py-=Math.abs(Math.sin(phase))*28;dy-=Math.abs(Math.sin(phase+.3))*25;pose='walk';}
   else if(t<5){const p=(t-3)/2,h=Math.sin(p*Math.PI)*115;py-=h;dy-=h;pose=p<.5?'jump':'land';arms='clap';}
   else if(t<7){arms='clap';speak(c,"We're ready! Let's go!",450,180);}
-  else{const p=ease((t-7)/2);px=lerp(310,1120,p);dx=lerp(590,1390,p);py-=Math.sin(p*Math.PI)*150;dy-=Math.sin(p*Math.PI)*145;pose=p<.5?'jump':'land';arms=true;}
+  else{pose='idle';arms=true;speak(c,'Ready for your adventure!',450,180);}
   person(c,px,py,s,t,1.9,arms);pet(c,dx,dy,s,t,1.8,pose);text(c,'SKY-HIGH ADVENTURES TOGETHER',450,74,25);
  }else if(t<5){
   sky(c,t);platform(c,450,510,460,true);const p=clamp(t/2),h=Math.sin(p*Math.PI)*110;let px=350,dx=550,py=500-h,dy=500-h;

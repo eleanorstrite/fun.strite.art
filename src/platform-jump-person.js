@@ -1,3 +1,4 @@
+import {drawJumpFacialHair} from './platform-jump-facial-hair.js';
 import {drawJumpOutfit,drawOutfitBody,outfitHeadOffset,outfitReady} from './platform-jump-clothes.js';
 import {drawJumpHair} from './platform-jump-hair.js';
 const oval=(c,x,y,rx,ry,color)=>{c.fillStyle=color;c.beginPath();c.ellipse(x,y,rx,ry,0,0,Math.PI*2);c.fill();};
@@ -10,4 +11,4 @@ export function drawJumper(c,x,y,s,time=0,moving=false,waving=false){
  if(dressed){drawOutfitBody(c,s,time,moving,waving);drawJumpOutfit(c,s.outfit,time,moving,waving);}else drawClassicBody(c,s,time,moving,waving);
  c.translate(0,headY);oval(c,0,-66,20,23,s.skin);
  drawJumpHair(c,s.hairstyle,s.hair,'front',time);
- for(const side of [-1,1]){oval(c,side*7,-66,2.5,3.5,'#202435');oval(c,side*7-1,-67,1,1,'white');}c.strokeStyle='#894b44';c.lineWidth=2;c.beginPath();c.arc(0,-59,5,.15,Math.PI-.15);c.stroke();c.restore();}
+ for(const side of [-1,1]){oval(c,side*7,-66,2.5,3.5,'#202435');oval(c,side*7-1,-67,1,1,'white');}c.strokeStyle='#894b44';c.lineWidth=2;c.beginPath();c.arc(0,-59,5,.15,Math.PI-.15);c.stroke();drawJumpFacialHair(c,s.facialHair);c.restore();}
