@@ -7,6 +7,14 @@ const oval=(c,x,y,rx,ry,color)=>{c.fillStyle=color;c.beginPath();c.ellipse(x,y,r
 function box(c,x,y,w,h,color,r=8){c.fillStyle=color;c.beginPath();c.roundRect(x,y,w,h,r);c.fill();}
 function text(c,t,x,y,size=18,color='#fff'){c.fillStyle=color;c.font=`700 ${size}px system-ui`;c.textAlign='center';c.fillText(t,x,y);}
 export function drawJumpPet(c,x,y,s,time=0,moving=false,facing=1,pose='idle'){if(drawRealJumpPet(c,x,y,s,time,moving,facing,pose))return;c.save();c.translate(x,y);const breed=s.breed,kind=s.pet,dark=/Black|Chocolate/.test(breed),white=/White|Frost/.test(breed),coat=dark?'#443431':white?'#f4eee1':breed==='Emerald'?'#43ad82':breed==='Fire'?'#db7056':breed==='Rainbow'?'#9c7ce5':breed==='Brindle'?'#a87444':breed==='Golden Retriever'?'#dfb66c':'#b99568';const stride=moving?Math.sin(time*15)*3:0;const long=breed==='Dachshund';
+ if(kind==='bird'){
+  const feathers={'Golden songbird':'#eeb64a','White songbird':'#ecebe4','Green-and-yellow songbird':'#78b23c','Blue songbird':'#258ed5','Rainbow lorikeet':'#58aa46'},color=feathers[breed]||'#4b9fc6';
+  c.fillStyle=color;c.beginPath();c.moveTo(-9,-12);c.lineTo(-31,-2);c.lineTo(-22,-25);c.fill();oval(c,0,-24,16,21,color);oval(c,8,-43,12,13,breed==='Rainbow lorikeet'?'#354a92':color);
+  if(breed==='Rainbow lorikeet'||breed==='Green-and-yellow songbird')oval(c,6,-27,9,13,breed==='Rainbow lorikeet'?'#eead3d':'#e5d343');
+  c.save();c.translate(-5,-26);c.rotate(moving?Math.sin(time*12)*.65:.3);oval(c,0,0,9,17,'#36596f');c.restore();c.fillStyle=breed==='Rainbow lorikeet'?'#dc6e38':'#e4b756';c.beginPath();c.moveTo(17,-46);c.lineTo(28,-42);c.lineTo(17,-39);c.fill();oval(c,12,-47,2,2,'#1d2530');
+  c.strokeStyle='#8f7555';c.lineWidth=2;for(const side of [-1,1]){c.beginPath();c.moveTo(side*6,-7);c.lineTo(side*6,0);c.lineTo(side*6+5,0);c.stroke();}
+  if(s.petName){box(c,-42,-81,84,22,'#ffffffdd',8);text(c,s.petName,0,-65,12,'#000');}c.restore();return;
+ }
  if(kind==='dragon'){for(const side of [-1,1]){c.save();c.rotate(Math.sin(time*5)*.12*side);c.fillStyle='#8bd4c7';c.beginPath();c.moveTo(side*10,-19);c.lineTo(side*40,-45);c.lineTo(side*33,-10);c.lineTo(side*15,-8);c.fill();c.restore();}}
  if(kind!=='guinea pig'&&kind!=='capybara')oval(c,-25,-16,15,5,coat);for(const side of [-1,1])oval(c,side*14,side*stride,7,5,coat);oval(c,0,-15,long?31:23,kind==='guinea pig'?18:20,coat);
  if(/Tricolor|Calico|Black and white/.test(breed)){oval(c,-10,-19,10,13,breed==='Black and white'?'#faf5e9':'#e2ae64');oval(c,10,-22,8,11,'#f5f1e7');}if(breed==='Brindle'||breed==='Tabby')for(let i=0;i<4;i++){c.save();c.translate(-17+i*10,-19);c.rotate(.3);box(c,-2,-11,4,20,'#50372c',2);c.restore();}

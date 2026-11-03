@@ -1,3 +1,4 @@
+import {REFERENCE_PET_BREEDS} from './platform-reference-pets.js';
 import {JUMP_FACIAL_HAIR} from './platform-jump-facial-hair.js';
 import {JUMP_OUTFITS,outfitUnlocked} from './platform-jump-clothes.js';
 import {hairUnlocked,STARTER_HAIR} from './platform-hair-shop.js';
@@ -5,7 +6,8 @@ import {JUMP_HAIR} from './platform-jump-hair.js';
 export {JUMP_HAIR} from './platform-jump-hair.js';
 import {HEDGEHOG_BREEDS,hedgehogUnlocked} from './platform-hedgehogs.js';
 import {FERRET_BREEDS,ferretUnlocked} from './platform-ferrets.js';
-export const PET_BREEDS={cat:['Tabby','Calico','Black cat','White cat'],dog:['Brindle','Dachshund','Black Labrador','Golden Retriever'],capybara:['Classic','Chocolate','Cream'],dragon:['Emerald','Fire','Frost','Rainbow'],'guinea pig':['Tricolor','White','Black and white','Chocolate'],rabbit:['Tan lop','White','Black']};
+export const PET_BREEDS={cat:['Tabby','Calico','Black cat','White cat',...REFERENCE_PET_BREEDS.cat],dog:['Brindle','Dachshund','Black Labrador','Golden Retriever'],capybara:['Classic','Chocolate','Cream'],dragon:['Emerald','Fire','Frost','Rainbow'],'guinea pig':['Tricolor','White','Black and white','Chocolate'],rabbit:['Tan lop','White','Black']};
+PET_BREEDS.bird=REFERENCE_PET_BREEDS.bird;
 PET_BREEDS.ferret=FERRET_BREEDS;
 PET_BREEDS.hedgehog=HEDGEHOG_BREEDS;
 export const JUMP_PROFILE_VERSION=1;
