@@ -29,14 +29,15 @@ test('the picker shows a photo for every type and breed before selection and kee
   click(){if(!this.disabled)this.listeners.click?.();}
  }
  globalThis.document={createElement:tag=>new Element(tag)};
- const parent=new Element('fieldset'),label=new Element('label'),field=new Element('select');label.append(field);parent.append(label);let settings={pet:'dog',breed:'Brindle'},selected=[];
- const gallery=mountPetGallery({parent,petField:field,getSettings:()=>settings,getUpgrades:()=>[],signal:new AbortController().signal,onSelect:(pet,breed)=>{selected.push([pet,breed]);settings={pet,breed};},photoSources:()=>[],photoSprite:()=>({image:{},bounds:{x:0,y:0,w:200,h:100}})});
+ const parent=new Element('fieldset'),label=new Element('label'),field=new Element('select');label.append(field);parent.append(label);let settings={pet:'dog',breed:'Brindle'},selected=[],owned=[];
+ const gallery=mountPetGallery({parent,petField:field,getSettings:()=>settings,getUpgrades:()=>owned,signal:new AbortController().signal,onSelect:(pet,breed)=>{selected.push([pet,breed]);settings={pet,breed};},photoSources:()=>[],photoSprite:()=>({image:{},bounds:{x:0,y:0,w:200,h:100}})});
  gallery.paint();assert.equal(photos.length,63,'Nine animal pictures and 54 breed pictures must all be visible');
  function descendants(el){return el.children.flatMap(child=>[child,...descendants(child)]);}
  const buttons=descendants(parent).filter(el=>el.tag==='button');assert.equal(buttons.length,63);
  const bengal=buttons.find(b=>b.getAttribute('aria-label')==='Bengal (spotted)');bengal.click();assert.equal(selected[0][0],'cat');assert.equal(selected[0][1],'Bengal (spotted)');gallery.paint();assert.equal(bengal.getAttribute('aria-pressed'),'true');
- const locked=buttons.find(b=>b.getAttribute('aria-label')==='Rainbow · Shop: 50 coins');assert.ok(locked);assert.equal(locked.disabled,true);
- gallery.paint(true);assert.ok(buttons.every(b=>b.disabled));
+ const locked=buttons.find(b=>b.getAttribute('aria-label')==='Rainbow · Shop: 50 coins');assert.ok(locked);assert.equal(locked.disabled,true);assert.equal(locked.getAttribute('data-locked'),'true');assert.equal(bengal.getAttribute('data-locked'),'false');
+ owned=['jump-rainbow-cat'];gallery.paint();assert.equal(locked.disabled,false);assert.equal(locked.getAttribute('data-locked'),'false');assert.equal(locked.children[1].children[1].textContent,'Unlocked');
+ gallery.paint(true);assert.ok(buttons.every(b=>b.disabled));assert.equal(locked.getAttribute('data-locked'),'false');
 });
 
 test('new reference pets have complete, transparent pose frames with safe atlas bounds',t=>{
