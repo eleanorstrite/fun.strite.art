@@ -18,3 +18,9 @@ test('Transmute, Levitate and Undo have real effects and consume charges only wh
  assert.equal(canWizardSpell(s,'levitate'),false);s.piece.y=6;assert.equal(stormSpell(s,()=>{},'levitate'),true);assert.equal(s.piece.y,3);
  stormHardDrop(s);assert.ok(s.height>0);assert.equal(stormSpell(s,()=>{},'undo'),true);assert.equal(s.height,0);assert.ok(s.board.every(row=>row.every(v=>!v)));assert.equal(canWizardSpell(s,'undo'),false);assert.equal(stormSpell(s,()=>{},'bogus'),false);
 });
+test('realistic block materials render the correct atlas face at gameplay and preview sizes',async t=>{
+ const {wizardBlockTextureCell,drawWizardBlock}=await import('../src/wizard-themes.js');const original=globalThis.Image;t.after(()=>globalThis.Image=original);globalThis.Image=class{complete=true;naturalWidth=1024;naturalHeight=1024;};
+ const draws=[],c=new Proxy({drawImage:(...args)=>draws.push(args),createLinearGradient:()=>({addColorStop(){}})},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
+ for(const [i,id]of ['galaxy','gold','lightning','rainbow'].entries()){const cell=wizardBlockTextureCell(id);assert.equal(cell.column,i%2);assert.equal(cell.row,Math.floor(i/2));for(const size of [21,200]){drawWizardBlock(c,10,10,size,0,id);const args=draws.at(-1);assert.ok(args[0].src.endsWith('wizard-block-materials.png'));assert.deepEqual(args.slice(1,5),[cell.column*512,cell.row*512,512,512]);assert.ok(args.slice(1).every(Number.isFinite));assert.ok(args[7]<size&&args[8]<size);}}
+ assert.equal(draws.length,8);assert.equal(wizardBlockTextureCell('crystal'),null);drawWizardBlock(c,10,10,21,0,'crystal');assert.equal(draws.length,8);
+});

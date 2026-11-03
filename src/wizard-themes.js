@@ -22,8 +22,21 @@ export function drawWizardBackground(c,index,time=0,reduced=false){
  c.fillStyle='#09152f45';c.fillRect(0,0,960,650);
  if(theme.id==='lightning'&&!reduced&&time%9<.12){c.fillStyle='#d1e9ff36';c.fillRect(0,0,960,650);}
 }
+const MATERIAL_STYLES=['galaxy','gold','lightning','rainbow'];
+let blockMaterials;
+export function wizardBlockTextureCell(style){const index=MATERIAL_STYLES.indexOf(style);return index<0?null:{column:index%2,row:Math.floor(index/2),columns:2,rows:2};}
+export function wizardBlockAtlas(){if(typeof Image==='undefined')return null;if(!blockMaterials){blockMaterials=new Image();blockMaterials.src=new URL('../assets/wizard-block-materials.png',import.meta.url).href;}return blockMaterials;}
 export function drawWizardBlock(c,x,y,size,kind=0,style='galaxy',time=0){
- const id=wizardBlock(style).id;let color=COLORS[kind%7];
+ const id=wizardBlock(style).id,cell=wizardBlockTextureCell(id),image=cell?wizardBlockAtlas():null;
+ if(image?.complete&&image.naturalWidth&&image.naturalHeight){
+  const sw=image.naturalWidth/2,sh=image.naturalHeight/2,inset=Math.max(.65,size*.035),edge=size-inset*2;
+  c.save();c.beginPath();c.roundRect(x+inset,y+inset,edge,edge,Math.max(1.5,size*.1));c.clip();c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';
+  c.drawImage(image,cell.column*sw,cell.row*sh,sw,sh,x+inset,y+inset,edge,edge);
+  // A restrained gloss pass keeps the material's highlights readable at game size.
+  const gloss=c.createLinearGradient(x,y,x+size,y+size);gloss.addColorStop(0,'#ffffff25');gloss.addColorStop(.4,'#ffffff00');gloss.addColorStop(1,'#00000030');c.fillStyle=gloss;c.fillRect(x,y,size,size);
+  c.strokeStyle='#ffffff40';c.lineWidth=Math.max(.6,size*.025);c.stroke();c.restore();return;
+ }
+ let color=COLORS[kind%7];
  if(id==='galaxy')color='#423375';if(id==='gold')color='#e5ad31';if(id==='lightning')color='#214b8f';if(id==='rainbow')color=`hsl(${(kind*53+x*2+y)%360} 80% 67%)`;if(id==='crystal')color='#88e5ed';
  c.fillStyle=color;c.beginPath();c.roundRect(x+1,y+1,size-2,size-2,Math.max(2,size*.13));c.fill();
  c.fillStyle='#ffffff65';c.fillRect(x+3,y+3,size-6,Math.max(2,size*.12));c.fillStyle='#00000028';c.fillRect(x+3,y+size-5,size-6,2);
@@ -34,6 +47,6 @@ export function drawWizardBlock(c,x,y,size,kind=0,style='galaxy',time=0){
 }
 export function mountWizardBlocks(container,selected,onSelect){
  const group=document.createElement('fieldset');group.className='wizard-blocks';const legend=document.createElement('legend');legend.textContent='Choose your blocks · All free';group.append(legend);const buttons=[];
- for(const style of WIZARD_BLOCKS){const button=document.createElement('button');button.type='button';button.className='wizard-block-choice';button.setAttribute?.('data-block',style.id);const sample=document.createElement('canvas');sample.width=100;sample.height=52;sample.setAttribute?.('aria-hidden','true');const c=sample.getContext?.('2d');if(c)for(const [x,y]of [[20,0],[20,24],[44,24],[68,24]])drawWizardBlock(c,x,y,24,2,style.id);const name=document.createElement('span');name.textContent=style.name;button.append(sample,name);button.setAttribute?.('aria-pressed',String(selected===style.id));button.onclick=()=>{if(button.disabled)return;onSelect(style.id);for(const [id,b]of buttons)b.setAttribute?.('aria-pressed',String(id===style.id));};group.append(button);buttons.push([style.id,button]);}
+ for(const style of WIZARD_BLOCKS){const button=document.createElement('button');button.type='button';button.className='wizard-block-choice';button.setAttribute?.('data-block',style.id);const sample=document.createElement('canvas');sample.width=100;sample.height=52;sample.setAttribute?.('aria-hidden','true');const c=sample.getContext?.('2d');const paint=()=>{if(!c)return;c.clearRect(0,0,100,52);for(const [x,y]of [[20,0],[20,24],[44,24],[68,24]])drawWizardBlock(c,x,y,24,2,style.id);};paint();wizardBlockAtlas()?.addEventListener?.('load',paint,{once:true});const name=document.createElement('span');name.textContent=style.name;button.append(sample,name);button.setAttribute?.('aria-pressed',String(selected===style.id));button.onclick=()=>{if(button.disabled)return;onSelect(style.id);for(const [id,b]of buttons)b.setAttribute?.('aria-pressed',String(id===style.id));};group.append(button);buttons.push([style.id,button]);}
  container.append(group);return {setDisabled(value){for(const [,button]of buttons)button.disabled=value;}};
 }
