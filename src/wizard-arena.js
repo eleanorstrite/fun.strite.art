@@ -1,8 +1,9 @@
 import {drawWizardBackground,drawWizardBlock,wizardBackground} from './wizard-themes.js';
 import {drawStormWizard,stormWizard} from './storm-wizards.js';
 import {STORM_WIZARD_BOUNDS} from './storm-wizard-bounds.js';
-import {STORM_MODES,WIZARD_SPELLS} from './wizard-rules.js';
-import {wizardPickupPosition} from './wizard-match.js';
+import {wizardSolidAt} from './wizard-rules.js';
+import {wizardPower,wizardChoicePosition,drawWizardPowerIcon} from './wizard-powers.js';
+
 let island;
 export function wizardIslandAtlas(){if(typeof Image==='undefined')return null;if(!island){island=new Image();island.src=new URL('../assets/wizard-floating-island.png',import.meta.url).href;}return island;}
 export function drawWizardIsland(c,center,base,width=260){const image=wizardIslandAtlas();if(image?.complete&&image.naturalWidth){c.drawImage(image,center-width/2,base-width*.16,width,width*.5);}else{c.fillStyle='#7cbb79';c.beginPath();c.ellipse(center,base+7,width/2,15,0,0,Math.PI*2);c.fill();c.fillStyle='#67577f';c.beginPath();c.moveTo(center-width/2,base+14);c.lineTo(center,base+92);c.lineTo(center+width/2,base+14);c.fill();}}
@@ -21,14 +22,19 @@ export function drawWizardTether(c,s,field,time=0){
 }
 function playerField(c,s,index,time,reduced,single=false,ending=false){
  const f=wizardArenaField(index,single);drawWizardIsland(c,f.center,f.base);
- for(let y=0;y<24;y++)for(let x=0;x<10;x++)if(s.board[y][x])drawWizardBlock(c,f.x+x*f.cell,f.y+y*f.cell,f.cell,s.board[y][x]-1,s.blockStyle,time);
+ for(const platform of s.supports||[])drawWizardIsland(c,f.x+(platform.x+platform.width/2)*f.cell,f.y+platform.row*f.cell,platform.width*f.cell+35);
+ for(let y=0;y<24;y++)for(let x=0;x<10;x++)if(s.board[y][x]){const effect=s.surfaceEffects?.[`${x},${y}`];if(effect?.largeX!==undefined&&(x!==effect.largeX||y!==effect.largeY))continue;drawWizardBlock(c,f.x+x*f.cell,f.y+y*f.cell,f.cell*(effect?.largeX!==undefined?2:1),s.board[y][x]-1,effect?.ice?'crystal':s.blockStyle,time);}
  c.save();c.translate(f.wizardX,f.wizardY);c.scale(.5,.5);drawStormWizard(c,s.wizard,0,0,time,false);c.restore();
- if(!ending){let gy=s.piece.y;while(s.piece.cells.every(([x,y])=>gy+y+1<24&&!s.board[gy+y+1][s.piece.x+x]))gy++;
+ if(!ending){let gy=s.piece.y;while(s.piece.cells.every(([x,y])=>gy+y+1<24&&!wizardSolidAt(s,s.piece.x+x,gy+y+1)))gy++;
  c.globalAlpha=.22;for(const [x,y]of s.piece.cells)drawWizardBlock(c,f.x+(s.piece.x+x)*f.cell,f.y+(gy+y)*f.cell,f.cell,s.piece.kind,s.blockStyle,time);c.globalAlpha=1;
- for(const [x,y]of s.piece.cells)drawWizardBlock(c,f.x+(s.piece.x+x)*f.cell,f.y+(s.piece.y+y)*f.cell,f.cell,s.piece.kind,s.blockStyle,time);
+ for(const [x,y]of s.piece.cells){if(s.piece.effects?.ultra&&(x%2||y%2))continue;drawWizardBlock(c,f.x+(s.piece.x+x)*f.cell,f.y+(s.piece.y+y)*f.cell,f.cell*(s.piece.effects?.ultra?2:1),s.piece.kind,s.piece.effects?.ice?'crystal':s.blockStyle,time);}
+ if(s.piece.effects?.balloon){const p=s.piece,cx=f.x+(p.x+(Math.min(...p.cells.map(([x])=>x))+Math.max(...p.cells.map(([x])=>x))+1)/2)*f.cell,cy=f.y+p.y*f.cell;for(let i=0;i<3;i++){const bx=cx+(i-1)*18,by=cy-32-(i%2)*8;c.strokeStyle='#fff1d2bb';c.lineWidth=1;c.beginPath();c.moveTo(cx,cy+15);c.lineTo(bx,by+12);c.stroke();c.fillStyle=['#fc739e','#f1b7ef','#febd78'][i];c.beginPath();c.ellipse(bx,by,10,14,0,0,Math.PI*2);c.fill();}}
+ if(s.piece.effects?.twist)text(c,'↻ TWISTY · rotation locked',f.center,f.y+Math.max(1,s.piece.y)*f.cell-12,10,'#efd0ff');
  drawWizardTether(c,s,f,time);
  for(const piece of s.tumbling){const t=piece.age,fall=Math.max(0,t-.4);c.save();c.translate(f.x+piece.pivotX*f.cell+piece.direction*90*fall*fall,f.y+piece.pivotY*f.cell+200*fall*fall);c.rotate(reduced?0:piece.direction*t);for(const [x,y]of piece.cells)drawWizardBlock(c,(x-piece.pivotX)*f.cell,(y-piece.pivotY)*f.cell,f.cell,piece.kind,s.blockStyle,time);c.restore();}
- if(s.mode!=='survival'){const y=f.y+(24-s.target)*f.cell;c.strokeStyle='#ffe5a777';c.lineWidth=1;c.setLineDash([5,7]);c.beginPath();c.moveTo(f.x-6,y);c.lineTo(f.x+186,y);c.stroke();c.setLineDash([]);}
+ const finishY=f.y+(24-s.target)*f.cell;c.strokeStyle='#ffdc75';c.lineWidth=4;c.beginPath();c.moveTo(f.x-8,finishY);c.lineTo(f.x+188,finishY);c.stroke();plate(c,f.center-57,finishY-26,114,20,'#624719dd');text(c,'GOLD FINISH',f.center,finishY-11,11,'#ffe8a8');
+ const next=s.nextPowerHeight??4;if(next<s.target){const y=f.y+(24-next)*f.cell,gradient=c.createLinearGradient(f.x,y,f.x+180,y);for(const [i,color]of ['#ff6b9a','#ffcf67','#86e5a2','#7dd9ff','#bc9eff'].entries())gradient.addColorStop(i/4,color);c.strokeStyle=gradient;c.lineWidth=4;c.beginPath();c.moveTo(f.x-8,y);c.lineTo(f.x+188,y);c.stroke();for(let x=f.x;x<f.x+190;x+=24){c.save();c.translate(x,y);c.rotate(Math.PI/4);c.fillStyle=['#ff8fa8','#ffd572','#9be3b3','#91ddff','#d5afff'][Math.floor((x-f.x)/24)%5];c.fillRect(-3,-3,6,6);c.strokeStyle='#fff8e3';c.lineWidth=1;c.strokeRect(-3,-3,6,6);c.restore();}plate(c,f.x-10,y-26,166,20,'#192443dd');text(c,'◆ RAINBOW POWER-UP · '+next,f.x+73,y-11,10,'#fff9ee');}
+
  }
  return f;
 }
@@ -38,7 +44,11 @@ export function drawWizardArena(c,match,width,height,reduced=false){
  const single=match.players.length===1;
  for(let i=0;i<match.players.length;i++){const p=match.players[i],f=playerField(c,p,i,time,reduced,single,match.status==='ending'||match.status==='finished');const name=single?'Your tower':i===0?'Player 1 · WASD':match.opponent==='computer'?'Computer':'Player 2 · Arrows';
  plate(c,f.center-130,36,260,46);text(c,name+' · '+p.height+'/'+p.target+' high',f.center,54,14);text(c,Math.max(0,3-p.misses)+' lives · '+stormWizard(p.wizard).name,f.center,72,11,'#dae9ff');
- if(p.pickup&&match.status!=='ending'&&match.status!=='finished'){const pos=wizardPickupPosition(i,time),spell=WIZARD_SPELLS.find(sp=>sp.id===p.pickup.id);c.save();c.shadowColor='#ffe99b';c.shadowBlur=14;c.fillStyle='#ffd979';c.beginPath();c.arc(pos.x,pos.y,23,0,Math.PI*2);c.fill();c.restore();text(c,'✦',pos.x,pos.y+7,25,'#674a7c');plate(c,pos.x-58,pos.y+30,116,38,'#14213bc9');text(c,spell?.name||'Magic',pos.x,pos.y+45,12);text(c,i===0?'Click / Space':match.opponent==='computer'?'Computer item':'Click / Enter',pos.x,pos.y+59,10,'#e7eaff');}
+ if(p.choices?.length&&match.status!=='ending'&&match.status!=='finished'){
+  for(let slot=0;slot<p.choices.length;slot++){const pos=wizardChoicePosition(i,slot),power=wizardPower(p.choices[slot]),attack=power.type==='Attack';plate(c,pos.x-58,pos.y-52,116,22,attack?'#7f294bdc':'#1d665edc');text(c,power.type.toUpperCase(),pos.x,pos.y-37,11,attack?'#ffe4ee':'#d7fff1');drawWizardPowerIcon(c,power.id,pos.x-33,pos.y-32,66);plate(c,pos.x-59,pos.y+35,118,38,'#13223bdf');text(c,power.name,pos.x,pos.y+49,11);text(c,i===0?['X','C','V'][slot]+' · tap / click':['1','2','3'][slot]+' · tap / click',pos.x,pos.y+65,10,'#edf2ff');}
+  plate(c,f.center-105,84,210,17,'#2b2445d9');text(c,'LEVEL '+p.level+' · CHOOSE 1 OF 3',f.center,96,11,'#fcf3cf');
+ }
+ const effects=Object.entries(p.piece.effects||{}).filter(([,value])=>value).map(([id])=>wizardPower(id)?.name||id);if(effects.length)text(c,effects.join(' + '),f.center,604,11,'#ffe0ed');
  if(p.noticeTime>0){plate(c,f.center-95,430,190,32,'#14213bda');text(c,p.spellNotice,f.center,451,13);}
  text(c,single?'Choose your blocks below':i===0?'A / D move · W rotate · S faster':'← / → move · ↑ rotate · ↓ faster',f.center,626,12,'#eff5ff');
  }
