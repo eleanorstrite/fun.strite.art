@@ -1,3 +1,4 @@
+import {costumePetCell,costumePetSprite} from './platform-costume-pets.js';
 import {referencePetCell,referencePetSprite} from './platform-reference-pets.js';
 import {FERRET_BREEDS,ferretSprite} from './platform-ferrets.js';
 import {HEDGEHOG_BREEDS,hedgehogSprite} from './platform-hedgehogs.js';
@@ -7,6 +8,7 @@ import {PET_BREEDS} from './platform-jump-rules.js';
 export const PET_ROWS=['cat','dog','capybara','dragon','guinea pig','rabbit'];
 export function petSpriteCell(pet,breed){const row=PET_ROWS.indexOf(pet),column=row>=0?PET_BREEDS[pet].indexOf(breed):-1;return row>=0&&column>=0&&column<4?{row,column}:null;}
 export function petArtworkCell(pet,breed){
+ const costume=costumePetCell(pet,breed);if(costume)return costume;
  const reference=referencePetCell(pet,breed);if(reference)return reference;
  const standard=petSpriteCell(pet,breed);if(standard)return {...standard,file:'platform-jump-pets.png',columns:4,rows:6};
  const breeds=pet==='ferret'?FERRET_BREEDS:pet==='hedgehog'?HEDGEHOG_BREEDS:[],index=breeds.indexOf(breed);
@@ -29,6 +31,7 @@ function spriteBounds(image){
  }return result;
 }
 export function petPreviewSprite(pet,breed){
+ if(costumePetCell(pet,breed))return costumePetSprite(pet,breed);
  const reference=referencePetSprite(pet,breed);if(reference)return reference;
  if(referencePetCell(pet,breed))return null;
  const special=pet==='ferret'?ferretSprite(breed):pet==='hedgehog'?hedgehogSprite(breed):null;if(special)return special;
@@ -36,7 +39,7 @@ export function petPreviewSprite(pet,breed){
  if(!bounds)bounds=spriteBounds(image);return {image,bounds:bounds[cell.row*4+cell.column]};
 }
 export function drawRealJumpPet(c,x,y,settings,time,moving,facing=1,pose='idle'){
- const reference=referencePetSprite(settings.pet,settings.breed,pose,time,moving);const ferret=settings.pet==='ferret'?ferretSprite(settings.breed):settings.pet==='hedgehog'?hedgehogSprite(settings.breed):null;const image=reference?.image||ferret?.image||jumpPetAtlas(),cell=reference||ferret?{row:0,column:0}:petSpriteCell(settings.pet,settings.breed);if(!cell||(!reference&&!ferret&&(!image?.complete||!image.naturalWidth)))return false;if(!reference&&!ferret&&!bounds)bounds=spriteBounds(image);const motion=reference||(settings.pet==='dog'&&(moving||pose!=='idle')?dogMotionSprite(settings.breed,pose==='idle'&&moving?'walk':pose,time):petMotionSprite(settings.pet,settings.breed,pose==='idle'&&moving?'walk':pose,time)),b=motion?.bounds||ferret?.bounds||bounds[cell.row*4+cell.column],maxW=reference?.displayW||(['hedgehog','guinea pig'].includes(settings.pet)?70:settings.pet==='dragon'?105:90),maxH=reference?.displayH||(['hedgehog','guinea pig'].includes(settings.pet)?49:75),scale=Math.min(maxW/(motion?.maxW||b.w),maxH/(motion?.maxH||b.h)),w=b.w*scale,h=b.h*scale,bob=settings.pet==='bird'&&(moving||pose==='jump'||pose==='walk')?12+Math.sin(time*5)*3:0;
+ const reference=costumePetSprite(settings.pet,settings.breed,pose,time,moving)||referencePetSprite(settings.pet,settings.breed,pose,time,moving);const ferret=settings.pet==='ferret'?ferretSprite(settings.breed):settings.pet==='hedgehog'?hedgehogSprite(settings.breed):null;const image=reference?.image||ferret?.image||jumpPetAtlas(),cell=reference||ferret?{row:0,column:0}:petSpriteCell(settings.pet,settings.breed);if(!cell||(!reference&&!ferret&&(!image?.complete||!image.naturalWidth)))return false;if(!reference&&!ferret&&!bounds)bounds=spriteBounds(image);const motion=reference||(settings.pet==='dog'&&(moving||pose!=='idle')?dogMotionSprite(settings.breed,pose==='idle'&&moving?'walk':pose,time):petMotionSprite(settings.pet,settings.breed,pose==='idle'&&moving?'walk':pose,time)),b=motion?.bounds||ferret?.bounds||bounds[cell.row*4+cell.column],maxW=reference?.displayW||(['hedgehog','guinea pig'].includes(settings.pet)?70:settings.pet==='dragon'?105:90),maxH=reference?.displayH||(['hedgehog','guinea pig'].includes(settings.pet)?49:75),scale=Math.min(maxW/(motion?.maxW||b.w),maxH/(motion?.maxH||b.h)),w=b.w*scale,h=b.h*scale,bob=settings.pet==='bird'&&(moving||pose==='jump'||pose==='walk')?12+Math.sin(time*5)*3:0;
  c.save();c.translate(x,y-bob);c.scale(facing<0?-1:1,1+Math.sin(time*3)*.007);c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';if(motion&&settings.pet!=='dog'){
   const key=settings.pet+':'+settings.breed;let blend=poseTransitions.get(c);
   if(!blend||blend.key!==key||time<blend.time)blend={key,current:motion,previous:null,time};

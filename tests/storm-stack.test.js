@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createStormState,stormFits,stormMove,stormRotate,tickStorm,drawStorm,STORM_HAZARDS,createStormStack,stormBalance} from '../src/storm-stack.js';
+import {createStormState,stormFits,stormMove,stormRotate,tickStorm,drawStorm,createStormStack,stormBalance} from '../src/storm-stack.js';
 function ready(random=()=>.42){const s=createStormState(random);s.status='playing';return s;}
 function advance(s,seconds,fast=false,emit=()=>{}){for(let i=0;i<Math.round(seconds*100);i++)tickStorm(s,.01,fast,emit);}
 test('pieces stay inside walls, rotate legally, and cannot overlap settled blocks',()=>{
@@ -16,22 +16,22 @@ test('goal height wins immediately and full rows remain stacked',()=>{
  const s=ready(),events=[];s.board[23].fill(2);s.board[7][4]=1;s.piece={kind:0,x:4,y:3,cells:[[0,0],[0,1],[0,2],[0,3]]};
  tickStorm(s,.04,true,e=>events.push(e));assert.equal(s.status,'ending');assert.equal(s.won,true);assert.equal(s.height,21);assert.deepEqual(s.board[23],Array(10).fill(2));assert.ok(events.includes('win'));assert.ok(!events.includes('bell'));
 });
-test('timeout rings once, selects any of four hazards, then speaks and finishes once',()=>{
- STORM_HAZARDS.forEach((hazard,index)=>{
-  const s=ready(()=>index/4+.01),events=[];s.remaining=.01;tickStorm(s,.01,false,e=>events.push(e));
-  assert.equal(s.status,'ending');assert.equal(s.hazard,hazard);assert.equal(s.remaining,0);
-  advance(s,10,false,e=>events.push(e));assert.equal(s.status,'finished');assert.equal(events.filter(e=>e==='bell').length,1);assert.equal(events.filter(e=>e==='sayLose').length,1);
+test('timeout finishes once with a wizard ending and no disaster state',()=>{
+ for(let index=0;index<8;index++){
+  const s=createStormState(()=>.42,index),events=[];s.status='playing';s.remaining=.01;tickStorm(s,.01,false,e=>events.push(e));
+  assert.equal(s.status,'ending');assert.equal(s.background,index);assert.equal(s.hazard,undefined);assert.equal(s.remaining,0);
+  advance(s,5,false,e=>events.push(e));assert.equal(s.status,'finished');assert.equal(events.filter(e=>e==='bell').length,1);assert.equal(events.filter(e=>e==='sayLose').length,1);
   const frozen=JSON.stringify(s);advance(s,1);assert.equal(JSON.stringify(s),frozen);
- });
+ }
 });
 test('win ending speaks once and does not trigger a disaster',()=>{
- const s=ready(),events=[];s.status='ending';s.won=true;advance(s,8,false,e=>events.push(e));assert.equal(s.status,'finished');assert.equal(events.filter(e=>e==='sayWin').length,1);assert.equal(s.hazard,null);
+ const s=ready(),events=[];s.status='ending';s.won=true;advance(s,8,false,e=>events.push(e));assert.equal(s.status,'finished');assert.equal(events.filter(e=>e==='sayWin').length,1);assert.equal(s.hazard,undefined);
 });
-test('game and all disaster / superhero scenes render without changing state',()=>{
+test('all eight worlds, six block finishes and wizard endings render without changing state',()=>{
  const ctx=new Proxy({createLinearGradient:()=>({addColorStop(){}})},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
  const s=ready();s.board[23].fill(1);drawStorm(ctx,s,600,780);
- for(const won of [false,true])for(const hazard of STORM_HAZARDS)for(const clip of [0,1,2.2,3,5,7,9]){
-  Object.assign(s,{won,hazard,clip,status:'ending'});const before=JSON.stringify(s);drawStorm(ctx,s,300,390);drawStorm(ctx,s,600,780,true);assert.equal(JSON.stringify(s),before);
+ for(const won of [false,true])for(let background=0;background<8;background++)for(const blockStyle of ['galaxy','gold','lightning','rainbow','crystal','jewel'])for(const clip of [0,1,3.5]){
+  Object.assign(s,{won,background,blockStyle,clip,status:'ending'});const before=JSON.stringify(s);drawStorm(ctx,s,300,390);drawStorm(ctx,s,600,780,true);assert.equal(JSON.stringify(s),before);
  }
 });
 test('engine pause and hidden tabs freeze time, controls release, rewards settle once',()=>{
@@ -49,8 +49,8 @@ test('engine pause and hidden tabs freeze time, controls release, rewards settle
   handlers.keydown({key:'ArrowDown',preventDefault(){}});handlers.blur();frames(3);
   frames(710);assert.equal(finishes.length,1);assert.ok([5,25].includes(finishes[0]));engine.destroy();assert.equal(finishes.length,1);
   engine=createStormStack({canvas,controls,onHud(){},onFinish:coins=>finishes.push(coins)});engine.start();engine.destroy();assert.equal(finishes.at(-1),0);
-  for(let i=0;i<2;i++){engine=createStormStack({canvas,controls,onHud(){},onFinish(){}});engine.start();engine.destroy();}
-  assert.deepEqual(hazardSaves,['1','2','3','0']);
+  for(let i=0;i<6;i++){engine=createStormStack({canvas,controls,onHud(){},onFinish(){}});engine.start();engine.destroy();}
+  assert.deepEqual(hazardSaves,['1','2','3','4','5','6','7','0']);
  }finally{engine?.destroy();Object.assign(globalThis,original);}
 });
 
@@ -77,32 +77,29 @@ test('tipping animation pauses with the game and rendering does not change physi
 });
 
 
-test('the displayed round hazard is the one that destroys the tower',()=>{
- for(const hazard of STORM_HAZARDS){
-  const s=createStormState(()=>.4,hazard);s.status='playing';s.remaining=.01;
-  assert.equal(s.roundHazard,hazard);tickStorm(s,.01);assert.equal(s.hazard,hazard);
- }
+test('a selected world remains fixed throughout its round',()=>{
+ for(let index=0;index<8;index++){const s=createStormState(()=>.4,index);s.status='playing';advance(s,1);assert.equal(s.background,index);s.remaining=.01;tickStorm(s,.01);assert.equal(s.background,index);}
 });
 
 test('magic anchor rescues one overhang, consumes a charge, then expires',async()=>{
  const {stormSpell,stormHardDrop}=await import('../src/storm-stack.js');
  const s=ready();s.board[23][4]=1;s.piece={kind:0,cells:[[0,0],[1,0],[2,0],[3,0]],x:4,y:22};
- assert.equal(stormSpell(s),true);assert.equal(stormSpell(s),false);assert.equal(s.spells,0);
- stormHardDrop(s);assert.equal(s.locked,1);assert.equal(s.ward,false);assert.equal(s.misses,0);assert.equal(stormSpell(s),false);
+ assert.equal(stormSpell(s),true);assert.equal(stormSpell(s),false);assert.equal(s.spells,2);
+ stormHardDrop(s);assert.equal(s.locked,1);assert.equal(s.ward,false);assert.equal(s.misses,0);s.spells=0;assert.equal(stormSpell(s),false);
 });
 test('three balanced instant drops earn a spell without dropping the following piece',async()=>{
  const {stormHardDrop}=await import('../src/storm-stack.js');const s=ready();
  for(let i=0;i<3;i++){s.piece={kind:1,cells:[[0,0],[1,0],[0,1],[1,1]],x:i*2,y:0};stormHardDrop(s);assert.equal(s.locked,i+1);assert.equal(s.piece.y,0);}
- assert.equal(s.combo,3);assert.equal(s.spells,2);
+ assert.equal(s.combo,3);assert.equal(s.spells,4);
 });
 test('survival has three chances and wins by lasting through the timer',async()=>{
  const {stormHardDrop}=await import('../src/storm-stack.js');
- const s=createStormState(()=>.42,'Tornado','survival');s.status='playing';
+ const s=createStormState(()=>.42,0,'survival');s.status='playing';
  for(let i=0;i<3;i++){s.board[23][4]=1;s.piece={kind:0,cells:[[0,0],[1,0],[2,0],[3,0]],x:4,y:22};stormHardDrop(s);assert.equal(s.misses,i+1);}
  assert.equal(s.status,'ending');assert.equal(s.won,false);
- const win=createStormState(()=>.42,'Tornado','survival');win.status='playing';win.remaining=.01;tickStorm(win,.02);assert.equal(win.won,true);
+ const win=createStormState(()=>.42,0,'survival');win.status='playing';win.remaining=.01;tickStorm(win,.02);assert.equal(win.won,true);
 });
-test('practice has no deadline and survival gusts respect an armed anchor',()=>{
- const practice=createStormState(()=>.42,'Tornado','practice');practice.status='playing';advance(practice,1);assert.equal(practice.remaining,Infinity);
- for(const ward of [false,true]){const s=createStormState(()=>.42,'Tornado','survival');s.status='playing';s.elapsed=6.99;s.ward=ward;const x=s.piece.x;tickStorm(s,.02);assert.equal(s.piece.x,x+(ward?0:1));assert.ok(s.gust>0);}
+test('practice has no deadline and survival does not move your piece automatically',()=>{
+ const practice=createStormState(()=>.42,0,'practice');practice.status='playing';advance(practice,1);assert.equal(practice.remaining,Infinity);
+ const s=createStormState(()=>.42,0,'survival');s.status='playing';s.elapsed=6.99;const x=s.piece.x;tickStorm(s,.02);assert.equal(s.piece.x,x);
 });

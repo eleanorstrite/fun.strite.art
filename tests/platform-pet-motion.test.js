@@ -1,3 +1,4 @@
+import {COSTUME_PET_BREEDS} from '../src/platform-costume-pets.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {PET_MOTION,petMotionFrame} from '../src/platform-pet-motion.js';
@@ -7,7 +8,7 @@ test('all non-dog breeds and purchased outfits have species-specific movement se
  for(const [kind,breeds]of Object.entries(PET_BREEDS)){
   if(kind==='dog')continue;
   const motion=PET_MOTION[kind],referenceBreeds=REFERENCE_PET_BREEDS[kind]||[];
-  assert.deepEqual([...(motion?.breeds||[]),...referenceBreeds],breeds);
+  assert.deepEqual([...(motion?.breeds||[]),...referenceBreeds,...(['cat','bird'].includes(kind)?COSTUME_PET_BREEDS:[])],breeds);
   if(motion){const rate=motion.rate;assert.deepEqual([0,1,2,3].map(n=>petMotionFrame(kind,'walk',n/rate)),[0,2,1,2]);assert.equal(petMotionFrame(kind,'sit'),3);assert.equal(petMotionFrame(kind,'jump'),5);assert.equal(petMotionFrame(kind,'land'),4);}
   for(const breed of referenceBreeds)assert.ok(referencePetCell(kind,breed));
   if(referenceBreeds.length){assert.equal(referencePetPose(kind,'idle'),0);assert.notEqual(referencePetPose(kind,'walk',0),referencePetPose(kind,'walk',1/(kind==='bird'?7:6)));assert.equal(referencePetPose(kind,'jump'),kind==='bird'?1:2);}

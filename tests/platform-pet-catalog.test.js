@@ -1,3 +1,4 @@
+import {COSTUME_PET_SHOP_ITEMS,COSTUME_PET_BREEDS} from '../src/platform-costume-pets.js';
 import {REFERENCE_PET_BOUNDS} from '../src/platform-reference-pet-bounds.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -5,12 +6,12 @@ import {PET_BREEDS,validateJumpSettings} from '../src/platform-jump-rules.js';
 import {petCatalog,petBreedUnlocked,mountPetGallery} from '../src/platform-pet-gallery.js';
 import {referencePetCell,referencePetPose,referencePetSprite} from '../src/platform-reference-pets.js';
 import {petArtworkCell,petSpriteCell,drawRealJumpPet} from '../src/platform-jump-pets.js';
-test('all 45 looks have unique artwork, including the five new cats and five birds',()=>{
- const catalog=petCatalog();assert.equal(catalog.length,9);assert.equal(catalog.reduce((n,g)=>n+g.breeds.length,0),45);
- const cells=new Set();for(const group of catalog){assert.ok(group.breeds.some(b=>b.breed===group.breed));for(const {breed,artwork} of group.breeds){assert.ok(artwork);assert.equal(validateJumpSettings({pet:group.pet,breed},['jump-rainbow-ferret','jump-tutu-ferret','jump-tuxedo-ferret','jump-rainbow-hedgehog','jump-skirt-hedgehog','jump-tuxedo-hedgehog']).breed,breed);cells.add(artwork.file+':'+artwork.row+':'+artwork.column);}}
- assert.equal(cells.size,45);assert.equal(referencePetCell('cat','Ginger Maine Coon').column,0);assert.equal(referencePetCell('bird','Rainbow lorikeet').column,4);assert.equal(petSpriteCell('cat','Ginger Maine Coon'),null);assert.equal(petArtworkCell('__proto__','bad'),null);
- assert.equal(petBreedUnlocked('ferret','Rainbow'),false);assert.equal(petBreedUnlocked('hedgehog','Tuxedo'),false);assert.equal(petBreedUnlocked('ferret','Rainbow',['jump-rainbow-ferret']),true);
- for(const breed of PET_BREEDS.bird)assert.equal(petBreedUnlocked('bird',breed),true);
+test('all 54 looks have unique artwork, including the five new cats and five birds',()=>{
+ const catalog=petCatalog();assert.equal(catalog.length,9);assert.equal(catalog.reduce((n,g)=>n+g.breeds.length,0),54);
+ const cells=new Set();for(const group of catalog){assert.ok(group.breeds.some(b=>b.breed===group.breed));for(const {breed,artwork} of group.breeds){assert.ok(artwork);assert.equal(validateJumpSettings({pet:group.pet,breed},[...COSTUME_PET_SHOP_ITEMS.map(item=>item.id),'jump-rainbow-ferret','jump-tutu-ferret','jump-tuxedo-ferret','jump-rainbow-hedgehog','jump-skirt-hedgehog','jump-tuxedo-hedgehog']).breed,breed);cells.add(artwork.file+':'+artwork.row+':'+artwork.column);}}
+ assert.equal(cells.size,54);assert.equal(referencePetCell('cat','Ginger Maine Coon').column,0);assert.equal(referencePetCell('bird','Rainbow lorikeet').column,4);assert.equal(petSpriteCell('cat','Ginger Maine Coon'),null);assert.equal(petArtworkCell('__proto__','bad'),null);
+ assert.equal(petBreedUnlocked('ferret','Rainbow'),false);assert.equal(petBreedUnlocked('hedgehog','Tuxedo'),false);assert.equal(petBreedUnlocked('ferret','Rainbow',[...COSTUME_PET_SHOP_ITEMS.map(item=>item.id),'jump-rainbow-ferret']),true);
+ for(const breed of PET_BREEDS.bird.filter(b=>!COSTUME_PET_BREEDS.includes(b)))assert.equal(petBreedUnlocked('bird',breed),true);
 });
 test('reference pets have movement poses and birds alternate wing positions in flight',()=>{
  assert.equal(referencePetPose('cat','idle',0),0);assert.equal(referencePetPose('cat','jump',0),2);
@@ -30,9 +31,9 @@ test('the picker shows a photo for every type and breed before selection and kee
  globalThis.document={createElement:tag=>new Element(tag)};
  const parent=new Element('fieldset'),label=new Element('label'),field=new Element('select');label.append(field);parent.append(label);let settings={pet:'dog',breed:'Brindle'},selected=[];
  const gallery=mountPetGallery({parent,petField:field,getSettings:()=>settings,getUpgrades:()=>[],signal:new AbortController().signal,onSelect:(pet,breed)=>{selected.push([pet,breed]);settings={pet,breed};},photoSources:()=>[],photoSprite:()=>({image:{},bounds:{x:0,y:0,w:200,h:100}})});
- gallery.paint();assert.equal(photos.length,54,'Nine animal pictures and 45 breed pictures must all be visible');
+ gallery.paint();assert.equal(photos.length,63,'Nine animal pictures and 54 breed pictures must all be visible');
  function descendants(el){return el.children.flatMap(child=>[child,...descendants(child)]);}
- const buttons=descendants(parent).filter(el=>el.tag==='button');assert.equal(buttons.length,54);
+ const buttons=descendants(parent).filter(el=>el.tag==='button');assert.equal(buttons.length,63);
  const bengal=buttons.find(b=>b.getAttribute('aria-label')==='Bengal (spotted)');bengal.click();assert.equal(selected[0][0],'cat');assert.equal(selected[0][1],'Bengal (spotted)');gallery.paint();assert.equal(bengal.getAttribute('aria-pressed'),'true');
  const locked=buttons.find(b=>b.getAttribute('aria-label')==='Rainbow · Shop: 50 coins');assert.ok(locked);assert.equal(locked.disabled,true);
  gallery.paint(true);assert.ok(buttons.every(b=>b.disabled));

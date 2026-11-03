@@ -1,3 +1,4 @@
+import {COSTUME_PET_SHOP_ITEMS} from './platform-costume-pets.js';
 import {CLOTHING_SHOP_ITEMS} from './platform-jump-clothes.js';
 import {HAIR_SHOP_ITEMS} from './platform-hair-shop.js';
 import {HEDGEHOG_SHOP_ITEMS} from './platform-hedgehogs.js';
@@ -47,6 +48,7 @@ export const UPGRADES = [
   ...HAIR_SHOP_ITEMS,
   ...SPORTS_SHOP_ITEMS,
   ...FERRET_SHOP_ITEMS,
+  ...COSTUME_PET_SHOP_ITEMS,
   ...HEDGEHOG_SHOP_ITEMS,
   {id:'ward',name:'Dragon shield',group:'gameplay',category:'KNIGHTS AND DRAGONS ONLY',icon:'🛡️',cost:600,description:'One use: dragons cannot take a life for 15 seconds. Activate above the maze. Uses one slot in your three-boost bag.'},
   {id:'frost',name:'Frost spell',group:'gameplay',category:'KNIGHTS AND DRAGONS ONLY',icon:'❄️',cost:700,description:'One use: slow every dragon to half speed for 15 seconds. Activate above the maze. Uses one slot in your three-boost bag.'},

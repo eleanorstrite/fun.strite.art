@@ -1,3 +1,4 @@
+import {COSTUME_PET_BREEDS,COSTUME_PET_SHOP_ITEMS} from '../src/platform-costume-pets.js';
 import {petArtworkCell} from '../src/platform-jump-pets.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -15,7 +16,7 @@ test('walking off a ledge falls, jumping is grounded only, and pets follow the p
  const fresh=createJumpState();assert.equal(jump(fresh),true);assert.equal(jump(fresh),false);for(let i=0;i<30;i++)tickJump(fresh,.02,1);assert.ok(fresh.pet.x>405);assert.ok(fresh.pet.y<560);assert.ok(fresh.trail.length<20);
 });
 test('pet editor supports requested varieties, validates saved settings and treats names as text',()=>{
- for(const pet of ['cat','dog','capybara','dragon','guinea pig','rabbit'])for(const breed of PET_BREEDS[pet])assert.equal(validateJumpSettings({pet,breed}).breed,breed);
+ for(const pet of ['cat','dog','capybara','dragon','guinea pig','rabbit'])for(const breed of PET_BREEDS[pet])assert.equal(validateJumpSettings({pet,breed},COSTUME_PET_SHOP_ITEMS.map(item=>item.id)).breed,breed);
  assert.equal(validateJumpSettings({pet:'dog',breed:'Tabby'}).breed,'Brindle');assert.equal(validateJumpSettings({petName:'Davina'}).petName,'Davina');assert.equal(validateJumpSettings({petName:'a'.repeat(80)}).petName.length,24);assert.equal(validateJumpSettings({pet:'__proto__'}).pet,'dog');assert.equal(validateJumpSettings({hair:'bad'}).hair,'#ee702e');assert.equal(validateJumpSettings({hairstyle:'Curls',background:'Aurora'}).hairstyle,'Curls');
 });
 test('every pet breed maps to its own realistic artwork cell',()=>{
@@ -23,7 +24,7 @@ test('every pet breed maps to its own realistic artwork cell',()=>{
  assert.equal(cells.size,Object.values(PET_BREEDS).flat().length);assert.equal(petArtworkCell('dog','Tabby'),null);
 });
 test('dogs use different walking, takeoff, airborne and landing poses',async()=>{
- const {dogPoseFrame,DOG_MOTION_BREEDS}=await import('../src/platform-dog-motion.js');assert.deepEqual(DOG_MOTION_BREEDS,PET_BREEDS.dog);assert.deepEqual([0,.12,.24,.36].map(t=>dogPoseFrame('walk',t)),[0,1,2,3]);assert.equal(dogPoseFrame('idle'),4);assert.equal(dogPoseFrame('crouch'),5);assert.equal(dogPoseFrame('jump'),6);assert.equal(dogPoseFrame('land'),7);
+ const {dogPoseFrame,DOG_MOTION_BREEDS}=await import('../src/platform-dog-motion.js');assert.deepEqual([...DOG_MOTION_BREEDS,...COSTUME_PET_BREEDS],PET_BREEDS.dog);assert.deepEqual([0,.12,.24,.36].map(t=>dogPoseFrame('walk',t)),[0,1,2,3]);assert.equal(dogPoseFrame('idle'),4);assert.equal(dogPoseFrame('crouch'),5);assert.equal(dogPoseFrame('jump'),6);assert.equal(dogPoseFrame('land'),7);
  const s=createJumpState();tickJump(s,.02,1);assert.equal(s.pet.pose,'walk');jump(s);tickJump(s,.02,1);assert.equal(s.pet.pose,'crouch');for(let i=0;i<18;i++)tickJump(s,.02,1);assert.equal(s.pet.pose,'jump');for(let i=0;i<30;i++)tickJump(s,.02,1);assert.equal(s.pet.pose,'land');
 });
 test('scattered course leaves meaningful falls while keeping its summit and restart layout',()=>{

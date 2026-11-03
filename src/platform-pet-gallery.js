@@ -1,16 +1,17 @@
+import {costumePetUnlocked,costumePetAtlas} from './platform-costume-pets.js';
 import {PET_BREEDS} from './platform-jump-rules.js';
 import {jumpPetAtlas,petPreviewSprite,petArtworkCell} from './platform-jump-pets.js';
 import {ferretAtlas,ferretUnlocked} from './platform-ferrets.js';
 import {hedgehogAtlas,hedgehogUnlocked} from './platform-hedgehogs.js';
 import {referencePetAtlas} from './platform-reference-pets.js';
 const TYPE_BREEDS={cat:'Ginger Maine Coon',dog:'Brindle',bird:'Rainbow lorikeet'};
-export const petBreedUnlocked=(pet,breed,owned=[])=>pet==='ferret'?ferretUnlocked(breed,owned):pet==='hedgehog'?hedgehogUnlocked(breed,owned):true;
+export const petBreedUnlocked=(pet,breed,owned=[])=>!costumePetUnlocked(pet,breed,owned)?false:pet==='ferret'?ferretUnlocked(breed,owned):pet==='hedgehog'?hedgehogUnlocked(breed,owned):true;
 export const petTypeBreed=pet=>TYPE_BREEDS[pet]||PET_BREEDS[pet]?.[0];
 export function petCatalog(){return Object.entries(PET_BREEDS).map(([pet,breeds])=>({pet,label:pet[0].toUpperCase()+pet.slice(1),breed:petTypeBreed(pet),breeds:breeds.map(breed=>({breed,artwork:petArtworkCell(pet,breed)}))}));}
-export function petPhotoSources(){return [jumpPetAtlas(),ferretAtlas(),hedgehogAtlas(),referencePetAtlas('cat'),referencePetAtlas('bird')];}
+export function petPhotoSources(){return [jumpPetAtlas(),ferretAtlas(),hedgehogAtlas(),referencePetAtlas('cat'),referencePetAtlas('bird'),...['cat','dog','bird'].map(costumePetAtlas)];}
 export function mountPetGallery({parent,petField,getSettings,getUpgrades,onSelect,signal,isOpen=()=>true,photoSprite=petPreviewSprite,photoSources=petPhotoSources}){
  const types=document.createElement('div');types.className='jump-pet-types';types.setAttribute('role','group');types.setAttribute('aria-label','Choose an animal with photo previews');petField.parentElement.after(types);
- const catalog=document.createElement('section');catalog.className='jump-pet-catalog';const heading=document.createElement('h3');heading.textContent='All animals & breeds';catalog.append(heading);const note=document.createElement('p');note.textContent='Compare every look below. Each picture shows the pet artwork used in the game.';catalog.append(note);parent.append(catalog);
+ const catalog=document.createElement('section');catalog.className='jump-pet-catalog';const heading=document.createElement('h3');heading.textContent='All animals & breeds';catalog.append(heading);const note=document.createElement('p');note.textContent='Compare every look below. Each picture shows the pet artwork used in the game.';catalog.append(note);const motionLink=document.createElement('a');motionLink.href=new URL('../previews/platform-pet-costumes.html',import.meta.url).href;motionLink.textContent='See the rainbow, tutu & tuxedo pets in motion';catalog.append(motionLink);parent.append(catalog);
  const tiles=[],typeTiles=[],groups=petCatalog();
  function tile(parent,pet,breed,isType=false){
   const button=document.createElement('button');button.type='button';button.className='jump-pet-choice';
