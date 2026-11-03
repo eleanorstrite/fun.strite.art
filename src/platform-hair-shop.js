@@ -1,11 +1,12 @@
+export const STARTER_HAIR='Sunset blossom waves';
 export const SHOP_HAIR=[
  {id:'jump-hair-candy',name:'Candy pink braided buns',column:0,description:'Hot pink double buns, flowing lengths, twin braids and colorful beads.'},
  {id:'jump-hair-golden',name:'Golden ribbon braids',column:1,description:'Long honey blonde hair with slender braids and gold ornaments. No cat ears.'},
  {id:'jump-hair-sunset',name:'Sunset blossom waves',column:2,description:'Red-to-peach flowing waves with delicate golden leaf ornaments.'},
  {id:'jump-hair-moon',name:'Ivory moon braids',column:3,description:'Creamy ivory waves, a braided crown and dangling moon and star ornaments.'}
 ];
-export const HAIR_SHOP_ITEMS=SHOP_HAIR.map(h=>({...h,hairstyle:h.name,group:'appearance',category:'PLATFORM JUMP · HAIRSTYLE',icon:'🎀',cost:50,description:h.description+' Permanently unlock in Platform Jump → Design your character & pet. Reference colors are part of this style.'}));
-export const hairUnlocked=(style,owned=[])=>{const item=SHOP_HAIR.find(h=>h.name===style);return !item||owned.includes(item.id);};
+export const HAIR_SHOP_ITEMS=SHOP_HAIR.map(h=>({...h,hairstyle:h.name,group:'appearance',category:'PLATFORM JUMP · HAIRSTYLE',icon:'🎀',cost:h.name===STARTER_HAIR?0:50,description:(h.name===STARTER_HAIR?'Included free with the starter character. ':'')+h.description+' Permanently unlock in Platform Jump → Design your character & pet. Reference colors are part of this style.'}));
+export const hairUnlocked=(style,owned=[])=>{const item=SHOP_HAIR.find(h=>h.name===style);return style===STARTER_HAIR||!item||owned.includes(item.id);};
 let atlas;
 export function hairAtlas(){if(!atlas&&typeof Image!=='undefined'){atlas=new Image();atlas.src=new URL('../assets/reference-hairstyles.png',import.meta.url).href;}return atlas;}
 // Stronger gusts bend the lengths and send a delayed ripple toward the tips.

@@ -22,10 +22,11 @@ export function drawPlatformJump(c,state,s=JUMP_DEFAULTS){const w=c.canvas.width
  for(let i=0;i<state.platforms.length;i++){const p=state.platforms[i],y=p.y-state.camera;if(y< -80||y>690)continue;drawJumpSurface(c,p,i,y);if(i===48){for(const side of [-1,1]){box(c,p.x+side*75-3,y-110,6,110,'#f7e7ad',2);}box(c,p.x-80,y-110,160,36,'#fff1bc',4);text(c,'FINISH!',p.x,y-85,24,'#725126');}}
  for(const coin of state.coins??[]){if(coin.collected)continue;const y=coin.y-state.camera;if(y< -25||y>675)continue;const bob=Math.sin(state.time*2+coin.x)*3;oval(c,coin.x,y+bob,11,15,'#c88b2b');oval(c,coin.x-1,y-2+bob,8,12,'#ffe18a');c.strokeStyle='#fff6cd';c.lineWidth=2;c.beginPath();c.moveTo(coin.x-1,y-8+bob);c.lineTo(coin.x-1,y+4+bob);c.stroke();}
  drawJumpPet(c,state.pet.x,state.pet.y-state.camera,s,state.time,Math.abs(state.vx)>0||!state.grounded,state.pet.facing||state.facing,state.pet.pose||'idle');drawJumper(c,state.x,state.y-state.camera,s,state.time,Math.abs(state.vx)>0,false,{pose:state.grounded?(Math.abs(state.vx)>0?'walk':'stand'):state.vy<0?'jump':'land',facing:state.facing});box(c,18,18,240,64,'#153651cc');text(c,`PLATFORM JUMP · ${state.difficulty}`,138,43,16);text(c,`${Math.max(0,Math.round(560-state.y))} m · ✦ ${state.collectedCoins??0} coins`,138,68,17,'#d1f4ff');if(state.done){box(c,240,220,420,130,'#17324ce8',20);text(c,'You reached the sky summit!',450,272,25);text(c,`${s.petName||'Your pet'} made it with you!`,450,312,19,'#ffeab1');}c.restore();}
+export const JUMP_COVER_LOOK={...JUMP_DEFAULTS};
 const previewFrames=new WeakMap();
 export function drawPlatformJumpPreview(canvas){
  if(previewFrames.has(canvas))cancelAnimationFrame(previewFrames.get(canvas));
- const settings={...JUMP_DEFAULTS,hairstyle:'Sunset blossom waves',hair:'#ee702e',outfit:'Strappy top & shorts',pet:'dog',breed:'Brindle',petName:'Davina'};
+ const settings=JUMP_COVER_LOOK;
  function island(c,x,y,w){
   oval(c,x,y+46,w*.42,16,'#315b8030');
   c.fillStyle='#648ca3';c.beginPath();c.moveTo(x-w/2+7,y+5);c.lineTo(x-w*.22,y+54);c.lineTo(x+w*.12,y+73);c.lineTo(x+w/2-7,y+5);c.closePath();c.fill();

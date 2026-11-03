@@ -96,10 +96,10 @@ export function drawJumpOutfit(c,style,time=0,moving=false,waving=false){
  // Garment proportions define the fitted body, neckline, and cuff positions.
  const width=62,height=fit.shirtOnly?36:58,left=-31,top=-55;
  // Keep the shared atlas gutters out of each garment, including raised sleeves.
- const inset=cell.columns===2?.025:0;
+ const inset=cell.columns===2?.025:0,xInset=cell.columns===3&&cell.rows===3?.035:0;
  function part(sx,sy,sw,sh,dx,dy,dw,dh){
-  const x0=Math.max(sx,col*w),y0=Math.max(sy,(row+inset)*h);
-  const x1=Math.min(sx+sw,(col+1)*w),y1=Math.min(sy+sh,(row+1-inset)*h);
+  const x0=Math.max(sx,(col+xInset)*w),y0=Math.max(sy,(row+inset)*h);
+  const x1=Math.min(sx+sw,(col+1-xInset)*w),y1=Math.min(sy+sh,(row+1-inset)*h);
   if(x1<=x0||y1<=y0)return;
   c.drawImage(image,x0,y0,x1-x0,y1-y0,dx+(x0-sx)/sw*dw,dy+(y0-sy)/sh*dh,dw*(x1-x0)/sw,dh*(y1-y0)/sh);
  }

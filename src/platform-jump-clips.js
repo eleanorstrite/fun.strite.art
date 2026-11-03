@@ -1,3 +1,5 @@
+import {outfitAtlas} from './platform-jump-clothes.js';
+import {hairAtlas} from './platform-hair-shop.js';
 import {drawEndingValley,drawEndingCanopy} from './platform-jump-valley.js';
 import {FLYOVER_SECONDS} from './platform-jump-flyover.js';
 import {drawJumper,drawJumpPet} from './platform-jump-art.js';
@@ -5,8 +7,8 @@ import {JUMP_DEFAULTS} from './platform-jump-rules.js';
 import {jumpPetAtlas} from './platform-jump-pets.js';
 import {dogMotionAtlas} from './platform-dog-motion.js';
 export const JUMP_CLIP_LENGTH={intro:9,win:16,flyover:FLYOVER_SECONDS};
-export const JUMP_INTRO_LOOK={...JUMP_DEFAULTS,pet:'dog',breed:'Brindle',petName:'Davina'};
-export function jumpClipReady(){return [jumpPetAtlas(),dogMotionAtlas()].every(image=>image?.complete);}
+export const JUMP_INTRO_LOOK={...JUMP_DEFAULTS};
+export function jumpClipReady(){return [jumpPetAtlas(),dogMotionAtlas(),outfitAtlas(JUMP_INTRO_LOOK.outfit),hairAtlas()].every(image=>image?.complete);}
 const clamp=n=>Math.max(0,Math.min(1,n)),lerp=(a,b,t)=>a+(b-a)*clamp(t),ease=t=>{t=clamp(t);return t*t*(3-2*t);};
 function oval(c,x,y,rx,ry,color){c.fillStyle=color;c.beginPath();c.ellipse(x,y,rx,ry,0,0,Math.PI*2);c.fill();}
 function line(c,x,y,x2,y2,color,width=3){c.strokeStyle=color;c.lineWidth=width;c.lineCap='round';c.beginPath();c.moveTo(x,y);c.lineTo(x2,y2);c.stroke();}
