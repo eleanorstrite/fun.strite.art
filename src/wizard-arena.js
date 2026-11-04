@@ -1,3 +1,4 @@
+import {drawWizardSidekick} from './wizard-sidekicks.js';
 import {drawWizardBackground,drawWizardBlock,wizardBackground} from './wizard-themes.js';
 import {drawStormWizard,stormWizard} from './storm-wizards.js';
 import {STORM_WIZARD_BOUNDS} from './storm-wizard-bounds.js';
@@ -24,7 +25,7 @@ function playerField(c,s,index,time,reduced,single=false,ending=false){
  const f=wizardArenaField(index,single);drawWizardIsland(c,f.center,f.base);
  for(const platform of s.supports||[])drawWizardIsland(c,f.x+(platform.x+platform.width/2)*f.cell,f.y+platform.row*f.cell,platform.width*f.cell+35);
  for(let y=0;y<24;y++)for(let x=0;x<10;x++)if(s.board[y][x]){const effect=s.surfaceEffects?.[`${x},${y}`];if(effect?.largeX!==undefined&&(x!==effect.largeX||y!==effect.largeY))continue;drawWizardBlock(c,f.x+x*f.cell,f.y+y*f.cell,f.cell*(effect?.largeX!==undefined?2:1),s.board[y][x]-1,effect?.ice?'crystal':s.blockStyle,time);}
- c.save();c.translate(f.wizardX,f.wizardY);c.scale(.5,.5);drawStormWizard(c,s.wizard,0,0,time,false);c.restore();
+ c.save();c.translate(f.wizardX,f.wizardY);c.scale(.5,.5);drawStormWizard(c,s.wizard,0,0,time,false);c.restore();drawWizardSidekick(c,s.sidekick,f.wizardX+43,f.wizardY+3,time,{celebrate:s.noticeTime>0||s.particles?.some(p=>p.age<.25),reduced});
  if(!ending){let gy=s.piece.y;while(s.piece.cells.every(([x,y])=>gy+y+1<24&&!wizardSolidAt(s,s.piece.x+x,gy+y+1)))gy++;
  c.globalAlpha=.22;for(const [x,y]of s.piece.cells)drawWizardBlock(c,f.x+(s.piece.x+x)*f.cell,f.y+(gy+y)*f.cell,f.cell,s.piece.kind,s.blockStyle,time);c.globalAlpha=1;
  for(const [x,y]of s.piece.cells){if(s.piece.effects?.ultra&&(x%2||y%2))continue;drawWizardBlock(c,f.x+(s.piece.x+x)*f.cell,f.y+(s.piece.y+y)*f.cell,f.cell*(s.piece.effects?.ultra?2:1),s.piece.kind,s.piece.effects?.ice?'crystal':s.blockStyle,time);}
