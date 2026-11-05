@@ -47,10 +47,10 @@ test('engine pause and hidden tabs freeze time, controls release, rewards settle
   engine=createStormStack({canvas,controls,onHud:v=>hud=v.text,onFinish:coins=>finishes.push(coins)});engine.start();frames(3);engine.pause(true);const before=hud;frames(30);assert.equal(hud,before);
   engine.pause(false);globalThis.document.hidden=true;frames(30);assert.equal(hud,before);globalThis.document.hidden=false;
   handlers.keydown({key:'ArrowDown',preventDefault(){}});handlers.blur();frames(3);
-  frames(710);assert.equal(finishes.length,1);assert.ok([5,25].includes(finishes[0]));engine.destroy();assert.equal(finishes.length,1);
+  frames(1310);assert.equal(finishes.length,1);assert.ok([5,25].includes(finishes[0]));engine.destroy();assert.equal(finishes.length,1);
   engine=createStormStack({canvas,controls,onHud(){},onFinish:coins=>finishes.push(coins)});engine.start();engine.destroy();assert.equal(finishes.at(-1),0);
   for(let i=0;i<6;i++){engine=createStormStack({canvas,controls,onHud(){},onFinish(){}});engine.start();engine.destroy();}
-  assert.deepEqual(hazardSaves,['1','2','3','4','5','6','7','0']);
+  assert.deepEqual(hazardSaves,[]); // Chosen backdrop remains unchanged between rounds.
  }finally{engine?.destroy();Object.assign(globalThis,original);}
 });
 

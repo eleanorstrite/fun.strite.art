@@ -30,7 +30,7 @@ export function stormBalance(s,p){
   const center=cells.reduce((sum,[x])=>sum+x+.5,0)/cells.length;
   if(!supports.length)return {stable:false,direction:1,pivotX:center,pivotY:p.y+p.cells.length};
   const left=Math.min(...supports.map(([x])=>x)),right=Math.max(...supports.map(([x])=>x+1));
-  const stable=center>=left+.08&&center<=right-.08,direction=center<(left+right)/2?-1:1;
+  const margin=s.wobbly?.3:.08;const stable=center>=left+margin&&center<=right-margin&&(!s.wobbly||right-left>1||Math.max(...cells.map(([x])=>x))-Math.min(...cells.map(([x])=>x))===0),direction=center<(left+right)/2?-1:1;
   const edge=supports.find(([x])=>direction<0?x===left:x+1===right);
   return {stable,direction,pivotX:direction<0?left:right,pivotY:edge[1]+1};
 }
@@ -64,6 +64,7 @@ function dropRow(s,emit){
   const balance=stormBalance(s,p);
   if(balance.stable||s.ward){
     for(const [dx,dy] of p.cells){s.board[p.y+dy][p.x+dx]=p.kind+1;if(p.effects?.ice||p.effects?.ultra)s.surfaceEffects[`${p.x+dx},${p.y+dy}`]={ice:!!p.effects.ice,...(p.effects.ultra?{largeX:p.x+2*Math.floor(dx/2),largeY:p.y+2*Math.floor(dy/2)}:{})};}
+    if(s.wobbly){s.settled.push({kind:p.kind,cells:p.cells.map(([x,y])=>[p.x+x,p.y+y]),age:0,angle:.11*balance.direction});s.settleClock=.65;}
     s.lastPlacement=p.cells.map(([x,y])=>[p.x+x,p.y+y]);s.ward=false;s.combo=balance.stable?s.combo+1:0;if(s.earnSpells!==false&&s.combo>0&&s.combo%3===0)s.spells=Math.min(5,s.spells+1);
     for(const [dx,dy] of p.cells)s.particles.push({x:p.x+dx+.5,y:p.y+dy+.5,age:0,color:COLORS[p.kind]});
     s.locked++;const top=s.board.findIndex(row=>row.some(Boolean));s.height=top<0?0:STORM_ROWS-top;emit('bounce');
@@ -85,6 +86,7 @@ export function tickStorm(s,dt,fast=false,emit=()=>{}){
   }
   if(s.status!=='playing')return;
   if(s.piece.effects?.twist){s.piece.twistClock=(s.piece.twistClock||0)+dt;if(s.piece.twistClock>=1.1){s.piece.twistClock=0;twistWizardPiece(s);}}
+  if(s.wobbly)tickWizardTower(s,dt,emit);s.powerFlash=Math.max(0,(s.powerFlash||0)-dt);
   s.elapsed+=dt;s.noticeTime=Math.max(0,s.noticeTime-dt);
   const slow=s.slowTime>0;s.slowTime=Math.max(0,s.slowTime-dt);
   for(const particle of s.particles)particle.age+=dt;
@@ -110,4 +112,24 @@ export function prepareWizardPiece(s,p){
 export function twistWizardPiece(s){
  const p=s.piece,rotate=s.random()<.5,cells=p.cells.map(([x,y])=>rotate?[-y,x]:[-x,y]),minX=Math.min(...cells.map(([x])=>x)),minY=Math.min(...cells.map(([,y])=>y));
  return reshapeWizardPiece(s,cells.map(([x,y])=>[x-minX,y-minY]));
+}
+
+// Landed pieces keep their own balance. A shifted load can pull its support out,
+// after which the unsupported pieces above it fall as a chain.
+export function tickWizardTower(s,dt,emit=()=>{}){
+ for(const piece of s.settled||[])piece.age+=dt;
+ if(!s.settleClock)return;s.settleClock-=dt;if(s.settleClock>0)return;s.settleClock=0;
+ const groups=s.settled.filter(p=>p.cells.every(([x,y])=>s.board[y]?.[x]===p.kind+1));s.settled=groups;
+ for(const group of [...groups].sort((a,b)=>Math.max(...a.cells.map(p=>p[1]))-Math.max(...b.cells.map(p=>p[1])))){
+  for(const [x,y]of group.cells)s.board[y][x]=0;
+  const balance=stormBalance(s,{x:0,y:0,cells:group.cells});
+  const above=groups.filter(p=>p!==group&&p.cells.some(([x,y])=>group.cells.some(([gx,gy])=>x===gx&&y===gy-1)));
+  const all=[...group.cells,...above.flatMap(p=>p.cells)],center=all.reduce((n,[x])=>n+x+.5,0)/all.length;
+  const bottom=group.cells.filter(([x,y])=>!group.cells.some(([gx,gy])=>gx===x&&gy===y+1)&&(y===23||wizardSolidAt(s,x,y+1)));
+  const loaded=bottom.length&&center>=Math.min(...bottom.map(p=>p[0]))+.25&&center<=Math.max(...bottom.map(p=>p[0]))+.75;
+  if(balance.stable&&loaded){for(const [x,y]of group.cells)s.board[y][x]=group.kind+1;continue;}
+  s.tumbling.push({...balance,kind:group.kind,cells:group.cells,age:0});s.settled=s.settled.filter(p=>p!==group);s.balanceNotice=2;s.spellNotice='Tower slipping! Balance your next block';s.noticeTime=2;s.misses++;s.settleClock=.3;emit('whoosh');
+  for(const [x,y]of group.cells)delete s.surfaceEffects[`${x},${y}`];
+ }
+ const top=s.board.findIndex(row=>row.some(Boolean));s.height=top<0?0:24-top;
 }

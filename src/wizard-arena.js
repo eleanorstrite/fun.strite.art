@@ -24,7 +24,7 @@ export function drawWizardTether(c,s,field,time=0){
 function playerField(c,s,index,time,reduced,single=false,ending=false){
  const f=wizardArenaField(index,single);drawWizardIsland(c,f.center,f.base);
  for(const platform of s.supports||[])drawWizardIsland(c,f.x+(platform.x+platform.width/2)*f.cell,f.y+platform.row*f.cell,platform.width*f.cell+35);
- for(let y=0;y<24;y++)for(let x=0;x<10;x++)if(s.board[y][x]){const effect=s.surfaceEffects?.[`${x},${y}`];if(effect?.largeX!==undefined&&(x!==effect.largeX||y!==effect.largeY))continue;drawWizardBlock(c,f.x+x*f.cell,f.y+y*f.cell,f.cell*(effect?.largeX!==undefined?2:1),s.board[y][x]-1,effect?.ice?'crystal':s.blockStyle,time);}
+ for(let y=0;y<24;y++)for(let x=0;x<10;x++)if(s.board[y][x]){const effect=s.surfaceEffects?.[`${x},${y}`];const landed=s.settled?.find(p=>p.cells.some(([px,py])=>px===x&&py===y));c.save();if(landed&&!reduced){const cx=f.x+(landed.cells.reduce((n,[px])=>n+px+.5,0)/landed.cells.length)*f.cell,cy=f.y+(Math.max(...landed.cells.map(p=>p[1]))+1)*f.cell,angle=Math.sin(landed.age*9)*Math.exp(-landed.age*1.5)*landed.angle;c.translate(cx,cy);c.rotate(angle);c.translate(-cx,-cy);}if(effect?.largeX!==undefined&&(x!==effect.largeX||y!==effect.largeY)){c.restore();continue;}drawWizardBlock(c,f.x+x*f.cell,f.y+y*f.cell,f.cell*(effect?.largeX!==undefined?2:1),s.board[y][x]-1,effect?.ice?'crystal':s.blockStyle,time);c.restore();}
  c.save();c.translate(f.wizardX,f.wizardY);c.scale(.5,.5);drawStormWizard(c,s.wizard,0,0,time,false);c.restore();drawWizardSidekick(c,s.sidekick,f.wizardX+43,f.wizardY+3,time,{celebrate:s.noticeTime>0||s.particles?.some(p=>p.age<.25),reduced});
  if(!ending){let gy=s.piece.y;while(s.piece.cells.every(([x,y])=>gy+y+1<24&&!wizardSolidAt(s,s.piece.x+x,gy+y+1)))gy++;
  c.globalAlpha=.22;for(const [x,y]of s.piece.cells)drawWizardBlock(c,f.x+(s.piece.x+x)*f.cell,f.y+(gy+y)*f.cell,f.cell,s.piece.kind,s.blockStyle,time);c.globalAlpha=1;
@@ -43,15 +43,18 @@ export function drawWizardArena(c,match,width,height,reduced=false){
  c.save();c.fillStyle='#071327';c.fillRect(0,0,width,height);const scale=Math.min(width/960,height/650);c.translate((width-960*scale)/2,(height-650*scale)/2);c.scale(scale,scale);const time=reduced?0:match.elapsed;
  drawWizardBackground(c,match.background,time,reduced);text(c,'WIZARD TETRIS',480,25,19);
  const single=match.players.length===1;
- for(let i=0;i<match.players.length;i++){const p=match.players[i],f=playerField(c,p,i,time,reduced,single,match.status==='ending'||match.status==='finished');const name=single?'Your tower':i===0?'Player 1 · WASD':match.opponent==='computer'?'Computer':'Player 2 · Arrows';
+ for(let i=0;i<match.players.length;i++){const p=match.players[i],f=playerField(c,p,i,time,reduced,single,match.status==='ending'||match.status==='finished');const name=single?'Your tower':i===0?(match.opponent==='computer'?'You · Arrows / WASD':'Player 1 · WASD'):match.opponent==='computer'?'Computer':'Player 2 · Arrows';
  plate(c,f.center-130,36,260,46);text(c,name+' · '+p.height+'/'+p.target+' high',f.center,54,14);text(c,Math.max(0,3-p.misses)+' lives · '+stormWizard(p.wizard).name,f.center,72,11,'#dae9ff');
  if(p.choices?.length&&match.status!=='ending'&&match.status!=='finished'){
-  for(let slot=0;slot<p.choices.length;slot++){const pos=wizardChoicePosition(i,slot),power=wizardPower(p.choices[slot]),attack=power.type==='Attack';plate(c,pos.x-58,pos.y-52,116,22,attack?'#7f294bdc':'#1d665edc');text(c,power.type.toUpperCase(),pos.x,pos.y-37,11,attack?'#ffe4ee':'#d7fff1');drawWizardPowerIcon(c,power.id,pos.x-33,pos.y-32,66);plate(c,pos.x-59,pos.y+35,118,38,'#13223bdf');text(c,power.name,pos.x,pos.y+49,11);text(c,i===0?['X','C','V'][slot]+' · tap / click':['1','2','3'][slot]+' · tap / click',pos.x,pos.y+65,10,'#edf2ff');}
-  plate(c,f.center-105,84,210,17,'#2b2445d9');text(c,'LEVEL '+p.level+' · CHOOSE 1 OF 3',f.center,96,11,'#fcf3cf');
+  if(p.powerFlash>0){const glow=c.createRadialGradient?.(f.center,300,15,f.center,300,220);if(glow?.addColorStop){glow.addColorStop(0,'#ffd75d35');glow.addColorStop(1,'#ffd75d00');c.fillStyle=glow;c.fillRect(f.center-220,80,440,440);}}
+  plate(c,f.center-172,84,344,27,'#694519ed');text(c,'✦ LEVEL UP! CHOOSE YOUR MAGIC ✦',f.center,103,15,'#fff2b0');
+  for(let slot=0;slot<p.choices.length;slot++){const pos=wizardChoicePosition(i,slot),power=wizardPower(p.choices[slot]),attack=power.type==='Attack';c.save();c.strokeStyle=attack?'#ffa5d3':'#a4ffe1';c.shadowColor=c.strokeStyle;c.shadowBlur=reduced?0:22;c.lineWidth=3+Math.sin(time*5);c.beginPath();c.arc(pos.x,pos.y,38+(reduced?0:Math.sin(time*4)*3),0,Math.PI*2);c.stroke();c.restore();plate(c,pos.x-58,pos.y-52,116,22,attack?'#7f294bdc':'#1d665edc');text(c,power.type.toUpperCase(),pos.x,pos.y-37,11,attack?'#ffe4ee':'#d7fff1');drawWizardPowerIcon(c,power.id,pos.x-33,pos.y-32,66);plate(c,pos.x-59,pos.y+35,118,38,'#13223bdf');text(c,power.name,pos.x,pos.y+49,11);text(c,i===0?['X','C','V'][slot]+' · tap / click':['1','2','3'][slot]+' · tap / click',pos.x,pos.y+65,10,'#edf2ff');}
+
  }
  const effects=Object.entries(p.piece.effects||{}).filter(([,value])=>value).map(([id])=>wizardPower(id)?.name||id);if(effects.length)text(c,effects.join(' + '),f.center,604,11,'#ffe0ed');
- if(p.noticeTime>0){plate(c,f.center-95,430,190,32,'#14213bda');text(c,p.spellNotice,f.center,451,13);}
- text(c,single?'Choose your blocks below':i===0?'A / D move · W rotate · S faster':'← / → move · ↑ rotate · ↓ faster',f.center,626,12,'#eff5ff');
+ if(p.balanceNotice>0)text(c,'⚠ TOWER LOSING BALANCE!',f.center,585,15,'#ffd477');
+ if(p.noticeTime>0&&!p.choices?.length){plate(c,f.center-95,430,190,32,'#14213bda');text(c,p.spellNotice,f.center,451,13);}
+ text(c,single?'Choose your blocks below':i===0?(match.opponent==='computer'?'← → move · ↑ rotate · ↓ faster':'A / D move · W rotate · S faster'):'← / → move · ↑ rotate · ↓ faster',f.center,626,12,'#eff5ff');
  }
  plate(c,437,38,86,38);text(c,Number.isFinite(match.remaining)?Math.ceil(match.remaining)+'s':'∞',480,64,21);text(c,wizardBackground(match.background).name,480,644,11,'#e6eeff');
  if(match.status==='ending'||match.status==='finished'){plate(c,265,214,430,135,'#101e36e8');const winner=match.winner;const title=winner===-1?'A MAGICAL DRAW!':winner===0?'PLAYER 1 WINS!':match.opponent==='computer'?'COMPUTER WINS!':'PLAYER 2 WINS!';text(c,title,480,259,27);text(c,match.reason||'A little tower magic.',480,297,18);}
