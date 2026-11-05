@@ -1,9 +1,10 @@
+import {validateCustomWizard} from './wizard-custom.js';
 import {validateWizardSidekick} from './wizard-sidekicks.js';
 import {WIZARD_POWERS,WIZARD_LEVEL_STEP,wizardPower,wizardChoicePosition} from './wizard-powers.js';
 import {createStormState,tickStorm,stormMove,stormRotate,stormHardDrop,stormFits,stormBalance,enlargeWizardPiece,reshapeWizardPiece,twistWizardPiece} from './wizard-rules.js';
 export const WIZARD_MATCH_TYPES=['computer','local'];
-export function createWizardMatch({random=Math.random,background=0,mode='race',opponent='computer',wizard='sorceress',rivalWizard='blue-mage',blocks='galaxy',rivalBlocks='gold',sidekick,rivalSidekick}={}){
- const players=[0,1].map(i=>{const p=createStormState(random,background,mode);p.wizard=i?rivalWizard:wizard;p.blockStyle=i?rivalBlocks:blocks;p.sidekick=validateWizardSidekick(i?rivalSidekick:sidekick);p.remaining=Infinity;p.wobbly=true;p.settled=[];p.target=22;p.spells=0;p.earnSpells=false;p.inventory={};p.choices=[];p.level=0;p.nextPowerHeight=WIZARD_LEVEL_STEP;p.pendingLevels=0;p.highWater=0;return p;});
+export function createWizardMatch({random=Math.random,background=0,mode='race',opponent='computer',wizard='sorceress',rivalWizard='blue-mage',blocks='galaxy',rivalBlocks='gold',sidekick,rivalSidekick,customWizard,rivalCustomWizard}={}){
+ const players=[0,1].map(i=>{const p=createStormState(random,background,mode);p.wizard=i?rivalWizard:wizard;p.blockStyle=i?rivalBlocks:blocks;p.customWizard=validateCustomWizard(i?rivalCustomWizard:customWizard);p.sidekick=validateWizardSidekick(i?rivalSidekick:sidekick);p.remaining=Infinity;p.wobbly=true;p.settled=[];p.target=22;p.spells=0;p.earnSpells=false;p.inventory={};p.choices=[];p.level=0;p.nextPowerHeight=WIZARD_LEVEL_STEP;p.pendingLevels=0;p.highWater=0;return p;});
  return {players,background,mode,opponent:WIZARD_MATCH_TYPES.includes(opponent)?opponent:'computer',remaining:mode==='practice'?Infinity:mode==='survival'?120:90,status:'ready',elapsed:0,clip:0,winner:null,reason:'',ai:{clock:0,step:0,plan:null},random};
 }
 export function startWizardMatch(match){match.status='playing';for(const p of match.players)p.status='playing';}

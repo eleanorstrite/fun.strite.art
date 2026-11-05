@@ -1,3 +1,4 @@
+import {drawCustomWizard,loadCustomWizard} from './wizard-custom.js';
 import {STORM_WIZARD_BOUNDS} from './storm-wizard-bounds.js';
 export const STORM_WIZARDS=[
  {id:'sorceress',name:'Star sorceress',color:'#ffd887',column:0,row:0},
@@ -8,12 +9,13 @@ export const STORM_WIZARDS=[
  {id:'spellkeeper',name:'Flame spellkeeper',color:'#ffb06c',column:2,row:1}
 ];
 export const STORM_WIZARD_KEY='sidequest.storm.wizard';
-export function stormWizard(id){return STORM_WIZARDS.find(w=>w.id===id)||STORM_WIZARDS[0];}
+export function stormWizard(id){return id==='custom'?{id:'custom',name:'Your custom wizard',color:'#ffe2a0'}:STORM_WIZARDS.find(w=>w.id===id)||STORM_WIZARDS[0];}
 export function loadStormWizard(storage){try{return stormWizard((storage??globalThis.localStorage)?.getItem(STORM_WIZARD_KEY)).id;}catch{return STORM_WIZARDS[0].id;}}
 export function saveStormWizard(id,storage){const selected=stormWizard(id).id;try{(storage??globalThis.localStorage)?.setItem(STORM_WIZARD_KEY,selected);}catch{}return selected;}
 let atlas;
 export function stormWizardAtlas(){if(typeof Image==='undefined')return null;if(!atlas){atlas=new Image();atlas.src=new URL('../assets/storm-wizards.png',import.meta.url).href;}return atlas;}
-export function drawStormWizard(c,id,x,baseline,time=0,casting=false){
+export function drawStormWizard(c,id,x,baseline,time=0,casting=false,custom){
+ if(id==='custom')return drawCustomWizard(c,custom||loadCustomWizard(),x,baseline,time);
  const image=stormWizardAtlas();if(!image?.complete||!image.naturalWidth)return false;
  const wizard=stormWizard(id),b=STORM_WIZARD_BOUNDS[wizard.id];if(!b)return false;
  const size=Math.min(104/b.w,190/b.h),width=b.w*size,height=b.h*size;
@@ -31,5 +33,5 @@ export function mountStormWizardChoices(container,selected,onChoose){
   const picture=document.createElement('span');picture.className='storm-wizard-picture';picture.setAttribute?.('aria-hidden','true');picture.setAttribute?.('style',`background-position:${wizard.column*50}% ${wizard.row*100}%`);
   const name=document.createElement('span');name.textContent=wizard.name;button.append(picture,name);button.onclick=()=>{if(button.disabled)return;onChoose(wizard.id);refresh(wizard.id);};group.append(button);choices.push([wizard,button]);
  }
- refresh(selected);container.append(group);return {setDisabled(value){for(const [,button]of choices)button.disabled=value;}};
+ refresh(selected);container.append(group);return {select:refresh,setDisabled(value){for(const [,button]of choices)button.disabled=value;}};
 }
