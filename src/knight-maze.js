@@ -1,3 +1,4 @@
+import {drawPlayBackdrop,drawPlaySprite} from './play-art.js';
 import { bindMazeSwipes } from './touch-controls.js';
 import { ARMORS, DRAGON_STYLES, MAZE_BOOST_IDS } from './system.js';
 import { createDefeatSequence, drawDefeat } from './maze-defeat.js';
@@ -151,7 +152,7 @@ function pixels(ctx,sprite,x,y,size,palette,flip=false) {
 export function drawKnight(ctx,x,y,size,character,flip=false) {
   const armor=ARMORS[character.armor]||ARMORS.silver,helmet=character.helmet||'plume';
   const sprite=KNIGHT.map(row=>row.replace(/p/g,helmet==='plume'?'p':'.').replace(/c/g,character.cape===false?'.':'c'));
-  pixels(ctx,sprite,x,y,size,{p:character.color,s:armor.dark,w:armor.light,k:'#1d2838',c:character.color},flip);
+  if(!(helmet==='plume'&&character.cape!==false&&(!character.armor||character.armor==='silver')&&drawPlaySprite(ctx,'knight',0,x,y,size*1.1,size*1.1,{anchor:.5,flip,tint:character.color,region:[0,.35,.3,.6]})))pixels(ctx,sprite,x,y,size,{p:character.color,s:armor.dark,w:armor.light,k:'#1d2838',c:character.color},flip);
   ctx.save();ctx.translate(x,y);if(flip)ctx.scale(-1,1);ctx.scale(size/16,size/16);
   if(helmet==='crown'){ctx.fillStyle='#f5cc65';ctx.fillRect(-4,-6,7,2);ctx.fillRect(-4,-9,1.5,4);ctx.fillRect(-1.5,-9,1.5,4);ctx.fillRect(1,-9,1.5,4);ctx.fillStyle=character.color;ctx.fillRect(-1.5,-6,1,1);}
   if(helmet==='winged'){ctx.fillStyle='#e0f3ff';for(const side of [-1,1]){ctx.save();ctx.scale(side,1);ctx.beginPath();ctx.moveTo(3,-4);ctx.lineTo(8,-10);ctx.lineTo(7,-4);ctx.lineTo(4,-2);ctx.closePath();ctx.fill();ctx.restore();}}
@@ -258,7 +259,7 @@ function drawMazeTerrain(ctx,s,theme,board,ox,oy){
 }
 export function drawMaze(ctx,s,character,width,height,preview=false) {
   const theme=KNIGHT_LEVELS[s.level];
-  ctx.imageSmoothingEnabled=false;ctx.fillStyle='#10151f';ctx.fillRect(0,0,width,height);
+  ctx.imageSmoothingEnabled=false;ctx.fillStyle='#10151f';ctx.fillRect(0,0,width,height);if(drawPlayBackdrop(ctx,2,width,height)){ctx.fillStyle='#10151fcc';ctx.fillRect(0,0,width,55);}
   const board=Math.min(preview?width*.55:width-24,height-76),cell=board/19,ox=preview?width-board-24:(width-board)/2,oy=preview?38:64;
   if(preview){ctx.fillStyle='#e5c68a';ctx.font='600 17px monospace';ctx.textAlign='left';ctx.fillText('THE FIRST QUEST',35,95);ctx.fillStyle='#f5ecd7';ctx.font='bold 42px monospace';ctx.fillText('KNIGHTS AND',35,157);ctx.fillText('DRAGONS',35,207);ctx.font='16px monospace';ctx.fillStyle='#99a9b8';ctx.fillText('Gems. Dragons. Glory.',35,250);drawKnight(ctx,100,365,100,character);sword(ctx,175,360,80);}
   else {ctx.textAlign='left';ctx.font='bold 16px monospace';ctx.fillStyle='#e5c68a';ctx.fillText(`LEVEL ${s.level+1} · ${theme.name.toUpperCase()}`,18,29);ctx.textAlign='right';ctx.fillStyle=s.sword>0?'#f4d388':'#b6c4cf';ctx.fillText(s.sword>0?`SWORD  ${s.sword.toFixed(1)}s`:'FIND A SWORD',width-18,29);ctx.fillStyle='#293243';ctx.fillRect(18,42,width-36,5);ctx.fillStyle='#f3c674';ctx.fillRect(18,42,(width-36)*s.sword/SWORD_SECONDS,5);}
@@ -275,7 +276,7 @@ export function drawMaze(ctx,s,character,width,height,preview=false) {
   for(const gem of s.gems){const [x,y]=gem.split(',').map(Number),px=ox+(x+.5)*cell,py=oy+(y+.5)*cell,r=cell*.14;ctx.fillStyle=gemColors[(x+y*2)%5];ctx.beginPath();ctx.moveTo(px,py-r*1.5);ctx.lineTo(px+r,py);ctx.lineTo(px,py+r*1.5);ctx.lineTo(px-r,py);ctx.closePath();ctx.fill();ctx.fillStyle='#ffffff66';ctx.beginPath();ctx.moveTo(px,py-r*1.5);ctx.lineTo(px+r,py);ctx.lineTo(px,py+r*.5);ctx.closePath();ctx.fill();ctx.fillStyle='#ffffffb0';ctx.fillRect(px-1,py-r,2,3);}
   for(const item of s.swords){const[x,y]=item.split(',').map(Number);const px=ox+(x+.5)*cell,py=oy+(y+.5)*cell;ctx.fillStyle='#f3cd7320';ctx.beginPath();ctx.arc(px,py,cell*.44,0,7);ctx.fill();sword(ctx,px,py,cell*.82);}
   const colors=(DRAGON_STYLES[character.dragon]||DRAGON_STYLES.classic).colors;
-  for(const d of s.dragons){if(d.respawn>0||s.boosts.eliminator>0)continue;actorShadow(ctx,ox+(d.x+.5)*cell,oy+(d.y+.5)*cell,cell);ctx.globalAlpha=s.sword>0?.55:1;pixels(ctx,DRAGON,ox+(d.x+.5)*cell,oy+(d.y+.5)*cell+Math.sin(s.elapsed*10+d.index)*1.2,cell*.93,{h:'#e2d8bd',d:s.boosts.frost>0?'#93d9f2':colors[d.index],b:'#e9b47e',w:'#c99373',e:s.sword>0?'#bcecff':'#ffda70'},d.dir==='right');ctx.globalAlpha=1;}
+  for(const d of s.dragons){if(d.respawn>0||s.boosts.eliminator>0)continue;actorShadow(ctx,ox+(d.x+.5)*cell,oy+(d.y+.5)*cell,cell);ctx.globalAlpha=s.sword>0?.55:1;if(!drawPlaySprite(ctx,'details',d.index%2?11:10,ox+(d.x+.5)*cell,oy+(d.y+.5)*cell+Math.sin(s.elapsed*10+d.index)*1.2,cell*.96,cell*.96,{anchor:.5,flip:d.dir==='left',tint:s.boosts.frost>0?'#93d9f2':colors[d.index],region:[0,0,1,1]}))pixels(ctx,DRAGON,ox+(d.x+.5)*cell,oy+(d.y+.5)*cell+Math.sin(s.elapsed*10+d.index)*1.2,cell*.93,{h:'#e2d8bd',d:s.boosts.frost>0?'#93d9f2':colors[d.index],b:'#e9b47e',w:'#c99373',e:s.sword>0?'#bcecff':'#ffda70'},d.dir==='right');ctx.globalAlpha=1;}
   if(s.grace<=0||Math.floor(s.elapsed*8)%2===0||preview){const px=ox+(s.player.x+.5)*cell,py=oy+(s.player.y+.5)*cell;actorShadow(ctx,px,py,cell);drawKnight(ctx,px,py,cell*.92,character,s.player.dir==='left');if(s.sword>0)sword(ctx,px+cell*.32,py,cell*.8);}
   if(s.boosts.ward>0){ctx.strokeStyle='#97e9ff';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(ox+(s.player.x+.5)*cell,oy+(s.player.y+.5)*cell,cell*.55,cell*.65,0,0,7);ctx.stroke();}
   if(!preview && s.status==='dying') {
@@ -352,7 +353,7 @@ export function drawMaze3D(ctx,s,character,width,height,angle=-Math.PI/2){
     objects.push({depth:foot.depth,draw:()=>{
       actorShadow(ctx,foot.x,foot.y,p.scale*.8);
       ctx.globalAlpha=s.sword>0?.65:1;
-      pixels(ctx,DRAGON,p.x,p.y,p.scale*1.55,{h:'#e2d8bd',d:s.boosts.frost>0?'#93d9f2':colors[dragon.index],b:'#e9b47e',w:'#c99373',e:s.sword>0?'#bcecff':'#ffda70'},dragon.dir==='right');ctx.globalAlpha=1;
+      if(!drawPlaySprite(ctx,'details',dragon.index%2?11:10,p.x,p.y,p.scale*1.55,p.scale*1.55,{anchor:.5,flip:dragon.dir==='left',tint:s.boosts.frost>0?'#93d9f2':colors[dragon.index],region:[0,0,1,1]}))pixels(ctx,DRAGON,p.x,p.y,p.scale*1.55,{h:'#e2d8bd',d:s.boosts.frost>0?'#93d9f2':colors[dragon.index],b:'#e9b47e',w:'#c99373',e:s.sword>0?'#bcecff':'#ffda70'},dragon.dir==='right');ctx.globalAlpha=1;
     }});
   }
   const foot=project(s.player.x,s.player.y),knight=project(s.player.x,s.player.y,.52);

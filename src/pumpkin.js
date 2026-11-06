@@ -1,3 +1,4 @@
+import {drawPlayBackdrop,drawPlaySprite} from './play-art.js';
 import { createMazeAudio } from './maze-audio.js';
 
 export const PUMPKINS={
@@ -16,7 +17,7 @@ function pumpkinPolygon(ctx,points,fill){
 export const PUMPKIN_HATS={none:'No hat',witch:'Witch hat',tophat:'Top hat',beanie:'Cozy beanie'};
 export function drawPumpkinAccessories(ctx,look={}){
   const color=look.color||'#9563bc';
-  ctx.save();ctx.lineJoin='round';
+  ctx.save();ctx.lineJoin='round';const fabric=ctx.createLinearGradient(-125,-200,125,-80);fabric.addColorStop(0,'#ddd0f0');fabric.addColorStop(.27,color);fabric.addColorStop(.68,color);fabric.addColorStop(1,'#2d2440');
   if(look.earmuffs){
     ctx.strokeStyle=color;ctx.lineWidth=12;ctx.beginPath();ctx.ellipse(0,-3,185,153,0,Math.PI,Math.PI*2);ctx.stroke();
     for(const x of [-177,177]){
@@ -25,8 +26,8 @@ export function drawPumpkinAccessories(ctx,look={}){
     }
   }
   if(look.hat==='witch'){
-    pumpkinPolygon(ctx,[[-85,-135],[-17,-261],[16,-248],[57,-133]],color);
-    pumpkinPolygon(ctx,[[-130,-135],[115,-135],[128,-119],[-128,-114]],'#463253');
+    ctx.fillStyle=fabric;ctx.beginPath();ctx.moveTo(-85,-135);ctx.quadraticCurveTo(-55,-202,-17,-261);ctx.quadraticCurveTo(8,-269,16,-248);ctx.quadraticCurveTo(29,-182,57,-133);ctx.closePath();ctx.fill();ctx.strokeStyle='#eee2ff55';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-62,-140);ctx.quadraticCurveTo(-42,-200,-15,-247);ctx.stroke();
+    const brim=ctx.createLinearGradient(0,-142,0,-110);brim.addColorStop(0,color);brim.addColorStop(1,'#2b203e');ctx.fillStyle=brim;ctx.beginPath();ctx.ellipse(0,-126,132,19,-.03,0,Math.PI*2);ctx.fill();
     pumpkinPolygon(ctx,[[-76,-151],[50,-151],[56,-134],[-86,-134]],'#edb95d');
     ctx.fillStyle='#fff0b0';ctx.fillRect(-13,-153,23,21);ctx.fillStyle=color;ctx.fillRect(-7,-148,11,11);
   }else if(look.hat==='tophat'){
@@ -41,8 +42,8 @@ export function drawPumpkinAccessories(ctx,look={}){
     for(let x=-95;x<100;x+=19){ctx.beginPath();ctx.moveTo(x,-133);ctx.lineTo(x,-117);ctx.stroke();}
   }
   if(look.scarf){
-    pumpkinPolygon(ctx,[[62,110],[101,112],[112,196],[82,187],[65,196]],color);
-    ctx.fillStyle=color;ctx.beginPath();ctx.roundRect(-115,110,230,30,14);ctx.fill();
+    pumpkinPolygon(ctx,[[62,110],[101,112],[112,196],[82,187],[65,196]],fabric);
+    ctx.fillStyle=fabric;ctx.beginPath();ctx.roundRect(-115,110,230,30,14);ctx.fill();
     ctx.strokeStyle='#fff0ce';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(-100,124);ctx.lineTo(98,124);ctx.moveTo(77,163);ctx.lineTo(107,160);ctx.stroke();
   }
   ctx.restore();
@@ -58,6 +59,7 @@ export function drawCarvedPumpkin(ctx,pumpkin,x,y,size=1,lit=false){
   for(const width of [140,88,34]){
     ctx.strokeStyle=look.shade+'80';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(0,0,width,148,0,0,Math.PI*2);ctx.stroke();
   }
+  if(pumpkin.kind==='classic'||pumpkin.kind==='white')drawPlaySprite(ctx,'details',pumpkin.kind==='white'?7:6,0,-25,360,350,{anchor:.5,stretch:true});
   ctx.save();ctx.beginPath();ctx.ellipse(0,0,175,145,0,0,Math.PI*2);ctx.clip();
   const inside=ctx.createLinearGradient(0,-145,0,145);
   inside.addColorStop(0,lit?'#fff0b0':'#59371e');inside.addColorStop(.55,lit?'#ffd76b':'#885222');inside.addColorStop(1,lit?'#ffbb44':'#c1853e');
@@ -110,10 +112,10 @@ export function drawPumpkinCleaning(ctx,pumpkin){
 export function drawPumpkinScene(ctx,pumpkin,width,height,clip=null,reduced=false,cursor=null){
   ctx.save();ctx.scale(width/900,height/620);
   if(clip===null){
-    ctx.fillStyle='#e8dcc8';ctx.fillRect(0,0,900,620);
+    const detailed=drawPlayBackdrop(ctx,5,900,620);if(!detailed){ctx.fillStyle='#e8dcc8';ctx.fillRect(0,0,900,620);
     ctx.fillStyle='#b88d68';ctx.fillRect(0,440,900,180);
     for(let i=0;i<6;i++){ctx.strokeStyle='#9c7355';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,450+i*35);ctx.lineTo(900,450+i*35);ctx.stroke();}
-    ctx.fillStyle='#463c42';ctx.font='bold 29px sans-serif';ctx.textAlign='center';ctx.fillText('YOUR PUMPKIN WORKSHOP',450,55);
+    }ctx.fillStyle=detailed?'#fff2c8':'#463c42';ctx.font='bold 29px sans-serif';ctx.textAlign='center';ctx.fillText('YOUR PUMPKIN WORKSHOP',450,55);
     if((pumpkin.scoops??3)<3)drawPumpkinCleaning(ctx,pumpkin);
     else drawCarvedPumpkin(ctx,pumpkin,450,330);
     if(cursor){
@@ -121,7 +123,7 @@ export function drawPumpkinScene(ctx,pumpkin,width,height,clip=null,reduced=fals
       ctx.strokeStyle='#fff9df';ctx.lineWidth=2;ctx.beginPath();ctx.arc(450+cursor.x*look.width,330+cursor.y*look.height,12,0,Math.PI*2);ctx.stroke();
     }
   }else{
-    const sky=ctx.createLinearGradient(0,0,0,620);sky.addColorStop(0,'#22233d');sky.addColorStop(1,'#655075');ctx.fillStyle=sky;ctx.fillRect(0,0,900,620);
+    if(!drawPlayBackdrop(ctx,5,900,620)){const sky=ctx.createLinearGradient(0,0,0,620);sky.addColorStop(0,'#22233d');sky.addColorStop(1,'#655075');ctx.fillStyle=sky;ctx.fillRect(0,0,900,620);
     ctx.fillStyle='#eee3ae';ctx.beginPath();ctx.arc(755,100,47,0,7);ctx.fill();
     for(let i=0;i<35;i++){ctx.fillStyle='#c3b6d5';ctx.fillRect((i*137)%900,25+(i*71)%260,2,2);}
     // Crooked house, towers, glowing windows, fence, and a winding garden path.
@@ -142,6 +144,7 @@ export function drawPumpkinScene(ctx,pumpkin,width,height,clip=null,reduced=fals
     for(const x of [130,790]){
       ctx.beginPath();ctx.moveTo(x,440);ctx.lineTo(x-10,240);ctx.lineTo(x-65,195);
       ctx.moveTo(x-10,315);ctx.lineTo(x+50,260);ctx.lineTo(x+65,207);ctx.stroke();
+    }
     }
     // Two widely separated lightning strikes; reduced motion uses a steady bolt.
     const flash=!reduced&&((clip>1.2&&clip<1.38)||(clip>4.4&&clip<4.58));

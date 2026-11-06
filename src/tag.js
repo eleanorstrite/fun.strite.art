@@ -1,3 +1,4 @@
+import {drawPlayBackdrop,drawPlaySprite} from './play-art.js';
 import { bindTagSwipes } from './touch-controls.js';
 import { createMazeAudio } from './maze-audio.js';
 
@@ -96,6 +97,7 @@ function tagPine(c,x,y,size,color){
   for(let i=0;i<3;i++)tagShape(c,[[x,y-(110-i*24)*size],[x-(21+i*6)*size,y-(51-i*24)*size],[x+(21+i*6)*size,y-(51-i*24)*size]],color);
 }
 function drawTagBackdrop(c,theme,time){
+ if(['forest','sunset'].includes(theme)&&drawPlayBackdrop(c,7,900,600))return;
   const skies={forest:['#74b8c0','#c7e5d1','#f3edcd'],sunset:['#786caf','#e9a2ad','#ffddb1'],city:['#354773','#788abd','#d3c1d5'],snow:['#729ab7','#c2ddeb','#f0f5ef']};
   c.fillStyle=tagGradient(c,0,540,skies[theme]);c.fillRect(0,0,900,600);
   for(let i=3;i>0;i--)tagOval(c,742,125,45+i*16,45+i*16,'#fff1c514');
@@ -141,6 +143,7 @@ function drawTagPlatform(c,x,y,w,theme){
   if(theme==='forest')for(let xx=x+20;xx<x+w;xx+=65){c.strokeStyle='#678b57';c.lineWidth=2;c.beginPath();c.moveTo(xx,y+23);c.quadraticCurveTo(xx-9,y+42,xx+3,y+48);c.stroke();tagOval(c,xx-4,y+34,5,2,'#8eb67a');tagOval(c,xx+1,y+43,5,2,'#8eb67a');}
 }
 export function drawTagCharacter(c,p,look,time=0){
+ const sprite=look.animal==='person'&&look.outfit==='hoodie'?['characters',p.grounded?6:7]:look.animal==='dragon'?['characters',8]:look.animal==='dog'?['characters',9]:look.animal==='cat'?['characters',13]:null;if(sprite&&drawPlaySprite(c,...sprite,p.x,p.y,58,76,{flip:p.facing<0,tint:look.animal==='person'?look.color:undefined,fur:look.animal==='person'?undefined:look.color})){c.save();c.translate(p.x,p.y);if(look.hat==='cap'){tagRound(c,-17,-70,34,10,5,'#304c6e');tagRound(c,-1,-64,25,4,2,'#f8d274');}if(look.hat==='beanie')tagOval(c,0,-67,18,10,'#f2bd64');if(look.hat==='crown')tagShape(c,[[-16,-63],[-18,-78],[-6,-70],[0,-81],[8,-70],[18,-78],[16,-63]],'#ffd36a');if(look.accessory==='scarf'){tagRound(c,-13,-45,26,6,3,'#ffce6c');tagRound(c,8,-41,6,14,2,'#ffce6c');}if(look.accessory==='glasses'){c.strokeStyle='#293848';c.lineWidth=2;c.strokeRect(-13,-60,11,8);c.strokeRect(2,-60,11,8);}c.restore();return;}
   c.save();c.translate(p.x,p.y);c.scale(p.facing,1);
   const stride=p.grounded?Math.sin(time*15)*Math.min(5,Math.abs(p.vx)/40):3;
   if(look.outfit==='cape')tagShape(c,[[-12,-40],[-30,-15],[-19,-4],[3,-16]],'#f2bf57');

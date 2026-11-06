@@ -1,3 +1,4 @@
+import {drawGameCover} from './game-covers.js';
 import {createPlatformJump,drawPlatformJumpPreview} from './platform-jump.js';
 import {createAnimalSports,drawAnimalSportsPreview} from './animal-sports.js';
 import {createDragonMemory,drawDragonMemoryPreview} from './dragon-memory.js';
@@ -30,5 +31,5 @@ export const GAMES = [
 ];
 
 export function drawPreview(canvas, game, character, modifiers) {
-  game.preview?.(canvas, character, modifiers);
+  if(!drawGameCover(canvas,game.id))game.preview?.(canvas, character, modifiers);
 }

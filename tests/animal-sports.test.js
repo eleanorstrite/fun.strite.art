@@ -24,7 +24,7 @@ test('movement stays inside courts, diagonal movement is normalized and zero tic
  const s=createSportsState('basketball');const before=structuredClone(s);tickSports(s,0,{x:1,y:1});assert.deepEqual(s,before);tickSports(s,.04,{x:1,y:1});assert.ok(Math.abs(Math.hypot(s.team[0].x-480,s.team[0].y-490)-10)<.001);advance(s,8,{x:1,y:1});assert.equal(s.team[0].x,780);assert.equal(s.team[0].y,530);
 });
 test('all five animals and free accessories are available while equipment requires shared ownership',()=>{
- assert.equal(SPORTS_ANIMALS.length,5);for(const animal of SPORTS_ANIMALS)assert.equal(validateSportsSettings({animal}).animal,animal);
+ assert.equal(SPORTS_ANIMALS.length,7);for(const animal of SPORTS_ANIMALS)assert.equal(validateSportsSettings({animal}).animal,animal);
  assert.equal(validateSportsSettings({bowling:'galaxy'}).bowling,'classic');assert.equal(validateSportsSettings({bowling:'galaxy'},['sports-galaxy-ball']).bowling,'galaxy');assert.equal(validateSportsSettings({animal:'unknown',jersey:'red'}).jersey,'#27bdd1');assert.equal(validateSportsSettings(null).animal,'capybara');
  const data=new Map(),storage={getItem:k=>data.get(k),setItem:(k,v)=>data.set(k,v)},system=createSystem(storage);system.beginSession('animal-sports').finish(SPORTS_SHOP_ITEMS.length*50);for(const item of SPORTS_SHOP_ITEMS)system.buy(item.id);assert.equal(system.snapshot().coins,0);assert.equal(system.snapshot().upgrades.filter(id=>id.startsWith('sports-')).length,SPORTS_SHOP_ITEMS.length);const next=createSystem(storage);for(const [sport,choices]of Object.entries(SPORTS_EQUIPMENT)){const [key]=Object.entries(choices).find(([,item])=>item.upgrade);assert.equal(validateSportsSettings({[sport]:key},next.snapshot().upgrades)[sport],key);}
 });

@@ -1,3 +1,4 @@
+import {drawPlayBackdrop,drawPlaySprite} from './play-art.js';
 import { createMazeAudio } from './maze-audio.js';
 
 export const VAN_FINISH=6000;
@@ -100,6 +101,7 @@ export function tickVan(s,seconds,keys={},emit=()=>{}){
 function vanOval(c,x,y,rx,ry,color){c.fillStyle=color;c.beginPath();c.ellipse(x,y,rx,ry,0,0,Math.PI*2);c.fill();}
 function vanRound(c,x,y,w,h,r,color){c.fillStyle=color;c.beginPath();c.roundRect(x,y,w,h,r);c.fill();}
 export function drawFamilyVan(c,x,y,scale=1,side=false,door=false){
+ if(drawPlaySprite(c,'objects',side?(door?2:1):0,x,y,scale*(side?330:66),scale*(side?150:116),{anchor:.5})){if(side&&!door){c.save();c.translate(x,y);c.scale(scale,scale);c.beginPath();c.rect(-75,-55,190,43);c.clip();for(let i=0;i<4;i++)drawPlaySprite(c,i===2?'daughter':'objects',i===2?0:4+i,-50+i*45,-7,35,i===3?42:66);c.restore();}return;}
   c.save();c.translate(x,y);c.scale(scale,scale);
   if(side){
     vanOval(c,0,48,160,12,'#17232a44');
@@ -123,6 +125,7 @@ export function drawFamilyVan(c,x,y,scale=1,side=false,door=false){
   c.restore();
 }
 function drawVanPassenger(c,x,y,index,walk,cheer=null){
+ if(drawPlaySprite(c,cheer!==null?'family':index===2?'daughter':'objects',cheer!==null?index:index===2?0:4+index,x,y+Math.sin(walk)*1.5-(cheer===null?0:Math.abs(cheer)*3),index===3?60:55,index===2?65:index===3?45:90))return;
   c.save();c.translate(x,y);
   if(index===3){
     vanOval(c,0,-15,22,12,'#20252b');vanOval(c,18,-27,12,13,'#343b43');vanOval(c,11,-29,6,12,'#14191e');
@@ -206,7 +209,7 @@ export function drawVanScene(c,s,width,height){
     c.textAlign='center';c.fillStyle='#263d4a';c.font='bold 32px sans-serif';c.fillText('THE RAVEN',450,555);c.font='19px sans-serif';c.fillText('Grandma, Mom, her girl, and Molly — all aboard The Raven!',450,590);
     c.restore();return;
   }
-  c.fillStyle=s.config.ice?'#d7e9ed':s.config.lava?'#543b48':'#8cae83';c.fillRect(0,0,900,650);
+  c.fillStyle=s.config.ice?'#d7e9ed':s.config.lava?'#543b48':'#8cae83';c.fillRect(0,0,900,650);if(!s.config.ice&&!s.config.lava)drawPlayBackdrop(c,3,900,650);
   const screenY=z=>500-(z-s.z);
   // A winding road with scenery anchored in world space.
   for(let z=Math.floor((s.z-180)/40)*40;z<s.z+560;z+=40){

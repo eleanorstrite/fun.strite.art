@@ -1,4 +1,4 @@
-export const SPORTS_ANIMALS=['dragon','capybara','cat','dog','bird'];
+export const SPORTS_ANIMALS=['dragon','capybara','cat','dog','bird','fox','rabbit'];
 export const SPORTS_ARENAS={bowling:'Neon Bowling',tennis:'Skyline Tennis',basketball:'Championship Basketball'};
 export const SPORTS_EQUIPMENT={bowling:{classic:{name:'Ocean bowling ball',color:'#27bed4'},galaxy:{name:'Galaxy bowling ball',color:'#a47aff',upgrade:'sports-galaxy-ball'}},tennis:{classic:{name:'Club racket',color:'#41cdb4'},comet:{name:'Comet racket',color:'#ff7fa9',upgrade:'sports-comet-racket'}},basketball:{classic:{name:'Classic basketball',color:'#ee8a35'},gold:{name:'Golden basketball',color:'#f2cc63',upgrade:'sports-gold-ball'}}};
 // Two starter finishes per sport, plus three permanent shop options each.

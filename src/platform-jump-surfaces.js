@@ -1,3 +1,4 @@
+import {drawPlaySprite} from './play-art.js';
 // Every prop's flat top is the same surface used by the landing physics.
 export const JUMP_SURFACES=['barrels','food cart','wagon','wheelbarrow','boards','platform'];
 export function jumpSurface(number){return number===0?'ground':number===48?'finish':JUMP_SURFACES[(number-1)%JUMP_SURFACES.length];}
@@ -6,6 +7,7 @@ function line(c,x,y,x2,y2,color,width=2){c.strokeStyle=color;c.lineWidth=width;c
 function wheel(c,x,y,r=12){c.fillStyle='#303843';c.beginPath();c.arc(x,y,r,0,Math.PI*2);c.fill();c.strokeStyle='#adb9bd';c.lineWidth=2;for(let i=0;i<6;i++){const a=i*Math.PI/3;line(c,x,y,x+Math.cos(a)*(r-3),y+Math.sin(a)*(r-3),'#adb9bd');}c.fillStyle='#e4c28b';c.beginPath();c.arc(x,y,3,0,Math.PI*2);c.fill();}
 function wood(c,x,y,w,h){rect(c,x,y,w,h,'#af713b');for(let j=0;5+j*7<h-1;j++){line(c,x+4,y+5+j*7,x+w-4,y+6+j*7,'#d59c5a',1); }for(const xx of [x+7,x+w-7])rect(c,xx,y+3,3,3,'#4c4945',1);}
 export function drawJumpSurface(c,p,number,y){const kind=jumpSurface(number),x=p.x-p.w/2,w=p.w;c.save();
+ const artIndex={'barrels':0,'food cart':1,wagon:2,wheelbarrow:3,boards:4,platform:5,ground:5,finish:7}[kind];if(kind!=='ground'&&drawPlaySprite(c,'platforms',artIndex,p.x,y-3,w,kind==='food cart'?100:75,{anchor:0,stretch:true})){if(number>0){rect(c,p.x-16,y+6,32,23,'#fff8e5',5);c.fillStyle='#34414c';c.font='800 15px system-ui';c.textAlign='center';c.fillText(String(number),p.x,y+23);}c.restore();return;}
  if(kind==='barrels'){
   const count=3,bw=w/count;for(let j=0;j<count;j++){const bx=x+j*bw;rect(c,bx+1,y,bw-2,54,'#a56b38',9);for(let k=1;k<5;k++)line(c,bx+k*bw/5,y+5,bx+k*bw/5,y+49,'#d09552',2);for(const yy of [y+10,y+39])rect(c,bx+1,yy,bw-2,7,'#53616a',2);rect(c,bx,y,bw,5,'#ead0a0');}
  }else if(kind==='food cart'){

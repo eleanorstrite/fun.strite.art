@@ -88,7 +88,8 @@ export function createCityScene(original,state){
   const ripples=new T.Group();ripples.name='swimming-ripples';scene.add(ripples);for(let i=0;i<3;i++){const ring=mesh(ripples,geo('swim-ripple',()=>new T.TorusGeometry(.45,.012,6,48)),material('swim-ripple-'+i,{color:'#d7f8ff',transparent:true,opacity:.5,depthWrite:false}),0,0,0);ring.rotation.x=-Math.PI/2;}ripples.visible=false;
   const fireGraphics=createFireGraphics(scene,camera,material,geo);
   function showBite(kind){bite.clear();const food=orderModel(kind);food.removeFromParent();if(kind==='chips')food.getObjectByName('chip-packaging').visible=false;food.name='eating-'+kind;food.scale.setScalar(['galaxyShake','fruitCup','cake'].includes(kind)?.33:.55);bite.add(food);bite.userData.kind=kind;}
-  function person(swimming=swimLook){swimLook=swimming;avatar.name=swimming?'swimming-player':'city-player';avatar.clear();limbs=[];knees=[];const p=state.person,skin=solid(p.skin),jacket=solid(swimming?'#26b9c8':p.jacket),pants=solid(swimming?'#187b94':p.pants),hair=solid(p.hair);
+  function cloth(color){const mat=texture('avatar-cloth:'+color,c=>{c.fillStyle=color;c.fillRect(0,0,256,256);for(let i=0;i<256;i+=4){c.strokeStyle='#ffffff0a';c.beginPath();c.moveTo(i,0);c.lineTo(i,256);c.stroke();c.strokeStyle='#0000000b';c.beginPath();c.moveTo(0,i);c.lineTo(256,i);c.stroke();}});mat.bumpScale=.005;return mat;}
+  function person(swimming=swimLook){swimLook=swimming;avatar.name=swimming?'swimming-player':'city-player';avatar.clear();limbs=[];knees=[];const p=state.person,skin=solid(p.skin,.58),jacket=cloth(swimming?'#26b9c8':p.jacket),pants=cloth(swimming?'#187b94':p.pants),hair=solid(p.hair);
     const torso=mesh(avatar,geo('torso',()=>new T.CapsuleGeometry(.24,.38,6,12)),jacket,0,1.15,0);torso.scale.z=.65;
     if(!swimming&&p.outfit==='coat')box(avatar,0,.82,0,.53,.55,.36,jacket);
     if(swimming){box(avatar,0,1.13,.18,.44,.06,.025,'#f7e481');torso.name='swimsuit';}else box(avatar,0,1.2,.18,.025,.62,.02,'#c6bd9c');
@@ -96,7 +97,8 @@ export function createCityScene(original,state){
       const arm=new T.Group();arm.position.set(side*.32,1.37,0);avatar.add(arm);mesh(arm,geo('arm',()=>new T.CapsuleGeometry(.075,.4,5,10)),swimming?skin:jacket,0,-.24,0);ball(arm,0,-.5,0,.07,.1,.07,skin);limbs.push(arm);}
     bite=new T.Group();bite.name='eating-food';avatar.add(bite);bite.visible=false;magic?.reattach();
     cylinder(avatar,0,1.52,0,.08,.16,skin);head=ball(avatar,0,1.76,0,.18,.23,.18,skin);ball(avatar,0,1.9,-.02,.19,.13,.18,hair);ball(avatar,0,1.76,.175,.045,.055,.05,skin);
-    for(const x of [-.07,.07])ball(avatar,x,1.8,.16,.018,.022,.015,'#28332e');
+    for(const x of [-.07,.07]){ball(avatar,x,1.8,.165,.035,.026,.019,'#fff7e7');ball(avatar,x,1.799,.181,.016,.021,.012,'#594d3d');ball(avatar,x,1.8,.19,.009,.014,.007,'#202b30');ball(avatar,x-.004,1.807,.196,.004,.005,.003,'#ffffff');box(avatar,x,1.85,.158,.064,.012,.015,hair);}
+    for(const side of [-1,1])ball(avatar,side*.177,1.76,0,.035,.065,.035,skin);box(avatar,0,1.675,.172,.07,.012,.012,'#a96b64');
     if(!swimming&&p.outfit==='hoodie')ball(avatar,0,1.52,-.13,.24,.21,.18,jacket);
     if(!swimming&&p.accessory==='cap'){ball(avatar,0,1.96,0,.2,.09,.2,jacket);box(avatar,0,1.94,.2,.36,.035,.22,jacket);}
     if(!swimming&&p.accessory==='backpack'){box(avatar,0,1.2,-.24,.4,.52,.2,'#98734c');for(const x of [-.18,.18])box(avatar,x,1.25,.19,.045,.4,.03,'#98734c');}

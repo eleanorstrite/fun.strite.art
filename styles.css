@@ -229,3 +229,7 @@ nav .shop-shortcut{padding:12px 18px;min-height:44px;display:inline-flex;align-i
 .wizard-create[aria-pressed=true]{box-shadow:0 0 0 3px #d1b26b}
 
 .wizard-studio-tiles .wizard-outfit-locked canvas{filter:grayscale(1);opacity:.5}.wizard-studio-tiles .wizard-outfit-locked{opacity:.8;cursor:not-allowed}
+
+.game-art.library-cover{height:auto;aspect-ratio:16/9;background:#252b43}.library-cover canvas{display:block;width:100%;height:100%;object-fit:contain;transition:transform .35s ease}.game-card:hover .library-cover canvas{transform:scale(1.025)}.library-cover .game-tag{top:auto;bottom:10px;left:10px;padding:5px 7px;font-size:8px;background:#ffffffde}@media(prefers-reduced-motion:reduce){.game-card:hover .library-cover canvas{transform:none}}
+
+.dragon-memory-board{background:radial-gradient(ellipse at 15% 5%,#bc9ec477,transparent 42%),radial-gradient(ellipse at 90% 25%,#70a9b56b,transparent 45%),linear-gradient(160deg,#526588,#2c405d 60%,#1d2a43)}.memory-dragon{background:linear-gradient(145deg,#dceeff18,#16243b88);border-color:#b9dcf34a}.memory-dragon.is-matched{box-shadow:0 0 22px #d6b4ff55;border-color:#dbc9ff}

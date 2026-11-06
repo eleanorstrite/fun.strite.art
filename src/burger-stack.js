@@ -1,3 +1,4 @@
+import {drawPlayBackdrop,drawPlaySprite,drawPlayFood} from './play-art.js';
 import { createMazeAudio } from './maze-audio.js';
 
 export const BURGER_BACKGROUNDS={kitchen:'House kitchen',diner:'Burger diner',picnic:'Garden picnic',classic:'Classic sky'};
@@ -37,6 +38,7 @@ function burgerOval(c,x,y,rx,ry,color){c.fillStyle=color;c.beginPath();c.ellipse
 function burgerRound(c,x,y,w,h,r,color){c.fillStyle=color;c.beginPath();c.roundRect(x,y,w,h,r);c.fill();}
 function burgerGradient(c,y1,y2,colors){const g=c.createLinearGradient(0,y1,0,y2);if(!g?.addColorStop)return colors[0];colors.forEach((color,i)=>g.addColorStop(i/(colors.length-1),color));return g;}
 export function drawBurgerLayer(c,piece,y){
+ const sprite={bun:0,cheese:1,lettuce:2,tomato:3,patty:4}[piece.kind];if(drawPlayFood(c,sprite,piece.x,y-34,piece.width+58,57,358))return;
   const {x,width:w,kind}=piece,depth=58,rise=34;
   const colors={cheese:['#ffdb65','#dda135','#f0b94a'],lettuce:['#a8d97b','#528b4d','#74aa56'],tomato:['#f78a70','#bd4c48','#db5d50'],patty:['#a36b4d','#603b32','#7d4d38'],bun:['#edc086','#b77b42','#d59753']}[kind];
   const top=[[x,y],[x+w,y],[x+w+depth,y-rise],[x+depth,y-rise]];
@@ -54,6 +56,7 @@ export function drawBurgerLayer(c,piece,y){
 function drawSmallBurger(c,x,y,scale=1,bite=false){
   c.save();c.translate(x,y);c.scale(scale,scale);
   if(bite){c.beginPath();c.rect(-60,-65,120,120);c.moveTo(42,-25);c.arc(32,-25,10,0,Math.PI*2);c.clip('evenodd');}
+  if(drawPlaySprite(c,'details',5,0,8,68,70,{anchor:.5})){c.restore();return;}
   burgerRound(c,-29,15,58,12,6,'#dca261');burgerRound(c,-30,6,60,12,5,'#644335');burgerRound(c,-32,3,64,6,3,'#9bc45e');burgerRound(c,-29,-3,58,7,3,'#e56f5e');burgerPoly(c,[[-30,-5],[30,-5],[24,5],[7,0],[-13,7],[-30,0]],'#f9cf59');
   burgerOval(c,0,-8,31,18,'#e4ad69');burgerRound(c,-31,-8,62,12,4,'#e4ad69');
   for(let i=0;i<7;i++)burgerOval(c,-20+i*7,-11-(i%2)*7,2,1,'#ffedbe');c.restore();
@@ -137,6 +140,7 @@ export function drawBurgerEnding(c,time,width,height,score,best,reduced=false){
   c.font='bold 25px sans-serif';c.fillText(score+' layers stacked · Best '+Math.max(score,best),450,577);c.restore();
 }
 function drawBurgerBackdrop(c,background){
+ if(['classic','diner'].includes(background)&&drawPlayBackdrop(c,6,620,720))return;
   if(background==='classic'){
     c.fillStyle=burgerGradient(c,0,720,['#176d83','#5c9e9f','#b0c6a0']);c.fillRect(0,0,620,720);
     for(let i=0;i<14;i++){c.fillStyle='#ffffff22';c.fillRect((i*97)%620,(i*131)%720,3,3);}return;

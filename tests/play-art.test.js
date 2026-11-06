@@ -1,0 +1,21 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import{statSync}from'node:fs';
+import{PLAY_ART}from'../src/play-art-bounds.js';
+import{drawPlaySprite,drawPlayFood,drawPlayBackdrop}from'../src/play-art.js';
+import{drawJumper}from'../src/platform-jump-person.js';
+import{JUMP_DEFAULTS}from'../src/platform-jump-rules.js';
+import{drawJumpSurface}from'../src/platform-jump-surfaces.js';
+import{drawSportsAnimal}from'../src/animal-sports-art.js';
+import{SPORTS_DEFAULTS,SPORTS_ANIMALS}from'../src/animal-sports-settings.js';
+import{drawFamilyVan}from'../src/van-adventure.js';
+import{drawFlyer}from'../src/sky-flight.js';
+import{drawAirplane}from'../src/air-race.js';
+import{drawBurgerLayer}from'../src/burger-stack.js';
+import{drawKnight}from'../src/knight-maze.js';
+function fixture(t){const old={Image:globalThis.Image,document:globalThis.document};t.after(()=>Object.assign(globalThis,old));globalThis.document=undefined;globalThis.Image=class{complete=true;set src(v){this.url=v;const group=v.match(/gameplay\/(.+)\.png/)?.[1],data=PLAY_ART[group];this.naturalWidth=data?.width||(v.endsWith('backdrops.jpg')?1182:0);this.naturalHeight=data?.height||(v.endsWith('backdrops.jpg')?1330:0);}get src(){return this.url;}};const draws=[],labels=[],c=new Proxy({canvas:{width:900,height:650},drawImage:(...a)=>draws.push(a),fillText:v=>labels.push(v),measureText:()=>({width:40}),createLinearGradient:()=>({addColorStop(){}}),createRadialGradient:()=>({addColorStop(){}})},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});return{c,draws,labels};}
+test('every gameplay sprite has a complete static atlas and valid alpha bounds',()=>{assert.equal(PLAY_ART.characters.bounds.length,16);assert.equal(PLAY_ART.objects.bounds.length,16);assert.equal(PLAY_ART.details.bounds.length,16);assert.equal(PLAY_ART.platforms.bounds.length,8);assert.equal(PLAY_ART.family.bounds.length,4);for(const[group,data]of Object.entries(PLAY_ART)){assert.ok(statSync(new URL('../assets/gameplay/'+group+'.png',import.meta.url)).size>1000);for(const b of data.bounds){assert.ok(b.w>0&&b.h>0);assert.ok(b.x>=0&&b.y>=0&&b.x+b.w<=data.width&&b.y+b.h<=data.height);}}});
+test('all transparent sprites draw at bounded sizes, and trimmed burger textures preserve piece width',t=>{const{c,draws}=fixture(t);for(const[group,data]of Object.entries(PLAY_ART))for(let index=0;index<data.bounds.length;index++){assert.equal(drawPlaySprite(c,group,index,100,100,80,90,{flip:true,angle:.2}),true);const a=draws.at(-1);assert.ok(a.slice(1).every(Number.isFinite));assert.ok(a[7]<=80+1e-8&&a[8]<=90+1e-8);}for(const width of[358,178,58]){drawPlayFood(c,0,20,50,width,57,358);const a=draws.at(-1);assert.equal(a[7],width);assert.equal(a[8],57);assert.ok(Math.abs(a[3]/PLAY_ART.details.bounds[0].w-width/358)<1e-8);}});
+test('the actual hero, athlete, van, flyer, airplane, burger and knight renderers use the detailed art',t=>{const{c,draws,labels}=fixture(t),seen=(group)=>draws.some(a=>a[0].src?.endsWith('/'+group+'.png'));drawJumper(c,100,200,JUMP_DEFAULTS,0,false);assert.ok(seen('characters'));draws.length=0;for(const animal of SPORTS_ANIMALS)drawSportsAnimal(c,100,200,60,{...SPORTS_DEFAULTS,animal},0,false);assert.ok(seen('characters')&&seen('details'));draws.length=0;drawFamilyVan(c,100,200,1,true);assert.ok(seen('objects'));draws.length=0;drawFlyer(c,100,200,80,{animal:'bluebird',color:'#3388ee'},1);assert.ok(seen('objects'));draws.length=0;drawAirplane(c,100,200,100,{style:'sport'},0,1);assert.ok(seen('objects'));draws.length=0;drawBurgerLayer(c,{kind:'lettuce',x:20,width:180},200);assert.ok(seen('details'));draws.length=0;drawKnight(c,100,100,40,{armor:'silver',helmet:'plume',cape:true,color:'#e2a457'});assert.ok(seen('knight'));for(let n=0;n<=48;n++)drawJumpSurface(c,{x:200,w:130},n,250);assert.ok(seen('platforms'));for(let n=1;n<=48;n++)assert.ok(labels.includes(String(n)),'Readable landing marker '+n);});
+
+test('detailed scenery crops remain within the shared background atlas at phone and desktop sizes',t=>{const{c,draws}=fixture(t);for(let index=0;index<8;index++)for(const[w,h]of[[900,650],[540,720]]){assert.equal(drawPlayBackdrop(c,index,w,h),true);const a=draws.at(-1);assert.ok(a[1]>=0&&a[2]>=0&&a[1]+a[3]<=1182+.001&&a[2]+a[4]<=1330+.001);assert.deepEqual(a.slice(5),[0,0,w,h]);}});

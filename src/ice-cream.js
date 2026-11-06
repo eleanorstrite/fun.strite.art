@@ -1,3 +1,4 @@
+import {drawPlayBackdrop,drawPlaySprite} from './play-art.js';
 import { createMazeAudio } from './maze-audio.js';
 
 import { ICE_CONES, ICE_FLAVORS, ICE_TOPPINGS, ICE_UNLOCKS, iceIngredientUnlocked } from './ice-settings.js';
@@ -264,6 +265,7 @@ export function drawIceDessert(ctx,recipe,x,y,scale=1,bites=0){
   ctx.restore();
 }
 function drawIceDragon(ctx,x,y,time,mouth,headX=0,headY=0){
+ if(drawPlaySprite(ctx,'objects',mouth>.2?15:14,x+28+headX*.55,y+197+headY*.35,245,260,{angle:Math.sin(time*3)*.015}))return;
   ctx.save();ctx.translate(x,y);
   // A friendly, round dragon with folded wings, little horns and expressive eyes.
   iceShape(ctx,[[45,60],[130,20],[114,120],[65,105]],'#8260bb');
@@ -319,12 +321,12 @@ export function iceEndingSounds(recipe,from,to){
 }
 export function drawIceScene(ctx,recipe,width,height,clipTime=null,reducedMotion=false){
   ctx.save();ctx.scale(width/900,height/620);
-  ctx.fillStyle='#fff1df';ctx.fillRect(0,0,900,620);
+  if(!drawPlayBackdrop(ctx,4,900,620)){ctx.fillStyle='#fff1df';ctx.fillRect(0,0,900,620);
   for(let i=0;i<12;i++){ctx.fillStyle=i%2?'#f3b8c5':'#fff5e7';ctx.fillRect(i*75,0,75,68);iceOval(ctx,i*75+37.5,68,37.5,18,ctx.fillStyle);}
   ctx.fillStyle='#e4f2ed';ctx.fillRect(55,124,790,330);
   ctx.strokeStyle='#aaccc3';ctx.lineWidth=7;ctx.strokeRect(55,124,790,330);
   ctx.fillStyle='#cbe4db';ctx.fillRect(445,124,8,330);
-  ctx.fillStyle='#c79575';ctx.fillRect(0,470,900,150);ctx.fillStyle='#eec8a2';ctx.fillRect(0,456,900,24);
+  ctx.fillStyle='#c79575';ctx.fillRect(0,470,900,150);ctx.fillStyle='#eec8a2';ctx.fillRect(0,456,900,24);}
   ctx.textAlign='center';ctx.fillStyle='#533e4a';ctx.font='bold 28px sans-serif';
   ctx.fillText(clipTime===null?'THE LITTLE DRAGON ICE CREAM PARLOR':'A treat for your dragon!',450,111);
   if(clipTime===null){

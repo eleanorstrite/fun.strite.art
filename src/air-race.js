@@ -1,3 +1,4 @@
+import {drawPlayBackdrop,drawPlaySprite} from './play-art.js';
 import { AIR_DIFFICULTIES } from './system.js';
 import { createMazeAudio } from './maze-audio.js';
 
@@ -100,6 +101,7 @@ function drawPlaneAccessories(ctx,look,time=0,sideView=false){
   ctx.restore();
 }
 export function drawAirplane(ctx,x,y,size,look={},bank=0,time=0){
+ if((!look.style||look.style==='sport')&&(!look.hat||look.hat==='none')&&(!look.scarf||look.scarf==='none')&&drawPlaySprite(ctx,'objects',12,x,y,size*1.35,size*.8,{anchor:.5,angle:bank,tint:look.color,region:[0,0,1,1]}))return;
   ctx.save();ctx.translate(x,y);ctx.rotate(bank);ctx.scale(size/100,size/100);
   const color=look.color||'#ed6e40',jet=look.style==='jet',swept=look.style==='swept'||look.style==='stealth',biplane=look.style==='biplane';
   // Chase camera: foreshortened fuselage, broad horizontal wings, and the
@@ -160,6 +162,7 @@ export function drawAirplane(ctx,x,y,size,look={},bank=0,time=0){
 }
 
 export function drawAirScenery(ctx,background='valley',distance=0){
+ if(background==='valley'&&drawPlayBackdrop(ctx,0,900,650))return;
   const palettes={
     valley:['#77b8d4','#d9e9d9','#f4dfb5','#739c9c','#638f7b','#7eb5bf'],
     sunset:['#685c9e','#f3a16c','#ffdfa0','#ac6d91','#875f86','#e9aa86'],

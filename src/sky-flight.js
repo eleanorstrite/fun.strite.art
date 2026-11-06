@@ -1,3 +1,4 @@
+import {drawPlayBackdrop,drawPlaySprite} from './play-art.js';
 import { FLIGHT_LEVELS, FLIGHT_DEFAULTS, validateFlightSettings } from './flight-settings.js';
 import { createMazeAudio } from './maze-audio.js';
 export const FLIGHT_WIDTH=540, FLIGHT_HEIGHT=720, FLIGHT_FLOOR=680;
@@ -34,6 +35,7 @@ export function tickFlight(s,dt,onPass=()=>{}){
 }
 function polygon(ctx,points,color){ctx.fillStyle=color;ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();ctx.fill();}
 export function drawFlyer(ctx,x,y,size,settings,time=0,tilt=0){
+ const pose=Math.sin(time*10)>0?1:0,sprite=settings.animal==='bluebird'?['objects',8+pose]:settings.animal==='dragon'?['objects',10+pose]:settings.animal==='taco'?['details',15]:settings.animal==='burger'?['details',5]:null;if(sprite&&drawPlaySprite(ctx,...sprite,x,y,size*1.1,size,{anchor:.5,angle:tilt,tint:settings.animal==='dragon'?settings.color:undefined,region:[0,0,1,1]}))return;
   ctx.save();ctx.translate(x,y);ctx.rotate(tilt);ctx.scale(size/80,size/80);
   const flap=Math.sin(time*(settings.animal==='hummingbird'?34:10)),color=settings.color;
   // Original animated silhouettes inspired by the supplied animal references.
@@ -332,6 +334,7 @@ export function drawFlight(ctx,s,width,height,reducedMotion=false,backgroundOnly
     polygon(ctx,[[0,610],[180,480],[370,600],[540,460],[540,720],[0,720]],colors[3]);
     if(sunset||background==='snow'){polygon(ctx,[[77,405],[100,360],[134,410],[106,399],[96,408]],'#ffe9d1');polygon(ctx,[[311,387],[340,330],[374,385],[344,374],[333,388]],'#ffe9d1');}
   }
+  if(background==='classic')drawPlayBackdrop(ctx,0,540,720);
   if(backgroundOnly){ctx.restore();return;}
   for(const p of s.pipes)drawPipe(ctx,p,s);
   ctx.fillStyle=background==='snow'?'#edf6fb':'#e6d8af';ctx.fillRect(0,FLIGHT_FLOOR,540,40);ctx.fillStyle=background==='snow'?'#b3cedd':'#688575';ctx.fillRect(0,FLIGHT_FLOOR,540,6);

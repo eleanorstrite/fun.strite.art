@@ -1,3 +1,4 @@
+import {drawPlayBackdrop,drawPlaySprite} from './play-art.js';
 import {drawEquipmentSprite} from './sports-equipment-art.js';
 import {sportsShotPoint,sportsShotAligned} from './animal-sports-rules.js';
 import {drawSportsHub} from './sports-hub.js';
@@ -7,6 +8,7 @@ const line=(c,points,color='#ffffffbb',width=3)=>{c.strokeStyle=color;c.lineWidt
 function panel(c,x,y,w,h,color,r=10){c.fillStyle=color;c.beginPath();c.roundRect(x,y,w,h,r);c.fill();}
 function text(c,value,x,y,size=22,color='#fff'){c.fillStyle=color;c.font=`700 ${size}px system-ui`;c.textAlign='center';c.fillText(value,x,y);}
 export function drawSportsAnimal(c,x,y,size,settings=SPORTS_DEFAULTS,time=0,moving=false){
+ const sprite={dog:['characters',10],fox:['characters',11],rabbit:['characters',12],cat:['characters',13],dragon:['characters',14],capybara:['details',13],bird:['details',14]}[settings.animal];if(sprite&&drawPlaySprite(c,...sprite,x,y+(moving?Math.sin(time*10)*2:0),size*1.25,size*1.5,{tint:settings.jersey,fur:settings.color!==SPORTS_DEFAULTS.color?settings.color:undefined})){c.save();c.translate(x,y);c.scale(size/60,size/60);if(settings.accessory==='headband')panel(c,-18,-66,36,5,settings.jersey,3);if(settings.accessory==='cap'){panel(c,-19,-77,38,12,settings.jersey,8);panel(c,-17,-68,43,4,settings.jersey,3);}if(settings.accessory==='glasses'){c.strokeStyle='#26324a';c.lineWidth=2;c.strokeRect(-16,-66,13,9);c.strokeRect(3,-66,13,9);}c.restore();return;}
  c.save();c.translate(x,y);c.scale(size/60,size/60);const coat=settings.color,jersey=settings.jersey,animal=settings.animal,bob=moving?Math.sin(time*11)*2:0;
  ellipse(c,0,6,27,8,'#101c3435');c.translate(0,bob);
  if(animal==='dragon'){for(const side of [-1,1]){c.fillStyle=coat;c.beginPath();c.moveTo(side*15,-25);c.lineTo(side*48,-50);c.quadraticCurveTo(side*42,-20,side*22,-7);c.fill();line(c,[[side*18,-25],[side*40,-41],[side*25,-15]],'#eee2cc77',2);}}
@@ -52,6 +54,7 @@ export function drawEquipmentPreview(canvas,sport,finish,time=0){
  for(let i=0;i<6;i++){const a=time*.5+i*Math.PI/3;const x=160+Math.cos(a)*100,y=85+Math.sin(a)*55;line(c,[[x-3,y],[x+3,y]],'#d8ecff99',1);line(c,[[x,y-3],[x,y+3]],'#d8ecff99',1);}
 }
 export function stands(c,sport){
+ if(drawPlayBackdrop(c,1,960,600))return;
  const bg=c.createLinearGradient(0,0,0,600);bg.addColorStop(0,sport==='tennis'?'#7dc8ed':'#0c1932');bg.addColorStop(1,'#294466');c.fillStyle=bg;c.fillRect(0,0,960,600);
  if(sport==='tennis'){ellipse(c,805,45,28,28,'#fff0b5');for(let i=0;i<6;i++){c.fillStyle=i%2?'#769c9f':'#a3bec0';c.beginPath();c.moveTo(i*200-80,130);c.lineTo(i*200+50,35+i%3*15);c.lineTo(i*200+180,130);c.fill();}}
  for(let row=0;row<5;row++){panel(c,40,58+row*17,880,13,sport==='basketball'?'#ae3c47':sport==='tennis'?'#c3a16c':'#293c69',2);for(let i=0;i<43;i++){ellipse(c,52+i*20,61+row*17,3,3,['#a9dfe3','#eac79c','#f18880','#9098d5'][i%4]);}}
