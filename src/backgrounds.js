@@ -24,7 +24,7 @@ export function initBackgroundPicker(storage,system) {
   for(const scene of BACKGROUNDS){
     const button=document.createElement('button');button.type='button';button.className='background-choice';button.dataset.background=scene.id;
     const preview=document.createElement('span');preview.className='background-thumbnail';preview.setAttribute('aria-hidden','true');
-    if(scene.id!=='classic')preview.style.backgroundImage=`url('./assets/backgrounds/${scene.id}.svg')`;
+    if(scene.id!=='classic')preview.style.backgroundImage=`url('./assets/backgrounds/${scene.id}-realistic-thumb.jpg')`;
     const label=document.createElement('span');label.textContent=scene.name;button.append(preview,label);
     button.onclick=()=>{if(scene.upgrade&&!system.snapshot().upgrades.includes(scene.upgrade))return;apply(scene.id);const saved=saveBackground(storage,scene.id,system.snapshot().upgrades);status.textContent=saved?`${scene.name} background saved.`:`${scene.name} selected for this visit. Browser saving is unavailable.`;};
     options.append(button);
