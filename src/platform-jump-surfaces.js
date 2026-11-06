@@ -1,13 +1,13 @@
 import {drawPlaySprite} from './play-art.js';
 // Every prop's flat top is the same surface used by the landing physics.
-export const JUMP_SURFACES=['barrels','food cart','wagon','wheelbarrow','boards','platform'];
+export const JUMP_SURFACES=['barrels','food cart','wagon','wheelbarrow','taco truck','boards','platform'];
 export function jumpSurface(number){return number===0?'ground':number===48?'finish':JUMP_SURFACES[(number-1)%JUMP_SURFACES.length];}
 function rect(c,x,y,w,h,color,r=2){c.fillStyle=color;c.beginPath();c.roundRect(x,y,w,h,r);c.fill();}
 function line(c,x,y,x2,y2,color,width=2){c.strokeStyle=color;c.lineWidth=width;c.beginPath();c.moveTo(x,y);c.lineTo(x2,y2);c.stroke();}
 function wheel(c,x,y,r=12){c.fillStyle='#303843';c.beginPath();c.arc(x,y,r,0,Math.PI*2);c.fill();c.strokeStyle='#adb9bd';c.lineWidth=2;for(let i=0;i<6;i++){const a=i*Math.PI/3;line(c,x,y,x+Math.cos(a)*(r-3),y+Math.sin(a)*(r-3),'#adb9bd');}c.fillStyle='#e4c28b';c.beginPath();c.arc(x,y,3,0,Math.PI*2);c.fill();}
 function wood(c,x,y,w,h){rect(c,x,y,w,h,'#af713b');for(let j=0;5+j*7<h-1;j++){line(c,x+4,y+5+j*7,x+w-4,y+6+j*7,'#d59c5a',1); }for(const xx of [x+7,x+w-7])rect(c,xx,y+3,3,3,'#4c4945',1);}
 export function drawJumpSurface(c,p,number,y){const kind=jumpSurface(number),x=p.x-p.w/2,w=p.w;c.save();
- const artIndex={'barrels':0,'food cart':1,wagon:2,wheelbarrow:3,boards:4,platform:5,ground:5,finish:7}[kind];if(kind!=='ground'&&drawPlaySprite(c,'platforms',artIndex,p.x,y-3,w,kind==='food cart'?100:75,{anchor:0,stretch:true})){if(number>0){rect(c,p.x-16,y+6,32,23,'#fff8e5',5);c.fillStyle='#34414c';c.font='800 15px system-ui';c.textAlign='center';c.fillText(String(number),p.x,y+23);}c.restore();return;}
+ const artIndex={'barrels':0,'food cart':1,wagon:2,wheelbarrow:3,boards:4,platform:5,ground:5,finish:7}[kind];if(kind==='taco truck'?drawPlaySprite(c,'taco-truck',0,p.x,y,w,w*.44,{anchor:0,stretch:true}):kind!=='ground'&&drawPlaySprite(c,'platforms',artIndex,p.x,y-3,w,kind==='food cart'?100:75,{anchor:0,stretch:true})){if(number>0){rect(c,p.x-16,y+6,32,23,'#fff8e5',5);c.fillStyle='#34414c';c.font='800 15px system-ui';c.textAlign='center';c.fillText(String(number),p.x,y+23);}c.restore();return;}
  if(kind==='barrels'){
   const count=3,bw=w/count;for(let j=0;j<count;j++){const bx=x+j*bw;rect(c,bx+1,y,bw-2,54,'#a56b38',9);for(let k=1;k<5;k++)line(c,bx+k*bw/5,y+5,bx+k*bw/5,y+49,'#d09552',2);for(const yy of [y+10,y+39])rect(c,bx+1,yy,bw-2,7,'#53616a',2);rect(c,bx,y,bw,5,'#ead0a0');}
  }else if(kind==='food cart'){
@@ -15,6 +15,8 @@ export function drawJumpSurface(c,p,number,y){const kind=jumpSurface(number),x=p
   // The striped canopy is the landing surface; food sits below it.
   for(let j=0;j<8;j++)rect(c,x+j*w/8,y,w/8+.5,14,j%2?'#fff2d5':'#df675b',2);
   for(let j=0;j<5;j++){c.fillStyle=['#e8b55c','#df6e44','#83b450'][j%3];c.beginPath();c.ellipse(x+30+j*15,y+20,6,4,0,0,Math.PI*2);c.fill();}
+ }else if(kind==='taco truck'){
+  for(const xx of [x+w*.2,x+w*.8])wheel(c,xx,y+w*.4,w*.08);rect(c,x,y,w,w*.36,'#35a9a6',4);rect(c,x,y,w,5,'#ffc52c',2);rect(c,x+w*.08,y+w*.08,w*.5,w*.14,'#423328');rect(c,x+w*.74,y+w*.06,w*.19,w*.15,'#b8e7f2');rect(c,x+2,y+w*.25,w-4,w*.07,'#f8dfaf');c.fillStyle='#d66a28';c.font='800 '+Math.max(8,w*.07)+'px system-ui';c.textAlign='center';c.fillText('TACOS',p.x,y+w*.31);
  }else if(kind==='wagon'){
   for(const xx of [x+22,x+w-22])wheel(c,xx,y+46,16);rect(c,x+8,y+5,w-16,31,'#9b5037',3);for(let j=0;j<3;j++)wood(c,x+4,y+j*10,w-8,8);for(const xx of [x+12,x+w-17])rect(c,xx,y+3,5,30,'#634936');rect(c,x,y,w,5,'#e6b779');line(c,x+w-15,y+30,x+w+13,y+19,'#534536',4);
  }else if(kind==='wheelbarrow'){

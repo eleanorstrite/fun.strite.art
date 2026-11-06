@@ -1,3 +1,5 @@
+import {jumpSurface,JUMP_SURFACES} from '../src/platform-jump-surfaces.js';
+import {tickJump,JUMP_LEVELS} from '../src/platform-jump-rules.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {drawPlatformJump,JUMP_COVER_LOOK} from '../src/platform-jump-art.js';
@@ -28,4 +30,10 @@ test('the previous untouched starter changes to the shared girl while custom app
  const old={skin:'#dba47b',hair:'#513324',shirt:'#efb17f',pants:'#82935a',hairstyle:'Short waves',outfit:'Classic colors',pet:'cat',breed:'Calico',petName:'Mittens'};
  const updated=validateJumpSettings(old);assert.equal(updated.outfit,JUMP_DEFAULTS.outfit);assert.equal(updated.hairstyle,JUMP_DEFAULTS.hairstyle);assert.equal(updated.hair,JUMP_DEFAULTS.hair);assert.equal(updated.petName,'Mittens');
  const customized=validateJumpSettings({...old,outfit:'Daisy denim overalls'});assert.equal(customized.outfit,'Daisy denim overalls');assert.equal(customized.hairstyle,'Short waves');assert.equal(customized.hair,'#513324');
+});
+
+test('taco trucks are mixed through every course and their roofs remain landable coin platforms',()=>{
+ assert.ok(JUMP_SURFACES.includes('taco truck'));assert.equal(jumpSurface(0),'ground');assert.equal(jumpSurface(48),'finish');
+ for(const difficulty of Object.keys(JUMP_LEVELS)){const course=createJumpState(difficulty),trucks=course.platforms.map((p,i)=>jumpSurface(i)==='taco truck'?i:0).filter(Boolean);assert.ok(trucks.length>=6);assert.ok(trucks[0]<10&&trucks.at(-1)>40);assert.ok(new Set(course.platforms.slice(1,48).map((p,i)=>jumpSurface(i+1))).size>=7);
+ for(const number of trucks){const s=createJumpState(difficulty),p=s.platforms[number];s.x=p.x;s.y=p.y-5;s.vy=200;s.grounded=false;s.platform=number-1;s.landingLimit=number;tickJump(s,.04);assert.equal(s.grounded,true);assert.equal(s.platform,number);assert.equal(s.y,p.y);assert.equal(s.coins[number].collected,true);}}
 });
