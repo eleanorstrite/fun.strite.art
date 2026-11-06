@@ -1,3 +1,4 @@
+import {isMilkshake,selectMilkshake,resetMilkshakeBlend,chooseMilkshakeTopping,startMilkshakeBlend,tickMilkshakeBlend,milkshakeBlendView,milkshakeEndingSounds,MILKSHAKE_DRINK_SECONDS,MILKSHAKE_THANKS,drawMilkshakeGlass,drawMilkshakeBlender,drawMilkshakeDrink} from './milkshake.js';
 import {drawIceIngredient,iceArtReady} from './ice-art.js';
 import {drawPlayBackdrop,drawPlaySprite} from './play-art.js';
 import { createMazeAudio } from './maze-audio.js';
@@ -9,7 +10,7 @@ const syrupKind=p=>p.kind||'sauce';
 const hasSyrup=r=>r.toppings.some(isIceSyrup);
 const syrupColor=p=>(ICE_SYRUPS[syrupKind(p)]||ICE_SYRUPS.sauce).color;
 const syrupShine=p=>(ICE_SYRUPS[syrupKind(p)]||ICE_SYRUPS.sauce).shine;
-export function createIceRecipe(){return {funny:false,cone:'waffle',flavor:'vanilla',flavors:['vanilla'],toppings:[],sauceDrops:[]};}
+export function createIceRecipe(){return {drink:'icecream',funny:false,cone:'waffle',flavor:'vanilla',flavors:['vanilla'],toppings:[],sauceDrops:[]};}
 export function iceRecipeFlavors(recipe){const values=Array.isArray(recipe.flavors)?recipe.flavors:[recipe.flavor];const valid=[...new Set(values.filter(id=>Object.hasOwn(ICE_FLAVORS,id)))].slice(0,3);return valid.length?valid:[Object.hasOwn(ICE_FLAVORS,recipe.flavor)?recipe.flavor:'vanilla'];}
 export function chooseIceFlavor(recipe,id,replace=false){if(!Object.hasOwn(ICE_FLAVORS,id))return false;let flavors=iceRecipeFlavors(recipe);if(replace)flavors=[id];else if(flavors.includes(id)){if(flavors.length===1)return false;flavors=flavors.filter(value=>value!==id);}else{if(flavors.length>=3)return false;flavors.push(id);}recipe.flavors=flavors;recipe.flavor=flavors[0];return true;}
 export function iceScoopLayout(recipe){const ids=iceRecipeFlavors(recipe),positions=ids.length===1?[[0,0,1]]:ids.length===2?[[-36,-5,.72],[36,-5,.72]]:[[-36,0,.68],[36,0,.68],[0,-50,.68]];return ids.map((flavor,i)=>({flavor,x:positions[i][0],y:positions[i][1],scale:positions[i][2]}));}
@@ -147,6 +148,7 @@ function drawIceCup(ctx){
   iceOval(ctx,0,6,64,12,'#e7fcf3');iceOval(ctx,0,6,55,7,'#659ba5');
 }
 export function drawIceDessert(ctx,recipe,x,y,scale=1,bites=0){
+  if(isMilkshake(recipe)){drawMilkshakeGlass(ctx,recipe,x,y,{scale});return;}
   ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);
   // The reusable cup is drawn outside the edible layer's bite mask.
   if(recipe.cone==='cup'){drawIceCup(ctx);if(bites>=4){ctx.restore();return;}}
@@ -324,6 +326,7 @@ function drawIceDragon(ctx,x,y,time,mouth,headX=0,headY=0){
   ctx.restore();
 }
 export function iceCleanup(recipe,time){
+  if(isMilkshake(recipe))return {puddles:[],licking:false,x:0,thanks:MILKSHAKE_THANKS,end:MILKSHAKE_DRINK_SECONDS};
   const puddles=hasSyrup(recipe)?(recipe.saucePuddles||[]):[];
   if(!puddles.length)return {puddles:[],licking:false,x:0,thanks:5.5,end:ICE_CLIP_SECONDS};
   const min=Math.min(...puddles.map(p=>p.x))-15,max=Math.max(...puddles.map(p=>p.x))+15;
@@ -334,6 +337,7 @@ export function iceCleanup(recipe,time){
 // Timeline crossings keep sound in step with bites and tongue strokes, including
 // after a pause; no independent timers can keep playing while the game is paused.
 export function iceEndingSounds(recipe,from,to){
+  if(isMilkshake(recipe))return milkshakeEndingSounds(recipe,from,to);
   if(recipe.funny===false)return [];
   const cues=[];
   for(let i=0;i<4;i++){const at=2.1+i*.95;if(from<at&&to>=at)cues.push('iceChew');}
@@ -352,6 +356,13 @@ export function drawIceScene(ctx,recipe,width,height,clipTime=null,reducedMotion
   ctx.fillStyle='#c79575';ctx.fillRect(0,470,900,150);ctx.fillStyle='#eec8a2';ctx.fillRect(0,456,900,24);}
   ctx.textAlign='center';ctx.fillStyle='#533e4a';ctx.font='bold 28px sans-serif';
   ctx.fillText(clipTime===null?'THE LITTLE DRAGON ICE CREAM PARLOR':'A treat for your dragon!',450,111);
+  if(isMilkshake(recipe)){
+    const v=milkshakeBlendView(recipe);
+    if(clipTime!==null)drawMilkshakeDrink(ctx,recipe,clipTime,drawIceDragon,reducedMotion);
+    else if(v.phase==='countdown'||v.phase==='blending')drawMilkshakeBlender(ctx,recipe,450,505,{reduced:reducedMotion});
+    else{drawMilkshakeGlass(ctx,recipe,450,503,{time:v.time,reduced:reducedMotion});ctx.font='800 23px system-ui';ctx.fillStyle='#533e4a';ctx.fillText(v.phase==='ready'?'Your milkshake is ready! ✨':'Build your milkshake · choose up to 3 toppings',450,553);ctx.font='17px system-ui';ctx.fillText(v.phase==='ready'?'Little topping chunks are mixed into your ice cream.':'Ice cream and toppings go into the blender next.',450,584);}
+    ctx.restore();return;
+  }
   if(clipTime===null){
     iceOval(ctx,450,493,145,20,'#a67c6244');
     ctx.save();ctx.translate(450,307);ctx.scale(1.15,1.15);drawChocolateSpill(ctx,recipe);ctx.restore();
@@ -402,10 +413,12 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
   const audio=createMazeAudio(),controller=new AbortController();
   const reduced=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false;
   let recipe=createIceRecipe(),step=0,active=false,paused=false,clip=null,spoken=false,destroyed=false,last=0,frame;
-  let funny=false,userMuted=false,flavorTouched=false;const ingredientPreviews=[];
+  let funny=false,userMuted=false,flavorTouched=false,blendControlKey='';const ingredientPreviews=[];
   let activeTopping=null,bottle={x:0,y:-30},squeezing=false,pointer=null,drag=null;
   const stopPour=()=>{squeezing=false;pointer=null;drag=null;};
-  const canPour=()=>active&&!paused&&clip===null&&step===2&&isIceSyrup(activeTopping)&&recipe.toppings.includes(activeTopping)&&!document.hidden;
+  const isMixing=()=>isMilkshake(recipe)&&['countdown','blending'].includes(recipe.blend?.phase);
+  const blendKey=()=>isMilkshake(recipe)?milkshakeBlendView(recipe).phase+':'+milkshakeBlendView(recipe).count:'';
+  const canPour=()=>!isMilkshake(recipe)&&active&&!paused&&clip===null&&step===2&&isIceSyrup(activeTopping)&&recipe.toppings.includes(activeTopping)&&!document.hidden;
   const canvasPoint=e=>{const rect=canvas.getBoundingClientRect();return {x:(e.clientX-rect.left)*900/rect.width,y:(e.clientY-rect.top)*620/rect.height};};
   const events={signal:controller.signal};
   canvas.addEventListener?.('pointerdown',e=>{
@@ -432,7 +445,7 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
     else{bottle.x=iceClamp(bottle.x+(e.key==='ArrowLeft'?-4:e.key==='ArrowRight'?4:0),-240,240);bottle.y=iceClamp(bottle.y+(e.key==='ArrowUp'?-4:e.key==='ArrowDown'?4:0),-75,12);}
   },events);
   globalThis.window?.addEventListener('keyup',e=>{if(e.key===' ')stopPour();},events);
-  const steps=['Cone','Ice cream','Toppings'];
+  const steps=['Cone / milkshake','Ice cream','Toppings'];
   const tabs=document.createElement('div');tabs.className='ice-steps';
   const heading=document.createElement('h3');heading.tabIndex=-1;
   const choices=document.createElement('div');choices.className='ice-choices';
@@ -446,48 +459,51 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
   controls.replaceChildren(tabs,heading,choices,navigation,sauceHelp,modeButton);
   const stepButtons=steps.map((label,index)=>{
     const button=document.createElement('button');button.type='button';button.className='button outline';button.textContent=(index+1)+'. '+label;
-    button.onclick=()=>{if(active&&!paused&&clip===null){step=index;renderControls();heading.focus({preventScroll:true});}};
+    button.onclick=()=>{if(active&&!paused&&clip===null&&!isMixing()){step=index;renderControls();heading.focus({preventScroll:true});}};
     tabs.append(button);return button;
   });
   function renderControls(){
     modeButton.textContent=funny?'Funny mode · switch to Normal':'Normal mode · switch to Funny';modeButton.setAttribute('aria-pressed',String(funny));
-    stopPour();sauceHelp.hidden=!(step===2&&isIceSyrup(activeTopping)&&recipe.toppings.includes(activeTopping)&&clip===null);
-    const locked=!active||paused||clip!==null;
+    stopPour();sauceHelp.hidden=!(!isMilkshake(recipe)&&step===2&&isIceSyrup(activeTopping)&&recipe.toppings.includes(activeTopping)&&clip===null);
+    const mixing=isMixing(),shake=isMilkshake(recipe),blend=milkshakeBlendView(recipe),locked=!active||paused||clip!==null||mixing;blendControlKey=blendKey();choices.hidden=mixing||(shake&&blend.phase==='ready'&&step===2);
     stepButtons.forEach((button,index)=>{button.disabled=locked;button.setAttribute('aria-pressed',String(index===step));});
-    heading.textContent=clip!==null?'Your dragon is enjoying its ice cream!':step===0?'Choose your cone':step===1?'Choose 1–3 ice cream flavors · '+iceRecipeFlavors(recipe).length+' selected':'Choose your toppings — mix as many as you like';
+    heading.textContent=clip!==null?(shake?'Your dragon is drinking its milkshake!':'Your dragon is enjoying its ice cream!'):mixing?(blend.count?'Blender countdown · '+blend.count:'Blending your ice cream and toppings…'):shake&&blend.phase==='ready'&&step===2?'Your milkshake is ready — feed your dragon!':step===0?'Choose your cone or make a milkshake':step===1?'Choose 1–3 ice cream flavors · '+iceRecipeFlavors(recipe).length+' selected':shake?'Choose up to 3 milkshake toppings · '+recipe.toppings.length+' selected':'Choose your toppings — mix as many as you like';
     choices.replaceChildren();ingredientPreviews.length=0;
     const options=step===0?ICE_CONES:step===1?Object.fromEntries(Object.entries(ICE_FLAVORS).map(([id,f])=>[id,f.name])):ICE_TOPPINGS;
     for(const [id,label] of Object.entries(options)){
       const button=document.createElement('button');button.type='button';button.className='button outline';const kind=step===0?'cone':step===1?'flavor':'topping',owned=iceIngredientUnlocked(kind,id,getUpgrades());
       const picture=document.createElement('canvas'),caption=document.createElement('span');picture.width=140;picture.height=110;picture.setAttribute?.('aria-hidden','true');caption.textContent=label+(!owned?' · Shop: 200 coins':ICE_UNLOCKS[kind]?.[id]?' · Owned':'');button.append(picture,caption);button.setAttribute?.('data-ice-kind',kind);button.setAttribute?.('data-ice-id',id);ingredientPreviews.push({picture,kind,id,ready:null});
       button.disabled=locked||!owned;
-      const selected=step===0?recipe.cone===id:step===1?iceRecipeFlavors(recipe).includes(id):recipe.toppings.includes(id);
+      const selected=step===0?(!shake&&recipe.cone===id):step===1?iceRecipeFlavors(recipe).includes(id):recipe.toppings.includes(id);
+      if(shake&&step===2&&recipe.toppings.length>=3&&!selected)button.disabled=true;
       button.setAttribute('aria-pressed',String(selected));
       button.onclick=()=>{
-        if(!active||paused||clip!==null||!iceIngredientUnlocked(kind,id,getUpgrades()))return;
-        if(step===2&&isIceSyrup(id)&&activeTopping!==id&&recipe.toppings.includes(id)){
+        if(!active||paused||clip!==null||isMixing()||!iceIngredientUnlocked(kind,id,getUpgrades()))return;
+        if(!isMilkshake(recipe)&&step===2&&isIceSyrup(id)&&activeTopping!==id&&recipe.toppings.includes(id)){
           activeTopping=id;renderControls();return;
         }
         if(step===2)activeTopping=id;
-        if(step===0)recipe.cone=id;else if(step===1){if(!chooseIceFlavor(recipe,id,!flavorTouched)){heading.textContent=iceRecipeFlavors(recipe).length===3?'Choose up to 3 flavors — remove one to try another.':'Keep at least one flavor selected.';return;}flavorTouched=true;}
+        if(step===0){recipe.drink='icecream';delete recipe.blend;recipe.cone=id;}else if(step===1){if(!chooseIceFlavor(recipe,id,!flavorTouched)){heading.textContent=iceRecipeFlavors(recipe).length===3?'Choose up to 3 flavors — remove one to try another.':'Keep at least one flavor selected.';return;}flavorTouched=true;resetMilkshakeBlend(recipe);}
+        else if(isMilkshake(recipe)){if(!chooseMilkshakeTopping(recipe,id)){heading.textContent='Choose up to 3 toppings — remove one to try another.';return;}}
         else recipe.toppings=recipe.toppings.includes(id)?recipe.toppings.filter(item=>item!==id):[...recipe.toppings,id];
-        if(step===2&&isIceSyrup(id)){
+        if(!isMilkshake(recipe)&&step===2&&isIceSyrup(id)){
           for(const key of ['sauceDrops','sauceFalling','saucePuddles'])recipe[key]=(recipe[key]||[]).filter(p=>syrupKind(p)!==id);bottle={x:0,y:-30};
         }
         audio.play('gem');renderControls();
-        if(step===2&&isIceSyrup(id)&&recipe.toppings.includes(id))canvas.scrollIntoView?.({block:'center',behavior:reduced?'auto':'smooth'});
+        if(!isMilkshake(recipe)&&step===2&&isIceSyrup(id)&&recipe.toppings.includes(id))canvas.scrollIntoView?.({block:'center',behavior:reduced?'auto':'smooth'});
         choices.children[Object.keys(options).indexOf(id)]?.focus({preventScroll:true});
       };
       choices.append(button);
     }
+    if(step===0){const button=document.createElement('button');button.type='button';button.className='button outline milkshake-choice';button.setAttribute?.('data-milkshake-choice','');button.setAttribute?.('aria-pressed',String(shake));button.disabled=locked;const picture=document.createElement('canvas'),caption=document.createElement('span');picture.width=140;picture.height=110;picture.setAttribute?.('aria-hidden','true');caption.textContent='Make a milkshake';button.append(picture,caption);ingredientPreviews.push({picture,kind:'drink',id:'milkshake',ready:null});button.onclick=()=>{if(!active||paused||clip!==null||isMixing())return;selectMilkshake(recipe);activeTopping=null;renderControls();};choices.append(button);}
     back.disabled=locked||step===0;next.disabled=locked;
-    next.textContent=step===2?'Done — feed the dragon!':'Next: '+steps[step+1]+' →';
+    next.textContent=step===2?(shake?(blend.phase==='ready'?'Feed dragon':mixing?'Blending…':'Send to blender'):'Done — feed the dragon!'):'Next: '+steps[step+1]+' →';
     onHud({text:clip!==null?'Watch your dragon enjoy the treat!':steps[step]+' · '+recipe.toppings.length+' toppings · More ingredients in the Appearance shop'});
   }
-  back.onclick=()=>{if(active&&!paused&&clip===null&&step>0){step--;renderControls();heading.focus({preventScroll:true});}};
+  back.onclick=()=>{if(active&&!paused&&clip===null&&!isMixing()&&step>0){step--;renderControls();heading.focus({preventScroll:true});}};
   next.onclick=()=>{
-    if(!active||paused||clip!==null)return;
-    if(step<2)step++;else{
+    if(!active||paused||clip!==null||isMixing())return;
+    if(step<2)step++;else if(isMilkshake(recipe)){if(recipe.blend?.phase==='ready'){clip=0;spoken=false;audio.stop();}else{startMilkshakeBlend(recipe);activeTopping=null;canvas.scrollIntoView?.({block:'center',behavior:reduced?'auto':'smooth'});}}else{
       // Finish any airborne drops before the dragon begins its cleanup.
       for(const drop of recipe.sauceFalling||[]){
         recipe.saucePuddles??=[];
@@ -498,7 +514,7 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
     }
     renderControls();heading.focus({preventScroll:true});
   };
-  function paintIngredientPreviews(){const ready=iceArtReady();for(const entry of ingredientPreviews){if(entry.ready===ready)continue;const c=entry.picture.getContext?.('2d');if(!c)continue;c.clearRect(0,0,140,110);if(!drawIceIngredient(c,entry.kind==='cone'?'cones':entry.kind==='flavor'?'flavors':'toppings',entry.id,8,5,124,100)){c.fillStyle=entry.kind==='flavor'?ICE_FLAVORS[entry.id].color:'#f3cf91';c.beginPath();c.ellipse(70,55,34,34,0,0,Math.PI*2);c.fill();}entry.ready=ready;}}
+  function paintIngredientPreviews(){const ready=iceArtReady();for(const entry of ingredientPreviews){if(entry.ready===ready)continue;const c=entry.picture.getContext?.('2d');if(!c)continue;c.clearRect(0,0,140,110);if(entry.kind==='drink'){drawMilkshakeGlass(c,{...createIceRecipe(),drink:'milkshake'},70,108,{scale:.27});entry.ready=ready;continue;}if(!drawIceIngredient(c,entry.kind==='cone'?'cones':entry.kind==='flavor'?'flavors':'toppings',entry.id,8,5,124,100)){c.fillStyle=entry.kind==='flavor'?ICE_FLAVORS[entry.id].color:'#f3cf91';c.beginPath();c.ellipse(70,55,34,34,0,0,Math.PI*2);c.fill();}entry.ready=ready;}}
   function finish(){
     if(!active)return;active=false;
     onFinish(5,{title:'Your dragon loved it!',detail:'Make another delicious creation!'});
@@ -513,10 +529,11 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
       if(clip>=cleanup.thanks&&!spoken){spoken=true;audio.say('Yum! Thank you!',1.1);}
       if(clip>=cleanup.end)finish();
     }
+    if(active&&!paused&&!document.hidden&&clip===null&&isMilkshake(recipe)){tickMilkshakeBlend(recipe,dt);if(blendControlKey!==blendKey())renderControls();}
     if(canPour()&&squeezing)pourIceChocolate(recipe,bottle.x,bottle.y,dt,activeTopping);
     if(active&&!paused&&!document.hidden&&clip===null)tickIceChocolate(recipe,dt);
     drawIceScene(ctx,recipe,canvas.width,canvas.height,clip,reduced);
-    if(active&&step===2&&isIceSyrup(activeTopping)&&clip===null&&recipe.toppings.includes(activeTopping)){
+    if(!isMilkshake(recipe)&&active&&step===2&&isIceSyrup(activeTopping)&&clip===null&&recipe.toppings.includes(activeTopping)){
       ctx.save();ctx.scale(canvas.width/900,canvas.height/620);drawChocolateBottle(ctx,bottle,squeezing&&!paused,activeTopping);ctx.restore();
     }
     paintIngredientPreviews();frame=requestAnimationFrame(tick);
