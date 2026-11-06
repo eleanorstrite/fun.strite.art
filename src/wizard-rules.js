@@ -5,10 +5,10 @@ const SHAPES=[[[0,0],[1,0],[2,0],[3,0]],[[0,0],[1,0],[0,1],[1,1]],[[1,0],[0,1],[
 const COLORS=['#70dce8','#f9d65c','#bc8bea','#8fce73','#f092b4','#789ee5','#f6a465'];
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export function wizardSolidAt(s,x,y){return !!s.board[y]?.[x]||(s.supports||[]).some(platform=>y===platform.row&&x>=platform.x&&x<platform.x+platform.width);}
-export function stormFits(s,cells,x,y){return cells.every(([dx,dy])=>x+dx>=0&&x+dx<STORM_WIDTH&&y+dy>=0&&y+dy<STORM_ROWS&&!wizardSolidAt(s,x+dx,y+dy));}
+export function stormFits(s,cells,x,y){return cells.every(([dx,dy])=>x+dx>=0&&x+dx<STORM_WIDTH&&y+dy>=0&&y+dy<s.board.length&&!wizardSolidAt(s,x+dx,y+dy));}
 function nextPiece(s){
   if(!s.bag.length){s.bag=[0,1,2,3,4,5,6];for(let i=6;i>0;i--){const j=Math.floor(s.random()*(i+1));[s.bag[i],s.bag[j]]=[s.bag[j],s.bag[i]];}}
-  const kind=s.bag.pop();return {kind,cells:SHAPES[kind].map(p=>[...p]),x:3,y:0};
+  const kind=s.bag.pop();return {kind,cells:SHAPES[kind].map(p=>[...p]),x:3,y:s.spawnY||0};
 }
 export function createStormState(random=Math.random,roundBackground=0,mode='race'){
   const s={supports:[],surfaceEffects:{},attacks:{},board:Array.from({length:STORM_ROWS},()=>Array(STORM_WIDTH).fill(0)),random,bag:[],piece:null,next:null,status:'ready',remaining:STORM_SECONDS,fall:0,height:0,locked:0,tumbling:[],balanceNotice:0,clip:0,won:false,background:Math.max(0,Number.isInteger(roundBackground)?roundBackground:0)%8,blockStyle:'galaxy',slowTime:0,spellNotice:'',noticeTime:0,lastPlacement:null};
@@ -26,7 +26,7 @@ export function stormRotate(s){
 // A piece balances only when its center of mass rests over its supporting cells.
 export function stormBalance(s,p){
   const cells=p.cells.map(([x,y])=>[p.x+x,p.y+y]),own=new Set(cells.map(([x,y])=>`${x},${y}`));
-  const supports=cells.filter(([x,y])=>!own.has(`${x},${y+1}`)&&(y===STORM_ROWS-1||wizardSolidAt(s,x,y+1)));
+  const supports=cells.filter(([x,y])=>!own.has(`${x},${y+1}`)&&(y===s.board.length-1||wizardSolidAt(s,x,y+1)));
   const center=cells.reduce((sum,[x])=>sum+x+.5,0)/cells.length;
   if(!supports.length)return {stable:false,direction:1,pivotX:center,pivotY:p.y+p.cells.length};
   const left=Math.min(...supports.map(([x])=>x)),right=Math.max(...supports.map(([x])=>x+1));
@@ -46,9 +46,9 @@ export function stormSpell(s,emit=()=>{},id='anchor'){
  if(!canWizardSpell(s,id))return false;
  if(id==='anchor')s.ward=true;
  if(id==='slow')s.slowTime=8;
- if(id==='transmute')s.next={kind:1,cells:SHAPES[1].map(p=>[...p]),x:3,y:0};
+ if(id==='transmute')s.next={kind:1,cells:SHAPES[1].map(p=>[...p]),x:3,y:s.spawnY||0};
  if(id==='levitate')s.piece.y-=3;
- if(id==='undo'){for(const [x,y]of s.lastPlacement)s.board[y][x]=0;s.lastPlacement=null;const top=s.board.findIndex(row=>row.some(Boolean));s.height=top<0?0:STORM_ROWS-top;s.combo=0;}
+ if(id==='undo'){for(const [x,y]of s.lastPlacement)s.board[y][x]=0;s.lastPlacement=null;const top=s.board.findIndex(row=>row.some(Boolean));s.height=top<0?0:s.board.length-top;s.combo=0;}
  s.spells--;s.spellNotice=WIZARD_SPELLS.find(spell=>spell.id===id).name+'!';s.noticeTime=1.5;emit('bounce');return true;
 }
 export function stormHardDrop(s,emit=()=>{}){
@@ -67,14 +67,14 @@ function dropRow(s,emit){
     if(s.wobbly){s.settled.push({kind:p.kind,cells:p.cells.map(([x,y])=>[p.x+x,p.y+y]),age:0,angle:.11*balance.direction});s.settleClock=.65;}
     s.lastPlacement=p.cells.map(([x,y])=>[p.x+x,p.y+y]);s.ward=false;s.combo=balance.stable?s.combo+1:0;if(s.earnSpells!==false&&s.combo>0&&s.combo%3===0)s.spells=Math.min(5,s.spells+1);
     for(const [dx,dy] of p.cells)s.particles.push({x:p.x+dx+.5,y:p.y+dy+.5,age:0,color:COLORS[p.kind]});
-    s.locked++;const top=s.board.findIndex(row=>row.some(Boolean));s.height=top<0?0:STORM_ROWS-top;emit('bounce');
+    s.locked++;const top=s.board.findIndex(row=>row.some(Boolean));s.height=top<0?0:s.board.length-top;emit('bounce');
     if(s.mode!=='survival'&&s.height>=s.target){endStorm(s,true,emit);return;}
   }else{
     s.tumbling.push({...balance,kind:p.kind,cells:p.cells.map(([x,y])=>[p.x+x,p.y+y]),age:0});
     s.balanceNotice=2;s.combo=0;s.misses++;emit('whoosh');
-    if(s.mode==='survival'&&s.misses>=3){endStorm(s,false,emit);return;}
+    if(s.mode==='survival'&&s.misses>=(s.lifeLimit||3)){endStorm(s,false,emit);return;}
   }
-  s.piece=s.next;s.next=nextPiece(s);prepareWizardPiece(s,s.piece);
+  if(s.scrollTower)s.spawnY=Math.max(0,s.board.length-Math.max(s.height+6,12));s.piece=s.next;s.piece.y=s.spawnY||0;s.next=nextPiece(s);prepareWizardPiece(s,s.piece);
   if(!stormFits(s,s.piece.cells,s.piece.x,s.piece.y))endStorm(s,false,emit);
 }
 export function tickStorm(s,dt,fast=false,emit=()=>{}){
@@ -97,7 +97,7 @@ export function tickStorm(s,dt,fast=false,emit=()=>{}){
   s.remaining=Math.max(0,s.remaining-dt*(slow?.4:1));
   if(s.remaining<=1e-7){s.remaining=0;endStorm(s,s.mode==='survival',emit);return;}
   s.fall+=dt*(slow?.4:1);
-  while(s.status==='playing'){const interval=s.piece.effects?.balloon?.8:fast?.032:.48;if(s.fall<interval)break;s.fall-=interval;dropRow(s,emit);}
+  while(s.status==='playing'){const interval=s.piece.effects?.balloon?.8:fast?.032:(s.fallInterval||.48);if(s.fall<interval)break;s.fall-=interval;dropRow(s,emit);}
 }
 
 export function reshapeWizardPiece(s,cells){
@@ -125,11 +125,11 @@ export function tickWizardTower(s,dt,emit=()=>{}){
   const balance=stormBalance(s,{x:0,y:0,cells:group.cells});
   const above=groups.filter(p=>p!==group&&p.cells.some(([x,y])=>group.cells.some(([gx,gy])=>x===gx&&y===gy-1)));
   const all=[...group.cells,...above.flatMap(p=>p.cells)],center=all.reduce((n,[x])=>n+x+.5,0)/all.length;
-  const bottom=group.cells.filter(([x,y])=>!group.cells.some(([gx,gy])=>gx===x&&gy===y+1)&&(y===23||wizardSolidAt(s,x,y+1)));
+  const bottom=group.cells.filter(([x,y])=>!group.cells.some(([gx,gy])=>gx===x&&gy===y+1)&&(y===s.board.length-1||wizardSolidAt(s,x,y+1)));
   const loaded=bottom.length&&center>=Math.min(...bottom.map(p=>p[0]))+.25&&center<=Math.max(...bottom.map(p=>p[0]))+.75;
   if(balance.stable&&loaded){for(const [x,y]of group.cells)s.board[y][x]=group.kind+1;continue;}
   s.tumbling.push({...balance,kind:group.kind,cells:group.cells,age:0});s.settled=s.settled.filter(p=>p!==group);s.balanceNotice=2;s.spellNotice='Tower slipping! Balance your next block';s.noticeTime=2;s.misses++;s.settleClock=.3;emit('whoosh');
   for(const [x,y]of group.cells)delete s.surfaceEffects[`${x},${y}`];
  }
- const top=s.board.findIndex(row=>row.some(Boolean));s.height=top<0?0:24-top;
+ const top=s.board.findIndex(row=>row.some(Boolean));s.height=top<0?0:s.board.length-top;
 }

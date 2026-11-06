@@ -11,4 +11,4 @@ export const wizardPower=id=>WIZARD_POWERS.find(power=>power.id===id);
 let atlas;
 export function wizardPowerAtlas(){if(typeof Image==='undefined')return null;if(!atlas){atlas=new Image();atlas.src=new URL('../assets/wizard-power-icons.png',import.meta.url).href;}return atlas;}
 export function drawWizardPowerIcon(c,id,x,y,size){const image=wizardPowerAtlas(),power=wizardPower(id);if(!power)return;if(image?.complete&&image.naturalWidth){const sw=image.naturalWidth/3,sh=image.naturalHeight/2;c.save();c.beginPath();c.arc(x+size/2,y+size/2,size/2,0,Math.PI*2);c.clip();c.drawImage(image,power.column*sw,power.row*sh,sw,sh,x,y,size,size);c.restore();}else{c.fillStyle=power.type==='Attack'?'#da7b9e':'#85d3c0';c.beginPath();c.arc(x+size/2,y+size/2,size*.42,0,Math.PI*2);c.fill();}}
-export function wizardChoicePosition(player,slot){return {x:400+player*420,y:190+slot*120,radius:31};}
+export function wizardChoicePosition(player,slot,height=650){return height>850?{x:350+player*480,y:245+slot*235,radius:55}:{x:400+player*480,y:190+slot*120,radius:31};}

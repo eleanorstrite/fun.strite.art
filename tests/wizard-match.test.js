@@ -5,7 +5,7 @@ import {stormFits,stormHardDrop} from '../src/wizard-rules.js';
 import {createWizardTouchInput} from '../src/wizard-input.js';
 const ready=(options={})=>{const m=createWizardMatch({random:()=>.42,opponent:'local',...options});startWizardMatch(m);return m;};
 test('WASD and arrows stay independent and each player has distinct power keys',()=>{
- const m=ready(),[a,b]=m.players;assert.deepEqual(wizardKeyAction('x'),{player:0,action:'choice-0'});assert.deepEqual(wizardKeyAction('c'),{player:0,action:'choice-1'});assert.deepEqual(wizardKeyAction('v'),{player:0,action:'choice-2'});assert.equal(wizardKeyAction('b').player,0);assert.equal(wizardKeyAction('2').player,1);assert.equal(wizardKeyAction('ArrowUp').player,1);
+ const m=ready(),[a,b]=m.players;assert.deepEqual(wizardKeyAction('c'),{player:0,action:'choice-0'});assert.deepEqual(wizardKeyAction('v'),{player:0,action:'choice-1'});assert.deepEqual(wizardKeyAction('b'),{player:0,action:'choice-2'});assert.equal(wizardKeyAction('b').player,0);assert.equal(wizardKeyAction('2').player,1);assert.equal(wizardKeyAction('ArrowUp').player,1);
  wizardPlayerAction(m,0,'left');assert.equal(a.piece.x,2);assert.equal(b.piece.x,3);wizardPlayerAction(m,1,'right');assert.equal(a.piece.x,2);assert.equal(b.piece.x,4);assert.equal(wizardPlayerAction(m,0,'choice-0'),false);
 });
 test('phone pointer release and cancellation affect only the owning player',()=>{
@@ -19,7 +19,7 @@ test('computer plans legal supported placements and plays actual blocks without 
  for(let i=0;i<650&&m.status==='playing';i++){tickWizardMatch(m,.05);assert.ok(p.board.flat().filter(Boolean).length<=p.locked*4);assert.equal(p.board.flat().filter(Boolean).length%4,0);if(p.status==='playing')assert.ok(stormFits(p,p.piece.cells,p.piece.x,p.piece.y));}assert.ok(p.locked>0);assert.notEqual(m.status,'ready');}
 });
 test('matches decide winners, finish once, and do not advance after finishing',()=>{
- const m=ready();m.players[0].board[23][4]=1;m.players[0].misses=2;m.players[0].piece={kind:0,cells:[[0,0],[1,0],[2,0],[3,0]],x:4,y:22};stormHardDrop(m.players[0]);tickWizardMatch(m,.01);assert.equal(m.winner,1);assert.equal(m.status,'ending');for(let i=0;i<36;i++)tickWizardMatch(m,.1);assert.equal(m.status,'finished');const frozen=JSON.stringify(m);tickWizardMatch(m,.1);assert.equal(JSON.stringify(m),frozen);
+ const m=ready();m.players[0].board.at(-1)[4]=1;m.players[0].misses=m.players[0].lifeLimit-1;m.players[0].piece={kind:0,cells:[[0,0],[1,0],[2,0],[3,0]],x:4,y:m.players[0].board.length-2};stormHardDrop(m.players[0]);tickWizardMatch(m,.01);assert.equal(m.winner,1);assert.equal(m.status,'ending');for(let i=0;i<36;i++)tickWizardMatch(m,.1);assert.equal(m.status,'finished');const frozen=JSON.stringify(m);tickWizardMatch(m,.1);assert.equal(JSON.stringify(m),frozen);
  const tie=ready();tie.remaining=.01;tickWizardMatch(tie,.02);assert.equal(tie.winner,-1);
 });
 test('golden magic follows the movable piece and stops drawing when the match ends',async()=>{

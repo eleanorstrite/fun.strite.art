@@ -5,7 +5,7 @@ import {stormBalance,tickWizardTower} from '../src/wizard-rules.js';
 import {createWizardGestures} from '../src/wizard-input.js';
 test('computer matches give arrow controls to the human and local matches keep both players separate',()=>{
  for(const [key,action]of [['ArrowLeft','left'],['ArrowRight','right'],['ArrowUp','rotate'],['ArrowDown','down']]){assert.deepEqual(wizardKeyAction(key,'computer'),{player:0,action});assert.deepEqual(wizardKeyAction(key,'local'),{player:1,action});}
- const m=createWizardMatch({opponent:'computer'});assert.equal(m.players[0].target,22);assert.equal(m.remaining,90);startWizardMatch(m);const x=m.players[1].piece.x;wizardPlayerAction(m,wizardKeyAction('ArrowRight','computer').player,'right');assert.equal(m.players[1].piece.x,x);
+ const m=createWizardMatch({opponent:'computer'});assert.equal(m.players[0].target,60);assert.equal(m.remaining,Infinity);startWizardMatch(m);const x=m.players[1].piece.x;wizardPlayerAction(m,wizardKeyAction('ArrowRight','computer').player,'right');assert.equal(m.players[1].piece.x,x);
 });
 test('a narrow support no longer holds a wide piece and lost supports topple the blocks above them',()=>{
  const m=createWizardMatch(),s=m.players[0];s.board[23][4]=1;
