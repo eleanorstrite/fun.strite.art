@@ -1,16 +1,26 @@
+import {drawIceIngredient,iceArtReady} from './ice-art.js';
 import {drawPlayBackdrop,drawPlaySprite} from './play-art.js';
 import { createMazeAudio } from './maze-audio.js';
 
-import { ICE_CONES, ICE_FLAVORS, ICE_TOPPINGS, ICE_UNLOCKS, iceIngredientUnlocked } from './ice-settings.js';
+import { ICE_CONES, ICE_FLAVORS, ICE_TOPPINGS, ICE_UNLOCKS, iceIngredientUnlocked, ICE_SYRUPS, isIceSyrup } from './ice-settings.js';
 
 export const ICE_CLIP_SECONDS=7.5;
 const syrupKind=p=>p.kind||'sauce';
-const hasSyrup=r=>r.toppings.some(t=>t==='sauce'||t==='caramel');
-const syrupColor=p=>syrupKind(p)==='caramel'?'#c38532':'#633c32';
-const syrupShine=p=>syrupKind(p)==='caramel'?'#f6ce78':'#a46b48';
-export function createIceRecipe(){return {funny:false,cone:'waffle',flavor:'vanilla',toppings:[],sauceDrops:[]};}
+const hasSyrup=r=>r.toppings.some(isIceSyrup);
+const syrupColor=p=>(ICE_SYRUPS[syrupKind(p)]||ICE_SYRUPS.sauce).color;
+const syrupShine=p=>(ICE_SYRUPS[syrupKind(p)]||ICE_SYRUPS.sauce).shine;
+export function createIceRecipe(){return {funny:false,cone:'waffle',flavor:'vanilla',flavors:['vanilla'],toppings:[],sauceDrops:[]};}
+export function iceRecipeFlavors(recipe){const values=Array.isArray(recipe.flavors)?recipe.flavors:[recipe.flavor];const valid=[...new Set(values.filter(id=>Object.hasOwn(ICE_FLAVORS,id)))].slice(0,3);return valid.length?valid:[Object.hasOwn(ICE_FLAVORS,recipe.flavor)?recipe.flavor:'vanilla'];}
+export function chooseIceFlavor(recipe,id,replace=false){if(!Object.hasOwn(ICE_FLAVORS,id))return false;let flavors=iceRecipeFlavors(recipe);if(replace)flavors=[id];else if(flavors.includes(id)){if(flavors.length===1)return false;flavors=flavors.filter(value=>value!==id);}else{if(flavors.length>=3)return false;flavors.push(id);}recipe.flavors=flavors;recipe.flavor=flavors[0];return true;}
+export function iceScoopLayout(recipe){const ids=iceRecipeFlavors(recipe),positions=ids.length===1?[[0,0,1]]:ids.length===2?[[-36,-5,.72],[36,-5,.72]]:[[-36,0,.68],[36,0,.68],[0,-50,.68]];return ids.map((flavor,i)=>({flavor,x:positions[i][0],y:positions[i][1],scale:positions[i][2]}));}
+function drawReferenceIceToppings(c,recipe){
+ const scattered={chips:6,pinkSprinkles:10,chocolateSprinkles:10,pearlSprinkles:10,mms:4,truFru:3,banana:3,strawberries:2,chocolatePieces:3,oreo:3,brownie:3,goldfish:4,cookieCrumbs:9,almonds:4,walnuts:4,raspberries:3,orangeSlice:1};
+ for(const [id,count]of Object.entries(scattered)){if(!recipe.toppings.includes(id))continue;for(let i=0;i<count;i++){const x=count===1?10:-44+(i*37+id.length*3)%88,y=-65+(i*23+id.length*2)%55,size=count>6?15:count===1?42:25;if(!drawIceIngredient(c,'toppings',id,x-size/2,y-size/2,size,size)){c.fillStyle=['#f48bad','#784537','#f6dd8b','#8ec7df'][i%4];c.beginPath();c.ellipse(x,y,size*.3,size*.22,i,0,Math.PI*2);c.fill();}}}
+ if(recipe.toppings.includes('waferRolls'))drawIceIngredient(c,'toppings','waferRolls',15,-102,48,65);
+ if(recipe.toppings.includes('redVelvetWhip'))drawIceIngredient(c,'toppings','redVelvetWhip',-28,-130,56,65);
+}
 export function pourIceChocolate(recipe,x,y,seconds,kind="sauce"){
-  if(!['sauce','caramel'].includes(kind)||!recipe.toppings.includes(kind)||!Number.isFinite(seconds)||seconds<=0||!Number.isFinite(x)||!Number.isFinite(y))return;
+  if(!isIceSyrup(kind)||!recipe.toppings.includes(kind)||!Number.isFinite(seconds)||seconds<=0||!Number.isFinite(x)||!Number.isFinite(y))return;
   if(Math.abs(x)>240||y< -90||y>162)return;
   if((x/66)**2+((y+30)/58)**2>1){
     recipe.sauceFalling??=[];
@@ -28,8 +38,9 @@ export function pourIceChocolate(recipe,x,y,seconds,kind="sauce"){
   drop.amount=Math.min(3,drop.amount+seconds);
 }
 // Both syrups cling to the dessert, follow its taper, then fall under gravity.
-function coneBottom(cone){return cone==='waffle'?156:cone==='cup'?100:cone==='cake'?118:120;}
+function coneBottom(cone){return ['waffle','dipped','fish'].includes(cone)?156:['cup','bowl'].includes(cone)?100:cone==='cake'?118:120;}
 function coneWidth(cone,y){
+  if(cone==='bowl')return 88-24*Math.min(1,(y-5)/95);
   if(cone==='cup')return 63-16*Math.min(1,(y-5)/95);
   if(cone==='cake')return y<38?50-(y-5)*.42:36-(y-38)*.13;
   const bottom=coneBottom(cone),rim=cone==='waffle'?67.26:50.16;
@@ -93,17 +104,17 @@ function drawChocolateSpill(ctx,recipe,showFalling=true){
   }
 }
 export function drawChocolateBottle(ctx,bottle,pouring=false,kind="sauce"){
-  const caramel=kind==='caramel';
+  const caramel=kind==='caramel',style=ICE_SYRUPS[kind]||ICE_SYRUPS.sauce;
   ctx.save();ctx.translate(450+bottle.x*1.15,307+bottle.y*1.15-85);
   if(pouring){
     ctx.strokeStyle=syrupColor({kind});ctx.lineWidth=5;ctx.lineCap='round';
     ctx.beginPath();ctx.moveTo(0,35);ctx.lineTo(0,85);ctx.stroke();
   }
-  ctx.fillStyle=caramel?'#d6a04c':'#7d4a32';ctx.strokeStyle='#422e2b';ctx.lineWidth=2;
+  ctx.fillStyle=style.bottle;ctx.strokeStyle='#422e2b';ctx.lineWidth=2;
   ctx.beginPath();ctx.roundRect(-22,-42,44,62,12);ctx.fill();ctx.stroke();
   ctx.fillStyle=caramel?'#f5d38b':'#b67b51';ctx.beginPath();ctx.roundRect(-16,-35,6,42,3);ctx.fill();
   ctx.fillStyle='#f6dfad';ctx.fillRect(-21,-20,42,22);
-  ctx.fillStyle='#633c32';ctx.textAlign='center';ctx.font='bold 9px sans-serif';ctx.fillText(caramel?'CARAMEL':'CHOCO',0,-6);
+  ctx.fillStyle='#633c32';ctx.textAlign='center';ctx.font='bold '+(style.label.length>7?6:9)+'px sans-serif';ctx.fillText(style.label,0,-6);
   iceShape(ctx,[[-13,20],[13,20],[4,35],[-4,35]],'#efbc6b');
   ctx.restore();
 }
@@ -147,6 +158,8 @@ export function drawIceDessert(ctx,recipe,x,y,scale=1,bites=0){
     ctx.moveTo(bite.x+bite.r,bite.y);ctx.arc(bite.x,bite.y,bite.r,0,Math.PI*2);
     ctx.clip('evenodd');
   }
+  const bowl=recipe.cone==='bowl',detailedCone=recipe.cone!=='cup'&&drawIceIngredient(ctx,'cones',recipe.cone,bowl?-88:-63,5,bowl?176:126,coneBottom(recipe.cone)-5,{stretch:true});
+  if(!detailedCone){
   const coneColor={waffle:'#dca25e',sugar:'#edc88b',chocolate:'#6b4336',cup:'#8fcfd3',pretzel:'#a96f36',cookie:'#cfab73'}[recipe.cone];
   ctx.save();
   if(recipe.cone==='waffle')ctx.scale(1.18,1.04);
@@ -191,7 +204,14 @@ export function drawIceDessert(ctx,recipe,x,y,scale=1,bites=0){
     for(const [x,y] of [[-30,25],[20,21],[0,43],[-15,69],[12,85],[0,117]])ctx.fillRect(x,y,recipe.cone==='cookie'?6:3,4);
   }
   ctx.restore();
+  }
+  const scoops=iceScoopLayout(recipe);for(const scoop of scoops){ctx.save();ctx.translate(scoop.x,scoop.y);ctx.scale(scoop.scale,scoop.scale);drawIceScoop(ctx,{...recipe,flavor:scoop.flavor});ctx.restore();}
+  ctx.restore();
+}
+function drawIceScoop(ctx,recipe){
   const flavor=ICE_FLAVORS[recipe.flavor];
+  const detailed=drawIceIngredient(ctx,'flavors',recipe.flavor,-69,-91,138,122,{stretch:true});
+  if(!detailed){
   iceOval(ctx,0,-30,69,61,flavor.color);
   for(let i=0;i<6;i++)iceOval(ctx,-52+i*21,7,16,13,flavor.color);
   if(recipe.flavor==='rainbow'){
@@ -213,6 +233,8 @@ export function drawIceDessert(ctx,recipe,x,y,scale=1,bites=0){
       ctx.strokeStyle='#64525c';ctx.lineWidth=1;ctx.beginPath();ctx.ellipse(0,-3,7,4,0,0,Math.PI*2);ctx.stroke();
       ctx.fillStyle='#b4a3a7';ctx.font='bold 4px sans-serif';ctx.textAlign='center';ctx.fillText('OREO',0,-2);ctx.restore();
     }
+  }
+
   }
   if(hasSyrup(recipe)){
     ctx.save();ctx.beginPath();ctx.ellipse(0,-30,69,61,0,0,Math.PI*2);ctx.clip();
@@ -253,16 +275,17 @@ export function drawIceDessert(ctx,recipe,x,y,scale=1,bites=0){
       for(const [x,y] of [[-40,-58],[35,-23]]){iceOval(ctx,x,y,4,5,'#fffef5');iceOval(ctx,x+7,y-1,4,5,'#fffef5');iceOval(ctx,x+1,y+1,1.5,2,'#352b3d');iceOval(ctx,x+8,y,1.5,2,'#352b3d');}
     }
   }
-  if(recipe.toppings.includes('cream')){
+  if(recipe.toppings.includes('cream')&&!drawIceIngredient(ctx,'toppings','cream',-30,-129,60,65)){
     iceOval(ctx,0,-87,28,12,'#fffaf0');iceOval(ctx,2,-101,20,11,'#fffaf0');iceOval(ctx,5,-113,11,9,'#fffaf0');
   }
   if(recipe.toppings.includes('cherry')){
     const cy=recipe.toppings.includes('cream')?-126:-94;
-    iceOval(ctx,3,cy,11,10,'#d44c65');iceOval(ctx,0,cy-3,3,2,'#ffbdba');
+    if(!drawIceIngredient(ctx,'toppings','cherry',-15,cy-25,38,40)){iceOval(ctx,3,cy,11,10,'#d44c65');iceOval(ctx,0,cy-3,3,2,'#ffbdba');
     if(recipe.funny){for(const x of [-1,7]){iceOval(ctx,x,cy-1,4,5,'#fffaf0');iceOval(ctx,x+1,cy,1.5,2,'#342b3d');}}
-    ctx.strokeStyle='#53754b';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(4,cy-7);ctx.quadraticCurveTo(1,cy-26,15,cy-25);ctx.stroke();
+    ctx.strokeStyle='#53754b';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(4,cy-7);ctx.quadraticCurveTo(1,cy-26,15,cy-25);ctx.stroke();}
   }
-  ctx.restore();
+  drawReferenceIceToppings(ctx,recipe);
+
 }
 function drawIceDragon(ctx,x,y,time,mouth,headX=0,headY=0){
  if(drawPlaySprite(ctx,'objects',mouth>.2?15:14,x+28+headX*.55,y+197+headY*.35,245,260,{angle:Math.sin(time*3)*.015}))return;
@@ -333,7 +356,7 @@ export function drawIceScene(ctx,recipe,width,height,clipTime=null,reducedMotion
     iceOval(ctx,450,493,145,20,'#a67c6244');
     ctx.save();ctx.translate(450,307);ctx.scale(1.15,1.15);drawChocolateSpill(ctx,recipe);ctx.restore();
     drawIceDessert(ctx,recipe,450,307,1.15);
-    ctx.font='20px sans-serif';ctx.fillStyle='#fff6e8';ctx.fillText(ICE_FLAVORS[recipe.flavor].name+' · '+ICE_CONES[recipe.cone],450,566);
+    ctx.font='20px sans-serif';ctx.fillStyle='#fff6e8';ctx.fillText(iceRecipeFlavors(recipe).map(id=>ICE_FLAVORS[id].name).join(' + ')+' · '+ICE_CONES[recipe.cone],450,566,820);
   }else{
     const t=clipTime,cleanup=iceCleanup(recipe,t);
     const arrive=iceClamp(t/1.4,0,1),bites=iceBiteCount(t);
@@ -379,10 +402,10 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
   const audio=createMazeAudio(),controller=new AbortController();
   const reduced=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false;
   let recipe=createIceRecipe(),step=0,active=false,paused=false,clip=null,spoken=false,destroyed=false,last=0,frame;
-  let funny=false,userMuted=false;
+  let funny=false,userMuted=false,flavorTouched=false;const ingredientPreviews=[];
   let activeTopping=null,bottle={x:0,y:-30},squeezing=false,pointer=null,drag=null;
   const stopPour=()=>{squeezing=false;pointer=null;drag=null;};
-  const canPour=()=>active&&!paused&&clip===null&&step===2&&['sauce','caramel'].includes(activeTopping)&&recipe.toppings.includes(activeTopping)&&!document.hidden;
+  const canPour=()=>active&&!paused&&clip===null&&step===2&&isIceSyrup(activeTopping)&&recipe.toppings.includes(activeTopping)&&!document.hidden;
   const canvasPoint=e=>{const rect=canvas.getBoundingClientRect();return {x:(e.clientX-rect.left)*900/rect.width,y:(e.clientY-rect.top)*620/rect.height};};
   const events={signal:controller.signal};
   canvas.addEventListener?.('pointerdown',e=>{
@@ -428,31 +451,31 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
   });
   function renderControls(){
     modeButton.textContent=funny?'Funny mode · switch to Normal':'Normal mode · switch to Funny';modeButton.setAttribute('aria-pressed',String(funny));
-    stopPour();sauceHelp.hidden=!(step===2&&['sauce','caramel'].includes(activeTopping)&&recipe.toppings.includes(activeTopping)&&clip===null);
+    stopPour();sauceHelp.hidden=!(step===2&&isIceSyrup(activeTopping)&&recipe.toppings.includes(activeTopping)&&clip===null);
     const locked=!active||paused||clip!==null;
     stepButtons.forEach((button,index)=>{button.disabled=locked;button.setAttribute('aria-pressed',String(index===step));});
-    heading.textContent=clip!==null?'Your dragon is enjoying its ice cream!':step===0?'Choose your cone':step===1?'Choose your ice cream':'Choose your toppings — mix as many as you like';
-    choices.replaceChildren();
+    heading.textContent=clip!==null?'Your dragon is enjoying its ice cream!':step===0?'Choose your cone':step===1?'Choose 1–3 ice cream flavors · '+iceRecipeFlavors(recipe).length+' selected':'Choose your toppings — mix as many as you like';
+    choices.replaceChildren();ingredientPreviews.length=0;
     const options=step===0?ICE_CONES:step===1?Object.fromEntries(Object.entries(ICE_FLAVORS).map(([id,f])=>[id,f.name])):ICE_TOPPINGS;
     for(const [id,label] of Object.entries(options)){
       const button=document.createElement('button');button.type='button';button.className='button outline';const kind=step===0?'cone':step===1?'flavor':'topping',owned=iceIngredientUnlocked(kind,id,getUpgrades());
-      button.textContent=label+(!owned?' · Shop: 200 coins':ICE_UNLOCKS[kind]?.[id]?' · Owned':'');
+      const picture=document.createElement('canvas'),caption=document.createElement('span');picture.width=140;picture.height=110;picture.setAttribute?.('aria-hidden','true');caption.textContent=label+(!owned?' · Shop: 200 coins':ICE_UNLOCKS[kind]?.[id]?' · Owned':'');button.append(picture,caption);button.setAttribute?.('data-ice-kind',kind);button.setAttribute?.('data-ice-id',id);ingredientPreviews.push({picture,kind,id,ready:null});
       button.disabled=locked||!owned;
-      const selected=step===0?recipe.cone===id:step===1?recipe.flavor===id:recipe.toppings.includes(id);
+      const selected=step===0?recipe.cone===id:step===1?iceRecipeFlavors(recipe).includes(id):recipe.toppings.includes(id);
       button.setAttribute('aria-pressed',String(selected));
       button.onclick=()=>{
         if(!active||paused||clip!==null||!iceIngredientUnlocked(kind,id,getUpgrades()))return;
-        if(step===2&&['sauce','caramel'].includes(id)&&activeTopping!==id&&recipe.toppings.includes(id)){
+        if(step===2&&isIceSyrup(id)&&activeTopping!==id&&recipe.toppings.includes(id)){
           activeTopping=id;renderControls();return;
         }
         if(step===2)activeTopping=id;
-        if(step===0)recipe.cone=id;else if(step===1)recipe.flavor=id;
+        if(step===0)recipe.cone=id;else if(step===1){if(!chooseIceFlavor(recipe,id,!flavorTouched)){heading.textContent=iceRecipeFlavors(recipe).length===3?'Choose up to 3 flavors — remove one to try another.':'Keep at least one flavor selected.';return;}flavorTouched=true;}
         else recipe.toppings=recipe.toppings.includes(id)?recipe.toppings.filter(item=>item!==id):[...recipe.toppings,id];
-        if(step===2&&['sauce','caramel'].includes(id)){
+        if(step===2&&isIceSyrup(id)){
           for(const key of ['sauceDrops','sauceFalling','saucePuddles'])recipe[key]=(recipe[key]||[]).filter(p=>syrupKind(p)!==id);bottle={x:0,y:-30};
         }
         audio.play('gem');renderControls();
-        if(step===2&&['sauce','caramel'].includes(id)&&recipe.toppings.includes(id))canvas.scrollIntoView?.({block:'center',behavior:reduced?'auto':'smooth'});
+        if(step===2&&isIceSyrup(id)&&recipe.toppings.includes(id))canvas.scrollIntoView?.({block:'center',behavior:reduced?'auto':'smooth'});
         choices.children[Object.keys(options).indexOf(id)]?.focus({preventScroll:true});
       };
       choices.append(button);
@@ -475,6 +498,7 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
     }
     renderControls();heading.focus({preventScroll:true});
   };
+  function paintIngredientPreviews(){const ready=iceArtReady();for(const entry of ingredientPreviews){if(entry.ready===ready)continue;const c=entry.picture.getContext?.('2d');if(!c)continue;c.clearRect(0,0,140,110);if(!drawIceIngredient(c,entry.kind==='cone'?'cones':entry.kind==='flavor'?'flavors':'toppings',entry.id,8,5,124,100)){c.fillStyle=entry.kind==='flavor'?ICE_FLAVORS[entry.id].color:'#f3cf91';c.beginPath();c.ellipse(70,55,34,34,0,0,Math.PI*2);c.fill();}entry.ready=ready;}}
   function finish(){
     if(!active)return;active=false;
     onFinish(5,{title:'Your dragon loved it!',detail:'Make another delicious creation!'});
@@ -492,15 +516,15 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
     if(canPour()&&squeezing)pourIceChocolate(recipe,bottle.x,bottle.y,dt,activeTopping);
     if(active&&!paused&&!document.hidden&&clip===null)tickIceChocolate(recipe,dt);
     drawIceScene(ctx,recipe,canvas.width,canvas.height,clip,reduced);
-    if(active&&step===2&&['sauce','caramel'].includes(activeTopping)&&clip===null&&recipe.toppings.includes(activeTopping)){
+    if(active&&step===2&&isIceSyrup(activeTopping)&&clip===null&&recipe.toppings.includes(activeTopping)){
       ctx.save();ctx.scale(canvas.width/900,canvas.height/620);drawChocolateBottle(ctx,bottle,squeezing&&!paused,activeTopping);ctx.restore();
     }
-    frame=requestAnimationFrame(tick);
+    paintIngredientPreviews();frame=requestAnimationFrame(tick);
   }
   document.addEventListener?.('visibilitychange',()=>{last=0;stopPour();if(document.hidden)audio.stop();},{signal:controller.signal});
   renderControls();frame=requestAnimationFrame(tick);
   return {
-    start(){stopPour();activeTopping=null;bottle={x:0,y:-30};audio.stop();audio.unlock();recipe=createIceRecipe();recipe.funny=funny;audio.setMuted(userMuted);step=0;clip=null;spoken=false;active=true;paused=false;last=0;renderControls();stepButtons[0].focus({preventScroll:true});},
+    start(){stopPour();activeTopping=null;bottle={x:0,y:-30};audio.stop();audio.unlock();recipe=createIceRecipe();flavorTouched=false;recipe.funny=funny;audio.setMuted(userMuted);step=0;clip=null;spoken=false;active=true;paused=false;last=0;renderControls();stepButtons[0].focus({preventScroll:true});},
     pause(value){paused=value;last=0;if(value)audio.stop();renderControls();},
     setMuted:value=>{userMuted=value;audio.setMuted(userMuted);},
     destroy(){if(destroyed)return;destroyed=true;active=false;stopPour();controller.abort();audio.destroy();cancelAnimationFrame(frame);controls.replaceChildren();}
