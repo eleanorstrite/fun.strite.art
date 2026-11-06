@@ -1,17 +1,19 @@
+import {WIZARD_BOY_ART} from './wizard-boy-art.js';
 import {WIZARD_GOWN_ART} from './wizard-gown-art.js';
 import {WIZARD_GOWNS,wizardGownUnlocked,loadWizardGownUnlocks} from './wizard-gown-shop.js';
 import {CUSTOM_WIZARD_NECKS} from './wizard-custom-necks.js';
 import {CUSTOM_WIZARD_BOUNDS} from './wizard-custom-bounds.js';
 export const CUSTOM_HAIRS=['Chestnut sweep','Blonde quiff','Brown fringe','Textured quiff','Blonde side part','Dark side sweep','Black crop','Tall quiff','Ash brown sweep','Long black waves','Side braid','Black bob','Long pink waves','Auburn waves','Silver hair','Dark curls'];
-export const CUSTOM_OUTFITS=['Silver dragon gown','Butterfly sequin gown','Emerald leaf gown','Blue celestial gown','Ivory forest gown','Chemistry shirt & jeans','Axolotl scientist shirt','Frog scientist shirt',...WIZARD_GOWNS.map(g=>g.name)];
+export const CUSTOM_OUTFITS=['Silver dragon gown','Butterfly sequin gown','Emerald leaf gown','Blue celestial gown','Ivory forest gown','Chemistry shirt & jeans','Axolotl scientist shirt','Frog scientist shirt',...WIZARD_GOWNS.map(g=>g.name),'Navy wizard coat & trousers','Emerald adventurer & boots','Black-gold sorcerer suit','Burgundy sweater & jeans'];
 export function validateCustomWizard(value){return {age:value?.age==='kid'?'kid':'adult',hair:Number.isInteger(value?.hair)&&value.hair>=0&&value.hair<16?value.hair:9,outfit:Number.isInteger(value?.outfit)&&value.outfit>=0&&value.outfit<CUSTOM_OUTFITS.length?value.outfit:0};}
-export function loadCustomWizard(player=0,storage){try{const look=validateCustomWizard(JSON.parse((storage??globalThis.localStorage)?.getItem('sidequest.wizard.custom.'+player)||'null'));if(!wizardGownUnlocked(look.outfit,loadWizardGownUnlocks(storage)))look.outfit=0;return look;}catch{return validateCustomWizard();}}
-export function saveCustomWizard(value,player=0,storage,owned=loadWizardGownUnlocks(storage)){const result=validateCustomWizard(value);if(!wizardGownUnlocked(result.outfit,owned))result.outfit=0;try{(storage??globalThis.localStorage)?.setItem('sidequest.wizard.custom.'+player,JSON.stringify(result));}catch{}return result;}
+export function suggestWizardOutfit(look,hair){return hair<9&&(look.outfit<5||look.outfit>=8&&look.outfit<12)?12+(look.outfit%4):look.outfit;}
+export function loadCustomWizard(player=0,storage){try{const saved=JSON.parse((storage??globalThis.localStorage)?.getItem('sidequest.wizard.custom.'+player)||'null'),look=validateCustomWizard(saved);if(saved&&saved.wardrobeVersion!==2)look.outfit=suggestWizardOutfit(look,look.hair);if(!wizardGownUnlocked(look.outfit,loadWizardGownUnlocks(storage)))look.outfit=0;return look;}catch{return validateCustomWizard();}}
+export function saveCustomWizard(value,player=0,storage,owned=loadWizardGownUnlocks(storage)){const result=validateCustomWizard(value);if(!wizardGownUnlocked(result.outfit,owned))result.outfit=0;try{(storage??globalThis.localStorage)?.setItem('sidequest.wizard.custom.'+player,JSON.stringify({...result,wardrobeVersion:2}));}catch{}return result;}
 const atlases=new Map();
 export function customWizardAtlas(kind){if(typeof Image==='undefined')return null;if(!atlases.has(kind)){const image=new Image();image.src=new URL('../assets/wizard-custom-'+kind+'.png',import.meta.url).href;atlases.set(kind,image);}return atlases.get(kind);}
 export function customOutfitSprite(value){
- const look=validateCustomWizard(value),shop=look.outfit>=8,index=shop?look.outfit-8+(look.age==='kid'?4:0):look.outfit+(look.age==='kid'?8:0),image=customWizardAtlas(shop?'shop-gowns':'outfits');if(!image?.complete||!image.naturalWidth)return null;
- return {image,index,cellWidth:image.naturalWidth/4,cellHeight:image.naturalHeight/(shop?2:4),bounds:shop?WIZARD_GOWN_ART.bounds[index]:CUSTOM_WIZARD_BOUNDS.outfits[index],neck:shop?WIZARD_GOWN_ART.necks[index]:CUSTOM_WIZARD_NECKS.outfits[index]};
+ const look=validateCustomWizard(value),boy=look.outfit>=12,shop=look.outfit>=8&&!boy,index=boy?look.outfit-12+(look.age==='kid'?4:0):shop?look.outfit-8+(look.age==='kid'?4:0):look.outfit+(look.age==='kid'?8:0),image=customWizardAtlas(boy?'boy-outfits':shop?'shop-gowns':'outfits');if(!image?.complete||!image.naturalWidth)return null;
+ return {image,index,cellWidth:image.naturalWidth/4,cellHeight:image.naturalHeight/(shop||boy?2:4),bounds:boy?WIZARD_BOY_ART.bounds[index]:shop?WIZARD_GOWN_ART.bounds[index]:CUSTOM_WIZARD_BOUNDS.outfits[index],neck:boy?WIZARD_BOY_ART.necks[index]:shop?WIZARD_GOWN_ART.necks[index]:CUSTOM_WIZARD_NECKS.outfits[index]};
 }
 export function drawCustomWizard(c,value,x,baseline,time=0,{height=190,reduced=false}={}){
  const look=validateCustomWizard(value),outfit=customOutfitSprite(look),body=outfit?.image,head=customWizardAtlas(look.age+'-heads');if(!body?.complete||!body.naturalWidth||!head?.complete||!head.naturalWidth)return false;
