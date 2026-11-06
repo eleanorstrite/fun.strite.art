@@ -5,8 +5,10 @@ import {drawWizardIsland,drawWizardTether,wizardArenaField} from './wizard-arena
 import {loadStormWizard,drawStormWizard} from './storm-wizards.js';
 import {drawWizardBackground,drawWizardBlock,loadWizardSetting} from './wizard-themes.js';
 import {drawWizardPowerIcon} from './wizard-powers.js';
+let coverArtwork;
+export function wizardCoverArtwork(){if(typeof Image==='undefined')return null;if(!coverArtwork){coverArtwork=new Image();coverArtwork.src=new URL('../assets/wizard-tetris-cover.png',import.meta.url).href;}return coverArtwork;}
 export function drawStormCoverFrame(canvas,time=0){
- const c=canvas.getContext('2d');if(!c)return false;c.save();c.scale(canvas.width/960,canvas.height/650);
+ const c=canvas.getContext('2d');if(!c)return false;const cover=wizardCoverArtwork();if(cover?.complete&&cover.naturalWidth){c.save();c.drawImage(cover,0,0,canvas.width,canvas.height);for(const [i,[px,py]]of [[.14,.17],[.22,.29],[.48,.035],[.73,.21],[.82,.33]].entries()){c.globalAlpha=Math.max(0,Math.sin(time*2+i))*.65;c.fillStyle='#fff1a5';c.beginPath();c.arc(px*canvas.width,py*canvas.height,1.4+Math.sin(time*2+i)*.6,0,Math.PI*2);c.fill();}c.restore();return true;}c.save();c.scale(canvas.width/960,canvas.height/650);
  const background=Number(loadWizardSetting('background',0))||0,match=createWizardMatch({random:()=>.42,background,wizard:loadStormWizard(),customWizard:loadCustomWizard(0),rivalCustomWizard:loadCustomWizard(1),sidekick:loadWizardSidekick(0),rivalSidekick:loadWizardSidekick(1)});
  drawWizardBackground(c,background,time,false);
  const shade=c.createLinearGradient(0,0,0,650);shade.addColorStop(0,'#0a163c99');shade.addColorStop(.5,'#0b14300a');shade.addColorStop(1,'#131329cc');c.fillStyle=shade;c.fillRect(0,0,960,650);
@@ -24,7 +26,7 @@ export function drawStormCoverFrame(canvas,time=0){
  c.fillStyle='#13213be8';c.beginPath();c.roundRect(210,585,540,49,24);c.fill();const powers=['island','lightning','ice'];for(let i=0;i<3;i++)drawWizardPowerIcon(c,powers[i],228+i*165,590,38);c.font='700 13px system-ui';c.fillStyle='#fff1cb';c.fillText('BUILD',311,614);c.fillText('CAST',476,614);c.fillText('SABOTAGE',641,614);c.restore();return true;
 }
 export function animateStormCover(canvas){
- canvas.width=960;canvas.height=650;canvas.parentElement?.classList.add('storm-art');const reduced=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;let start;
+ canvas.width=960;canvas.height=540;canvas.parentElement?.classList.add('storm-art');const reduced=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;let start;
  function frame(now){if(!canvas.isConnected)return;start??=now;if(!globalThis.document?.hidden)drawStormCoverFrame(canvas,reduced?0:(now-start)/1000);requestAnimationFrame(frame);}
  drawStormCoverFrame(canvas,0);requestAnimationFrame(frame);
 }
