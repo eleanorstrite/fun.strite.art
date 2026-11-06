@@ -1,3 +1,4 @@
+import {WIZARD_GOWN_SHOP_ITEMS} from './wizard-gown-shop.js';
 import {COSTUME_PET_SHOP_ITEMS} from './platform-costume-pets.js';
 import {CLOTHING_SHOP_ITEMS} from './platform-jump-clothes.js';
 import {HAIR_SHOP_ITEMS} from './platform-hair-shop.js';
@@ -44,6 +45,7 @@ export const airRecordId=difficulty=>difficulty==='sloth'?'hoop-flight':'hoop-fl
 export const PLANE_DEFAULTS={color:'#ed6e40',style:'sport',difficulty:'sloth',background:'valley',hat:'none',scarf:'none',accessoryColor:'#d34c65'};
 export const KNIGHT_DEFAULTS = { armor: 'silver', helmet: 'plume', cape: true, shield: false, dragon: 'classic' };
 export const UPGRADES = [
+  ...WIZARD_GOWN_SHOP_ITEMS,
   ...CLOTHING_SHOP_ITEMS,
   ...HAIR_SHOP_ITEMS,
   ...SPORTS_SHOP_ITEMS,
