@@ -1,4 +1,5 @@
 export const GAME_COVERS={
+ 'dragon-adventures':{name:'Dragon Adventures',file:'dragon-adventures.jpg'},
  'platform-jump':{name:'Platform Jump',file:'platform-jump.jpg'},
  'animal-sports':{name:'Animal Sports',file:'animal-sports.jpg'},
  'dragon-memory':{name:'Dragon Memory',file:'dragon-memory.jpg'},

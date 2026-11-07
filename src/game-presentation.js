@@ -23,16 +23,19 @@ import {FLIGHT_DEFAULTS} from './flight-settings.js';
 import {createAirState,drawAirRace} from './air-race.js';
 import {createIceRecipe,drawIceScene} from './ice-cream.js';
 import {iceArtAtlas} from './ice-art.js';
+import {createDragonAdventureState} from './dragon-adventure-rules.js';
+import {drawDragonAdventure,dragonAdventureArtReady} from './dragon-adventure-art.js';
 import {drawPumpkinScene,createPumpkin} from './pumpkin.js';
 const read=(key,fallback)=>{try{return JSON.parse(globalThis.localStorage?.getItem(key)||'null')||fallback;}catch{return fallback;}};
 let memoryArt,cityArt,ready;
 export function memoryPresentationArt(){if(!memoryArt&&typeof Image!=='undefined'){memoryArt=new Image();memoryArt.src=new URL('../assets/dragon-memory-colors.png',import.meta.url).href;}return memoryArt;}
 function cityPresentationArt(){if(!cityArt&&typeof Image!=='undefined'){cityArt=new Image();cityArt.src=new URL('../assets/city-builder-preview.jpg',import.meta.url).href;}return cityArt;}
-export function gamePresentationReady(){if(!ready){const images=[...['characters','objects','details','knight','tag-people','flyers-detailed','platforms','platform-faces'].map(playAtlas),playBackdropAtlas(),stormWizardAtlas(),wizardBlockAtlas(),memoryPresentationArt(),cityPresentationArt(),equipmentAtlas(),...["cat","dog","dragon"].map(wizardSidekickAtlas),...['flavors','cones','toppings'].map(iceArtAtlas),...['adult-heads','kid-heads','outfits','shop-gowns','boy-outfits','hair-back'].map(customWizardAtlas),outfitAtlas(),hairAtlas()];ready=Promise.all(images.filter(Boolean).map(im=>im.decode?im.decode().catch(()=>{}):Promise.resolve()));}return ready;}
+export function gamePresentationReady(){if(!ready){const images=[...['characters','objects','details','knight','tag-people','flyers-detailed','platforms','platform-faces'].map(playAtlas),playBackdropAtlas(),stormWizardAtlas(),wizardBlockAtlas(),memoryPresentationArt(),cityPresentationArt(),equipmentAtlas(),...["cat","dog","dragon"].map(wizardSidekickAtlas),...['flavors','cones','toppings'].map(iceArtAtlas),...['adult-heads','kid-heads','outfits','shop-gowns','boy-outfits','hair-back'].map(customWizardAtlas),outfitAtlas(),hairAtlas()];ready=Promise.all([dragonAdventureArtReady(),...images.filter(Boolean).map(im=>im.decode?im.decode().catch(()=>{}):Promise.resolve())]);}return ready;}
 // These are actual game scenes and legal example states, not separate cover characters or levels.
 export function drawGamePresentation(c,id,character={},time=0){
  c.save();c.fillStyle='#1c2f49';c.fillRect(0,0,960,540);const save=read('sidequest.save.v1',{}),owned=save.upgrades||[];
  switch(id){
+  case 'dragon-adventures':{const s=createDragonAdventureState();s.time=time;drawDragonAdventure(c,s,960,540);break;}
   case 'knight-ember':{const look={armor:'silver',helmet:'plume',cape:true,shield:false,dragon:'classic',color:'#ed6e40',...character},s=createMazeState();s.elapsed=time;s.grace=0;let view;try{view=globalThis.localStorage?.getItem('sidequest.maze-view');}catch{}(view==='2d'?drawMaze:drawMaze3D)(c,s,look,960,540);break;}
   case 'platform-jump':{const look=validateJumpSettings(read('sidequest.platform-jump',JUMP_DEFAULTS),owned),s=createJumpState(look.difficulty);s.time=time;s.grounded=true;drawPlatformJump(c,s,look);break;}
   case 'animal-sports':{const look=validateSportsSettings(read('sidequest.animal-sports',SPORTS_DEFAULTS),owned),s=createSportsState(look.arena,look);s.time=time;drawSports(c,s,look,true);break;}
