@@ -21,6 +21,11 @@ html[data-background="country"]{--home-scene:url('./assets/backgrounds/country-r
 html[data-background="city"]{--home-scene:url('./assets/backgrounds/city-realistic.jpg');--home-sky:#c7d3e1}
 html[data-background="sunset"]{--home-scene:url('./assets/backgrounds/sunset-realistic.jpg');--home-sky:#dbb1c1}
 html[data-background="night"]{--home-scene:url('./assets/backgrounds/night-realistic.jpg');--home-sky:#515675}
+html[data-background="snow"]{--home-scene:url('./assets/backgrounds/snow-realistic.png');--home-sky:#a5d4eb}
+html[data-background="autumn"]{--home-scene:url('./assets/backgrounds/autumn-realistic.png');--home-sky:#aa642c}
+html[data-background="reef"]{--home-scene:url('./assets/backgrounds/reef-realistic.png');--home-sky:#157e9e}
+html[data-background="dragon"]{--home-scene:url('./assets/backgrounds/dragon-realistic.png');--home-sky:#a77b54}
+html[data-background="cow"]{--home-scene:url('./assets/backgrounds/cow-realistic.png');--home-sky:#82a251}
 html[data-background]:not([data-background="classic"]) body{background:var(--home-sky)}
 html[data-background]:not([data-background="classic"]) body:before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;background:var(--home-scene) center/cover no-repeat}
 html[data-background]:not([data-background="classic"]) header,html[data-background]:not([data-background="classic"]) footer{background:#f4f2ebed;border-radius:0 0 15px 15px}

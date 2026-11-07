@@ -6,6 +6,11 @@ export const BACKGROUNDS = [
   { id: 'night', name: 'Starry night' },
   { id: 'aurora', name: 'Northern lights', upgrade: 'aurora-background' },
   { id: 'forest', name: 'Enchanted forest', upgrade: 'forest-background' },
+  { id: 'snow', name: 'Snowy forest' },
+  { id: 'autumn', name: 'Autumn forest' },
+  { id: 'reef', name: 'Underwater reef' },
+  { id: 'dragon', name: 'Dragon sky' },
+  { id: 'cow', name: 'Meadow cow' },
   { id: 'classic', name: 'Classic' },
 ];
 export function loadBackground(storage,owned=[]) {
