@@ -93,11 +93,11 @@ export function drawSports(c,s,settings,playing=false){
  }else{
   court(c,s.sport);
   if(s.sport==='tennis'){
-   drawSportsAnimal(c,s.opponent.x,s.opponent.y+20,38,{...settings,animal:'dog',color:'#ad8b6b',jersey:'#e97892',accessory:'cap'},s.time,!!s.ball);
-   racket(c,s.opponent.x+28,s.opponent.y-15,'#f590b4',s.opponentSwing,true,'comet');text(c,s.tennisPlayers===2?'PLAYER 2 · A D W + SHIFT':'OPPONENT',s.opponent.x,s.opponent.y-65,12,'#153047');
+   drawSportsAnimal(c,s.opponent.x,s.opponent.y+20,38,{...settings,animal:'dog',color:s.opponent.color||'#ad8b6b',jersey:s.opponent.jersey||'#e97892',accessory:'cap'},s.time,!!s.ball);
+   racket(c,s.opponent.x+28,s.opponent.y-15,s.opponent.jersey||'#f590b4',s.opponentSwing,true,'comet');text(c,s.tennisPlayers===2?'PLAYER 2 · A D W + SHIFT':'OPPONENT',s.opponent.x,s.opponent.y-65,12,'#153047');
    // A transparent mesh net spans the blue court.
    panel(c,190,314,580,4,'#edf6fa',1);for(let x=195;x<770;x+=13)line(c,[[x,318],[x,352]],'#f3f7fa70',1);for(let y=322;y<353;y+=8)line(c,[[190,y],[770,y]],'#f3f7fa60',1);line(c,[[190,307],[190,359]],'#d1e0ed',6);line(c,[[770,307],[770,359]],'#d1e0ed',6);
-   drawSportsAnimal(c,s.player.x,s.player.y+18,55,settings,s.time,playing);racket(c,s.player.x+38,s.player.y-23,color,s.swing,false,settings.tennis);if(!s.ball&&!s.done)ball(c,s.player.x-25,s.player.y-2,9,'#dbeb55','tennis',false,settings.tennis,s.time);if(s.ball){ellipse(c,s.ball.x,s.ball.y+8,9,3,'#172c5555');ball(c,s.ball.x,s.ball.y,9,'#dbeb55','tennis',special,settings.tennis,s.time);}
+   drawSportsAnimal(c,s.player.x,s.player.y+18,55,settings,s.time,playing);racket(c,s.player.x+38,s.player.y-23,color,s.swing,false,settings.tennis);if(!s.ball&&!s.done){const server=s.server===1?s.opponent:s.player;ball(c,server.x-25,server.y-2,9,'#dbeb55','tennis',false,settings.tennis,s.time);}if(s.ball){ellipse(c,s.ball.x,s.ball.y+8,9,3,'#172c5555');ball(c,s.ball.x,s.ball.y,9,'#dbeb55','tennis',special,settings.tennis,s.time);}
   }else{
    // Backboard and net stay visible above the animals.
    panel(c,430,104,100,62,'#e9f5f9b0',4);c.strokeStyle='#fff';c.lineWidth=3;c.strokeRect(455,128,50,30);for(let i=0;i<6;i++)line(c,[[455+i*10,171],[466+i*6,195]],'#f8f5e7',1);ellipse(c,480,169,28,7,'#e96e3d');ellipse(c,480,167,23,4,'#ae5438');
@@ -109,7 +109,7 @@ export function drawSports(c,s,settings,playing=false){
    if(s.ball)ball(c,s.ball.x,s.ball.y,13,color,'basketball',special,settings.basketball,s.time);else{const p=s.enemyPossession?s.defenders[s.enemyCarrier]:s.team[s.active];ball(c,p.x+28,p.y-20+Math.abs(Math.sin(s.time*9))*16,13,color,'basketball',special,settings.basketball,s.time);}
   }
  }
- if(s.sport==='tennis'&&!s.ball&&!s.done){const age=s.time-s.serveStarted;if(age<2.2){const x=age<.5?-220+700*(1-Math.pow(1-age/.5,3)):age<1.6?480:480+800*Math.pow((age-1.6)/.6,2);panel(c,x-160,250,320,78,'#103858e8',20);text(c,'Serve!',x,307,54,'#fff3a5');}}
+ if(s.sport==='tennis'&&!s.ball&&!s.done){const age=s.time-s.serveStarted;if(age<2.2){const x=age<.5?-220+700*(1-Math.pow(1-age/.5,3)):age<1.6?480:480+800*Math.pow((age-1.6)/.6,2);panel(c,x-160,250,320,78,'#103858e8',20);text(c,s.server===1?(s.tennisPlayers===2?'Player 2 serves!':'Computer serves!'):'Your serve!',x,302,32,'#fff3a5');}}
  panel(c,18,18,220,74,'#10263bdc',12);text(c,s.sport==='bowling'?`ROUND ${Math.min(5,s.round)} / 5`:s.sport==='tennis'?'FIRST TO FIVE':`${Math.ceil(s.remaining)} SECONDS`,128,45,16,'#a8e6ef');text(c,s.sport==='tennis'?`${s.score} — ${s.opponent.score}`:s.sport==='basketball'?`YOU ${s.score} : ${s.enemyScore} THEM`:`${s.score} ${s.sport==='bowling'?'PINS':'POINTS'}`,128,77,25);
  panel(c,190,555,580,34,'#10263bdc',10);text(c,s.message,480,578,16,'#fff0cb');c.restore();
 }

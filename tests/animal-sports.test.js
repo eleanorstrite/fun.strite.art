@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createSportsState,sportsAction,tickSports,sportsReward,sportsShotPoint,sportsShotAligned} from '../src/animal-sports-rules.js';
+import {createSportsState,sportsAction,tickSports,sportsReward,sportsShotPoint,sportsShotAligned,SPORTS_OPPONENT_COLORS} from '../src/animal-sports-rules.js';
 import {SPORTS_ANIMALS,SPORTS_EQUIPMENT,SPORTS_SHOP_ITEMS,validateSportsSettings} from '../src/animal-sports-settings.js';
 import {createSystem} from '../src/system.js';
 const advance=(s,seconds,input={})=>{for(let t=0;t<seconds;t+=.02)tickSports(s,.02,input,()=>1);};
@@ -66,7 +66,7 @@ test('solo tennis returns close shots reliably and misses only when out of reach
 });
 test('tennis prepares a fresh serve after each point and can return the next shot',()=>{
  const s=createSportsState('tennis');assert.equal(s.serveStarted,0);assert.match(s.message,/Serve!/);s.time=8;s.ball={x:480,y:539,vx:0,vy:250};tickSports(s,.02);assert.equal(s.serveStarted,s.time);assert.equal(s.ball,null);assert.equal(s.opponent.score,1);
- advance(s,1);sportsAction(s,'swing');assert.ok(s.ball);s.swing=0;s.ball={x:480,y:440,vx:0,vy:250};sportsAction(s,'swing');assert.ok(s.ball.vy<0);
+ advance(s,1);assert.equal(sportsAction(s,'swing'),false,'The receiver cannot take the computer’s serve');assert.equal(s.ball,null);advance(s,1.3);assert.ok(s.ball?.vy>0,'Computer automatically serves toward the player');s.swing=0;s.ball={x:480,y:440,vx:0,vy:250};sportsAction(s,'swing');assert.ok(s.ball.vy<0);
 });
 test('basketball has three defenders and occasional dribble steals that start opponent possessions',()=>{
  let steals=0;
@@ -124,3 +124,17 @@ test('tennis random misses apply only to shots hit from the right half of the co
 test('harder sports use faster tennis serves and a tighter basketball target',()=>{
  const s=createSportsState('tennis');sportsAction(s,'swing');assert.equal(Math.abs(s.ball.vy),265);assert.equal(s.swing,.32);assert.equal(sportsShotAligned({x:491,y:170}),true);assert.equal(sportsShotAligned({x:493,y:170}),false);
 });
+
+
+test('the tennis point scorer owns the next serve in two-player mode',()=>{
+ const s=createSportsState('tennis',{tennisPlayers:2});assert.equal(s.server,0);assert.equal(sportsAction(s,'swing2'),false);assert.equal(s.ball,null);
+ s.ball={x:480,y:539,vx:0,vy:250};tickSports(s,.02);assert.equal(s.server,1);assert.match(s.message,/Player 2 scores/);assert.equal(sportsAction(s,'swing2'),false,'Wait for the point break');advance(s,3);assert.equal(s.ball,null,'Human serves wait for input');assert.equal(sportsAction(s,'swing'),false);assert.equal(sportsAction(s,'swing2'),true);assert.ok(s.ball.vy>0);assert.equal(s.rally,0);
+ s.ball={x:480,y:131,vx:0,vy:-250};s.opponentSwing=0;tickSports(s,.02);assert.equal(s.server,0);advance(s,1);assert.equal(sportsAction(s,'swing2'),false);assert.equal(sportsAction(s,'swing'),true);assert.ok(s.ball.vy<0);
+});
+test('solo tennis randomizes the computer color once per match and preserves it through points',()=>{
+ const first=createSportsState('tennis',{},()=>0),last=createSportsState('tennis',{},()=>.999);assert.ok(SPORTS_OPPONENT_COLORS.includes(first.opponent.color));assert.notEqual(first.opponent.color,last.opponent.color);assert.notEqual(first.opponent.color,first.opponent.jersey);
+ const look={color:first.opponent.color,jersey:first.opponent.jersey};first.ball={x:480,y:539,vx:0,vy:250};tickSports(first,.02);advance(first,2.3);assert.deepEqual({color:first.opponent.color,jersey:first.opponent.jersey},look);
+ const different=createSportsState('tennis',{color:first.opponent.color,jersey:first.opponent.jersey},()=>0);assert.notEqual(different.opponent.color,first.opponent.color);assert.notEqual(different.opponent.color,first.opponent.jersey);
+ const human=createSportsState('tennis',{tennisPlayers:2},()=>assert.fail('Human opponent does not randomize'));assert.equal(human.opponent.color,'#ad8b6b');
+});
+test('the computer does not start another serve after winning the match',()=>{const s=createSportsState('tennis');s.opponent.score=4;s.ball={x:480,y:539,vx:0,vy:250};tickSports(s,.02);advance(s,4);assert.equal(s.done,true);assert.equal(s.ball,null);assert.equal(s.opponent.score,5);});
