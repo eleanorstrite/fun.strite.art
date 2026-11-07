@@ -32,7 +32,16 @@ test('Twisty flips the piece automatically and blocks attempts to rotate it back
 test('Balloon blocks ignore both instant drop and held fast-drop input',()=>{
  const m=ready(),p=m.players[1];applyWizardPower(m,0,'balloon');const initial=p.piece.y;assert.equal(stormHardDrop(p),false);assert.equal(p.piece.y,initial);for(let i=0;i<10;i++)tickStorm(p,.1,true);assert.ok(p.piece.y<=initial+1);assert.equal(p.locked,0);assert.equal(m.players[0].piece.effects,undefined);
 });
-test('queued crossed lines are awarded once each and computer powers target the human opponent',()=>{
+test('a tall landing earns one choice with the next rainbow line above the tower, and computer powers target the human',()=>{
  const m=ready('computer'),p=level(m,1);p.choices=['ultra','lightning','ice'];tickWizardMatch(m,.1);assert.equal(m.players[0].piece.effects.ultra,true);assert.equal(p.piece.effects?.ultra,undefined);assert.equal(p.choices.length,0);
- const local=ready(),a=local.players[0];a.height=13;updateWizardLevels(local,0);assert.equal(a.nextPowerHeight,16);assert.equal(a.pendingLevels,2);assert.equal(a.choices.length,3);let used=0;while(a.choices.length&&used<5){const slot=a.choices.findIndex(id=>wizardPower(id).type==='Attack');assert.ok(slot>=0);assert.equal(chooseWizardPower(local,0,slot),true);used++;}assert.equal(used,3);assert.equal(a.level,3);assert.equal(a.pendingLevels,0);updateWizardLevels(local,0);assert.equal(a.choices.length,0);
+ for(const player of [0,1]){const local=ready(),a=local.players[player];a.height=13;updateWizardLevels(local,player);assert.equal(a.nextPowerHeight,17);assert.equal(a.pendingLevels,0);assert.equal(a.choices.length,3);assert.equal(a.level,1);
+ const slot=a.choices.findIndex(id=>wizardPower(id).type==='Attack');assert.ok(slot>=0);assert.equal(chooseWizardPower(local,player,slot),true);for(let i=0;i<20;i++)updateWizardLevels(local,player);assert.equal(a.choices.length,0);assert.equal(a.level,1);a.height=16;updateWizardLevels(local,player);assert.equal(a.choices.length,0);a.height=17;updateWizardLevels(local,player);assert.equal(a.choices.length,3);assert.equal(a.nextPowerHeight,21);}
+});
+test('building while a choice is open cannot stockpile back-to-back powers or move the line down after a fall',()=>{
+ const m=ready(),p=level(m);assert.equal(p.nextPowerHeight,8);p.height=15;updateWizardLevels(m,0);assert.equal(p.nextPowerHeight,19);assert.equal(p.level,1);assert.equal(p.pendingLevels,0);
+ const slot=p.choices.findIndex(id=>wizardPower(id).type==='Attack');chooseWizardPower(m,0,slot);assert.equal(p.choices.length,0);updateWizardLevels(m,0);assert.equal(p.choices.length,0);
+ p.height=2;updateWizardLevels(m,0);assert.equal(p.nextPowerHeight,19);p.height=18;updateWizardLevels(m,0);assert.equal(p.choices.length,0);p.height=19;updateWizardLevels(m,0);assert.equal(p.choices.length,3);assert.equal(p.nextPowerHeight,23);
+});
+test('every reached rainbow line advances by four fresh rows until the gold finish',()=>{
+ const m=ready(),p=m.players[0];for(const height of [4,8,12,16,20,24,28,32,36,40,44,48,52,56]){p.height=height;updateWizardLevels(m,0);assert.equal(p.nextPowerHeight,height+4);assert.equal(p.choices.length,3);const slot=p.choices.findIndex(id=>wizardPower(id).type==='Attack');chooseWizardPower(m,0,slot);updateWizardLevels(m,0);assert.equal(p.choices.length,0);}p.height=60;updateWizardLevels(m,0);assert.equal(p.choices.length,0);
 });

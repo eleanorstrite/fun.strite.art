@@ -29,8 +29,10 @@ function offerPowers(match,index){
 }
 export function updateWizardLevels(match,index){
  const p=match.players[index];p.highWater=Math.max(p.highWater,p.height);
- while(p.highWater>=p.nextPowerHeight&&p.nextPowerHeight<p.target){p.pendingLevels++;p.nextPowerHeight+=WIZARD_LEVEL_STEP;}
- offerPowers(match,index);
+ // A tall landing earns one choice, not a backlog of crossed level-ups.
+ // While a choice is open, keep the next line above any further building.
+ if(p.choices.length){p.nextPowerHeight=Math.max(p.nextPowerHeight,p.highWater+WIZARD_LEVEL_STEP);return;}
+ if(p.highWater>=p.nextPowerHeight&&p.nextPowerHeight<p.target){p.nextPowerHeight=p.highWater+WIZARD_LEVEL_STEP;p.pendingLevels=1;offerPowers(match,index);}
 }
 export function applyWizardPower(match,index,id,emit=()=>{}){
  if(!canUseWizardPower(match,index,id))return false;const p=match.players[index],power=wizardPower(id);
@@ -45,7 +47,7 @@ export function applyWizardPower(match,index,id,emit=()=>{}){
 }
 export function chooseWizardPower(match,index,slot,emit=()=>{}){
  const p=match.players[index],id=p?.choices[slot];if(!id||!applyWizardPower(match,index,id,emit))return false;
- p.choices=[];offerPowers(match,index);return true;
+ p.choices=[];p.pendingLevels=0;p.highWater=Math.max(p.highWater,p.height);p.nextPowerHeight=Math.max(p.nextPowerHeight,p.highWater+WIZARD_LEVEL_STEP);return true;
 }
 export function collectWizardItem(match,index,emit=()=>{}){return chooseWizardPower(match,index,0,emit);}
 export function castWizardItem(match,index,id,emit=()=>{}){const slot=match.players[index]?.choices.indexOf(id);return slot>=0?chooseWizardPower(match,index,slot,emit):false;}
