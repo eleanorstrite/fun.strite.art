@@ -18,13 +18,21 @@ export function milkshakeColor(r){const flavors=(r.flavors?.length?r.flavors:[r.
 function oval(c,x,y,rx,ry,color){c.fillStyle=color;c.beginPath();c.ellipse(x,y,rx,ry,0,0,Math.PI*2);c.fill();}
 function shape(c,points){c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.closePath();}
 function gradient(c,x1,y1,x2,y2,stops){const g=c.createLinearGradient(x1,y1,x2,y2);stops.forEach(([at,color])=>g.addColorStop(at,color));return g;}
-function liquidPath(c){shape(c,[[-57,-245],[57,-245],[43,-22],[-43,-22]]);}
+function liquidPath(c){c.beginPath();c.moveTo(-57,-245);c.lineTo(57,-245);c.bezierCurveTo(53,-146,48,-73,19,-40);c.quadraticCurveTo(0,-28,-19,-40);c.bezierCurveTo(-48,-73,-53,-146,-57,-245);c.closePath();}
+const flavorChunks={cookies:['oreo'],mint:['chips'],rockyroad:['chocolatePieces','marshmallows','almonds'],vanillaalmond:['almonds'],maplewalnut:['walnuts'],orangechocolate:['chocolatePieces'],chocolatealmond:['almonds'],chocolateraspberry:['raspberries'],pannacotta:['strawberries','raspberries']};
+export function milkshakeChunkKinds(r){return [...new Set([...(r.flavors??[r.flavor]).flatMap(id=>flavorChunks[id]||[]),...r.toppings.filter(id=>!ICE_SYRUPS[id]&&!['cream','redVelvetWhip'].includes(id))])];}
+// Irregular, partly submerged tumbling inside the jug, with progressively chopped pieces.
+export function milkshakeParticles(r,time=0,progress=0){return milkshakeChunkKinds(r).flatMap((id,kind)=>Array.from({length:12},(_,i)=>{const seed=i+kind*17,phase=time*(2.7+seed%5*.21)+seed*2.399,depth=(Math.sin(phase*.73+seed)*.5+.5),front=Math.sin(phase+seed*.61);return {id,x:Math.sin(phase)*68*(.55+.35*depth),y:-288+depth*177,rotation:phase*(seed%2?1:-1),size:(id==='oreo'?42:30)*(1-progress)**1.7+2.5+seed%3,opacity:clamp((front+.2)*1.3)*(.85-.32*progress)};}));}
 function bits(c,r,{top=-235,bottom=-26,time=0,swirl=false,progress=1}={}){
- for(let kind=0;kind<r.toppings.length;kind++)for(let i=0;i<9;i++){
-  const id=r.toppings[kind],seed=i+kind*11,depth=((i*.113+kind*.17+(swirl?time*.25:0))%1),angle=time*(swirl?9:0)+seed*2.4,radius=swirl?40*(.3+.7*depth):46;
-  const x=Math.sin(angle)*radius,y=top+(bottom-top)*depth,size=swirl?25*(1-progress)+7:6+seed%5;
-  c.save();c.translate(x,y);c.rotate(swirl?angle*.6:seed);if(!drawIceIngredient(c,'toppings',id,-size/2,-size/2,size,size)){oval(c,0,0,size*.3,size*.23,toppingColors[id]||'#e9b1bd');}c.restore();
- }
+ if(swirl){for(const p of milkshakeParticles(r,time,progress)){if(p.opacity<.04)continue;c.save();c.globalAlpha=p.opacity;c.translate(p.x,p.y);c.rotate(p.rotation);if(!drawIceIngredient(c,'toppings',p.id,-p.size/2,-p.size/2,p.size,p.size))oval(c,0,0,p.size*.42,p.size*.3,toppingColors[p.id]||'#735044');c.restore();}return;}
+ const ids=milkshakeChunkKinds(r);for(let k=0;k<ids.length;k++)for(let i=0;i<32;i++){const seed=i+k*37,x=Math.sin(seed*12.37)*49,y=top+(bottom-top)*((seed*.618)%1),size=1.2+seed%4*.6;oval(c,x,y,size,size*.65,toppingColors[ids[k]]||'#765348');}
+}
+export function drawMilkshakeBowl(c,r,x=450,y=440){
+ c.save();c.translate(x,y);oval(c,0,56,139,15,'#75546b28');
+ const ids=(r.flavors??[r.flavor]).filter(id=>ICE_FLAVORS[id]);ids.forEach((id,i)=>{const xx=ids.length===1?0:(i-(ids.length-1)/2)*65,yy=-110-(i%2)*28;if(!drawIceIngredient(c,'flavors',id,xx-64,yy,128,107))oval(c,xx,yy+52,60,49,ICE_FLAVORS[id].color);});
+ r.toppings.filter(id=>!ICE_SYRUPS[id]).forEach((id,k)=>{for(let i=0;i<4;i++)drawIceIngredient(c,'toppings',id,-85+(i*53+k*19)%155,-111+(i*17+k*23)%60,32,32);});
+ c.save();c.beginPath();c.ellipse(0,-56,119,63,0,0,Math.PI*2);c.clip();for(const drop of r.sauceDrops||[]){const syrup=ICE_SYRUPS[drop.kind||'sauce'];if(!syrup)continue;const xx=drop.x*1.15,yy=377+drop.y*1.15-y;c.strokeStyle=syrup.color;c.lineWidth=4+Math.min(4,drop.amount*3);c.lineCap='round';c.beginPath();c.moveTo(xx-6,yy);c.quadraticCurveTo(xx+9,yy+9,xx-3,yy+20);c.stroke();}c.restore();
+ c.fillStyle=gradient(c,-120,0,120,40,[[0,'#b8cbd5'],[.22,'#ffffff'],[.55,'#e6edf0'],[1,'#96aeba']]);c.beginPath();c.moveTo(-124,-52);c.bezierCurveTo(-117,80,117,80,124,-52);c.quadraticCurveTo(0,-24,-124,-52);c.fill();c.strokeStyle='#8fa8b5';c.lineWidth=2;c.stroke();c.strokeStyle='#fff';c.lineWidth=5;c.beginPath();c.ellipse(0,-52,124,13,0,0,Math.PI);c.stroke();oval(c,0,49,57,8,'#bfced6');c.restore();
 }
 function sparkle(c,x,y,size,alpha=1){c.save();c.globalAlpha=alpha;c.strokeStyle='#fff6b5';c.lineWidth=2;c.shadowColor='#fff2af';c.shadowBlur=12;c.beginPath();c.moveTo(x-size,y);c.lineTo(x+size,y);c.moveTo(x,y-size);c.lineTo(x,y+size);c.stroke();c.restore();}
 export function drawMilkshakeStraw(c,points,{width=10,color='#e7658f'}={}){c.save();c.lineCap='round';c.lineJoin='round';c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.strokeStyle='#fff7f2';c.lineWidth=width+2;c.stroke();c.strokeStyle=color;c.lineWidth=width;c.setLineDash?.([width,width]);c.stroke();c.restore();}
@@ -33,14 +41,23 @@ export function drawMilkshakeGlass(c,r,x,y,{scale=1,remaining=1,time=0,reduced=f
  // A reusable, ribbed glass encloses both the liquid and the topping fragments.
  oval(c,0,1,69,11,'#71596b22');c.save();liquidPath(c);c.clip();c.fillStyle=gradient(c,-60,-220,60,-20,[[0,'#e3f4f534'],[.45,'#ffffff18'],[1,'#a1c1d44d']]);c.fillRect(-65,-250,130,235);
  if(remaining>0){
-  if(blended){c.fillStyle=gradient(c,-55,top,55,-26,[[0,'#fff3e2'],[.22,milkshakeColor(r)],[.8,milkshakeColor(r)],[1,'#a37a7166']]);c.fillRect(-65,top,130,-22-top);bits(c,r,{top:top+8,bottom:-28});for(const id of r.toppings.filter(id=>ICE_SYRUPS[id])){c.strokeStyle=ICE_SYRUPS[id].color+'8c';c.lineWidth=5;c.beginPath();c.moveTo(-43,top+3);c.bezierCurveTo(47,top+26,-48,top+57,41,Math.min(-28,top+95));c.stroke();}}
+  if(blended){c.fillStyle=gradient(c,-55,top,55,-26,[[0,milkshakeColor(r)],[.3,milkshakeColor(r)],[.8,milkshakeColor(r)],[1,'#927267']]);c.fillRect(-65,top,130,-22-top);c.fillStyle=gradient(c,-58,0,58,0,[[0,'#42261966'],[.22,'#ffffff00'],[.45,'#fff6e32e'],[.75,'#ffffff00'],[1,'#42261955']]);c.fillRect(-65,top,130,-22-top);bits(c,r,{top:top+8,bottom:-38});for(const id of [...new Set([...r.toppings.filter(id=>ICE_SYRUPS[id]),...(r.flavors?.includes('chocolate')?['sauce']:[])])]){const color=ICE_SYRUPS[id].color;for(let i=0;i<5;i++){const xx=-44+i*22;c.strokeStyle=color+'cc';c.lineWidth=4+i%3;c.lineCap='round';c.beginPath();c.moveTo(xx,top+3);c.bezierCurveTo(xx+5,top+30,xx-8,top+40+i*15,xx-3,Math.min(-28,top+55+i*24));c.stroke();}oval(c,0,-27,43,8,color+'99');}}
+
   else{const ids=(Array.isArray(r.flavors)?r.flavors:[r.flavor]).filter(id=>ICE_FLAVORS[id]);if(ids.length){c.fillStyle=milkshakeColor(r);c.fillRect(-65,-115,130,94);}ids.forEach((id,i)=>{const sy=-150-i*43;if(!drawIceIngredient(c,'flavors',id,-49,sy,98,85,{stretch:true}))oval(c,0,sy+42,49,40,ICE_FLAVORS[id]?.color||'#ffe5c0');});if(ids.length)bits(c,r,{top:-228,bottom:-54,progress:0});}
  }
  c.restore();
- c.fillStyle=gradient(c,-67,-200,67,-200,[[0,'#f3ffffa6'],[.12,'#b5cede36'],[.45,'#ffffff00'],[.85,'#c9e3ef22'],[1,'#faffffc2']]);shape(c,[[-65,-250],[65,-250],[48,-16],[35,-8],[-35,-8],[-48,-16]]);c.fill();c.strokeStyle='#9eb4c5';c.lineWidth=2;c.stroke();
- for(const xx of [-44,-24,24,44]){c.strokeStyle='#ffffff70';c.lineWidth=3;c.beginPath();c.moveTo(xx,-227);c.lineTo(xx*.7,-28);c.stroke();}
- c.strokeStyle='#faffffdd';c.lineWidth=5;c.beginPath();c.moveTo(-53,-225);c.lineTo(-39,-33);c.stroke();oval(c,0,-249,65,10,'#effcff5e');c.strokeStyle='#f9ffff';c.lineWidth=3;c.beginPath();c.ellipse(0,-249,65,10,0,0,Math.PI*2);c.stroke();oval(c,0,-9,51,9,'#b0c3d49e');oval(c,0,-13,45,5,'#f9ffffa6');
- if(blended&&remaining>.94){oval(c,0,-247,54,8,'#fff2df');if(r.toppings.includes('cream'))drawIceIngredient(c,'toppings','cream',-40,-318,80,78);if(r.toppings.includes('cherry'))drawIceIngredient(c,'toppings','cherry',14,-329,43,43);}
+ c.fillStyle=gradient(c,-67,-200,67,-200,[[0,'#f3ffffa6'],[.12,'#b5cede36'],[.45,'#ffffff00'],[.85,'#c9e3ef22'],[1,'#faffffc2']]);c.beginPath();c.moveTo(-65,-250);c.lineTo(65,-250);c.bezierCurveTo(61,-147,53,-61,24,-32);c.quadraticCurveTo(12,-20,7,-18);c.lineTo(7,-3);c.lineTo(-7,-3);c.lineTo(-7,-18);c.quadraticCurveTo(-12,-20,-24,-32);c.bezierCurveTo(-53,-61,-61,-147,-65,-250);c.closePath();c.fill();c.strokeStyle='#9eb4c5';c.lineWidth=2;c.stroke();
+ for(const xx of [-44,-24,24,44]){c.strokeStyle='#ffffff70';c.lineWidth=3;c.beginPath();c.moveTo(xx,-227);c.bezierCurveTo(xx*.96,-139,xx*.65,-61,xx*.3,-35);c.stroke();}
+ c.strokeStyle='#faffffdd';c.lineWidth=5;c.beginPath();c.moveTo(-53,-225);c.lineTo(-39,-33);c.stroke();oval(c,0,-249,65,10,'#effcff5e');c.strokeStyle='#f9ffff';c.lineWidth=3;c.beginPath();c.ellipse(0,-249,65,10,0,0,Math.PI*2);c.stroke();oval(c,0,0,51,9,'#b0c3d49e');oval(c,0,-3,45,5,'#f9ffffa6');
+ if(blended&&remaining>.94){
+  oval(c,0,-247,54,9,'#fff5e6');
+  // Piped whipped cream, shaded folds, and a chocolate garnish like a parlor sundae glass.
+  for(let i=0;i<7;i++){const w=47-i*6,yy=-252-i*8;c.fillStyle=gradient(c,-w,yy-8,w,yy+5,[[0,'#d9c7b2'],[.35,'#fffdf5'],[.65,'#fff8ea'],[1,'#e1d0ba']]);c.beginPath();c.ellipse((i%2?3:-2),yy,w,9,0,0,Math.PI*2);c.fill();}
+  c.fillStyle='#fff9ed';c.beginPath();c.moveTo(-7,-296);c.quadraticCurveTo(12,-311,6,-319);c.quadraticCurveTo(25,-298,9,-292);c.fill();
+  if(r.flavors?.includes('chocolate')||milkshakeChunkKinds(r).some(id=>['oreo','chocolatePieces','chips'].includes(id))){c.save();c.translate(-27,-294);c.rotate(-.4);c.fillStyle='#4f2a1d';c.fillRect(-24,-42,48,45);c.strokeStyle='#a67252';c.lineWidth=2;for(let i=0;i<2;i++)for(let j=0;j<2;j++)c.strokeRect(-20+i*22,-38+j*20,18,16);c.restore();}
+  if(r.toppings.includes('cherry'))drawIceIngredient(c,'toppings','cherry',14,-329,43,43);
+ }
+
  if(straw)drawMilkshakeStraw(c,[[13,-24],[39,-261],[72,-331]],{width:9});
  if(view.sparkle>0&&remaining>.95)for(let i=0;i<9;i++){const angle=i*2.4,xx=Math.cos(angle)*(77+i%3*7),yy=-290+i*31;const a=reduced?view.sparkle:view.sparkle*(.55+.45*Math.sin(time*5+i));sparkle(c,xx,yy,5+i%3*2,a);}
  c.restore();
@@ -50,14 +67,17 @@ export function drawMilkshakeBlender(c,r,x=450,y=505,{reduced=false}={}){
  // Rounded chrome motor, clear tapered jug, and separate handle and lid.
  c.strokeStyle='#c5d2dc';c.lineWidth=15;c.beginPath();c.moveTo(99,-297);c.bezierCurveTo(170,-310,169,-119,89,-132);c.stroke();c.strokeStyle='#ffffffbb';c.lineWidth=5;c.stroke();
  c.save();shape(c,[[-105,-317],[105,-317],[78,-91],[-78,-91]]);c.clip();c.fillStyle='#d5ecf440';c.fillRect(-110,-325,220,240);
- if(moving){c.fillStyle=gradient(c,-95,-280,95,-100,[[0,'#fff3e1'],[.25,milkshakeColor(r)],[1,milkshakeColor(r)]]);c.fillRect(-110,-297,220,210);c.save();c.translate(0,-62);c.scale(1.9,.86);bits(c,r,{top:-250,bottom:-40,time:t,swirl:true,progress:v.progress});c.restore();for(let i=0;i<9;i++){c.strokeStyle=(ICE_FLAVORS[(r.flavors||[r.flavor])[i%(r.flavors?.length||1)]]?.color||'#fff7e3')+'a6';c.lineWidth=6-i*.35;c.beginPath();c.ellipse(Math.sin(t*8+i)*12,-272+i*20,82-i*4,9+i*.2,Math.sin(t*4+i)*.12,0,Math.PI*2);c.stroke();}}
+ if(moving){c.fillStyle=gradient(c,-95,-280,95,-100,[[0,milkshakeColor(r)],[.5,milkshakeColor(r)],[1,'#967568']]);c.fillRect(-110,-297,220,210);bits(c,r,{time:t,swirl:true,progress:v.progress});
+ // Opaque ice cream conceals pieces at the back; only small surface ripples and bubbles remain.
+ oval(c,0,-293,96,8,milkshakeColor(r));for(let i=0;i<13;i++){const xx=Math.sin(i*13.7+t*1.2)*78,yy=-286+(i*29+t*17)%178;oval(c,xx,yy,1.2+i%3,.8+i%2,'#ffffff28');}}
+
  else{const ids=r.flavors?.length?r.flavors:[r.flavor];ids.forEach((id,i)=>drawIceIngredient(c,'flavors',id,-78,-182-i*43,156,108,{stretch:true}));r.toppings.forEach((id,i)=>drawIceIngredient(c,'toppings',id,-64+i*44,-291+i%2*28,65,60));}
  c.restore();c.strokeStyle='#99b4c8';c.lineWidth=3;shape(c,[[-105,-317],[105,-317],[78,-91],[-78,-91]]);c.stroke();c.strokeStyle='#f7ffffb3';c.lineWidth=9;c.beginPath();c.moveTo(-91,-300);c.lineTo(-68,-111);c.stroke();
  for(let i=0;i<5;i++){c.strokeStyle='#7e95a0';c.lineWidth=2;c.beginPath();c.moveTo(70,-145-i*28);c.lineTo(90,-145-i*28);c.stroke();}
  c.fillStyle='#384254';c.beginPath();c.roundRect(-115,-335,230,23,10);c.fill();c.fillStyle='#a7b8c6';c.beginPath();c.roundRect(-29,-354,58,21,6);c.fill();c.fillStyle='#3e4857';c.beginPath();c.roundRect(-85,-98,170,20,8);c.fill();
  c.fillStyle=gradient(c,-122,-83,122,-5,[[0,'#e7eff3'],[.36,'#8c9aa9'],[.65,'#e4eaf1'],[1,'#798494']]);c.beginPath();c.roundRect(-123,-83,246,90,[24,24,32,32]);c.fill();oval(c,0,-38,29,29,'#465269');oval(c,0,-38,21,21,moving?'#d8bfef':'#d9e4ea');c.strokeStyle=moving?'#ae71c4':'#667c8b';c.lineWidth=4;c.beginPath();c.arc(0,-38,13,-Math.PI/2,-Math.PI/2+(moving?v.progress:0)*Math.PI*2);c.stroke();
  if(v.count){c.fillStyle='#15223cd9';c.beginPath();c.roundRect(-70,-269,140,115,24);c.fill();c.fillStyle='#fff2bb';c.textAlign='center';c.font='800 84px system-ui';c.fillText(String(v.count),0,-182);}
- c.restore();c.textAlign='center';c.fillStyle='#553b52';c.font='800 25px system-ui';c.fillText(v.count?'Ready to blend · '+v.count:'Blending your toppings! '+Math.round(v.progress*100)+'%',450,554);c.font='17px system-ui';c.fillText(v.count?'Watch your ingredients go into the blender':'Watch the pieces swirl into your ice cream',450,583);
+ c.restore();c.textAlign='center';c.fillStyle='#553b52';c.font='800 25px system-ui';c.fillText(v.count?'Ready to blend · '+v.count:'Blending your toppings! '+Math.round(v.progress*100)+'%',450,554);c.font='17px system-ui';c.fillText(v.count?'Watch your ingredients go into the blender':'Blending and chopping your mix-ins into a creamy shake',450,583);
 }
 export function milkshakeMouthPoint(x,y,time=0,open=false){const b=PLAY_ART.objects.bounds[open?15:14],s=Math.min(245/b.w,260/b.h),w=b.w*s,h=b.h*s,angle=Math.sin(time*3)*.015,rx=(.16-.5)*w,ry=(.29-1)*h;return {x:x+28+Math.cos(angle)*rx-Math.sin(angle)*ry,y:y+197+Math.sin(angle)*rx+Math.cos(angle)*ry};}
 export function drawMilkshakeDrink(c,r,time,drawDragon,reduced=false){const v=milkshakeDrinkView(time),x=900-v.arrive*300,y=277,open=!!r.funny&&v.drinking&&Math.sin(time*9)>.2;drawDragon(c,x,y,reduced?0:time,open?.45:.1);drawMilkshakeGlass(c,r,380,500,{scale:.72,remaining:1-v.consumed,time,reduced,straw:false});const mouth=milkshakeMouthPoint(x,y,reduced?0:time,open),connect=clamp((time-1)/.5),tip={x:432+(mouth.x-432)*connect,y:261+(mouth.y-261)*connect};drawMilkshakeStraw(c,[[389,480],[411,292],[432,261],[tip.x,tip.y]],{width:7});

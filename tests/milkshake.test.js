@@ -17,3 +17,21 @@ test('the complete milkshake flow freezes while paused or hidden, locks blending
  for(const funny of [false,true]){engine.start();if(funny)mode.onclick();choices.children.find(b=>Object.hasOwn(b.attributes,'data-milkshake-choice')).onclick();assert.ok(choices.children.every(b=>b.attributes['data-milkshake-choice']!==undefined||b.attributes['aria-pressed']==='false'));next.onclick();next.onclick();for(const id of ['oreo','banana','cherry'])choices.children.find(b=>b.attributes['data-ice-id']===id).onclick();const fourth=choices.children.find(b=>b.attributes['data-ice-id']==='mms');assert.equal(fourth.disabled,true);fourth.onclick();assert.equal(choices.children.filter(b=>b.attributes['aria-pressed']==='true').length,3);assert.equal(next.textContent,'Send to blender');next.onclick();frames(15);const before=heading.textContent;engine.pause(true);frames(40);assert.equal(heading.textContent,before);engine.pause(false);document.hidden=true;frames(40);assert.equal(heading.textContent,before);document.hidden=false;next.onclick();assert.ok(!rewards.length||funny);frames(67);assert.equal(next.textContent,'Feed dragon');assert.equal(next.disabled,false);assert.ok([...new Set(counts)].join('').includes('321'));const at=notes.length;next.onclick();frames(30);engine.pause(true);const during=notes.length;frames(90);assert.equal(notes.length,during);assert.equal(rewards.length,funny?1:0);engine.pause(false);frames(65);assert.equal(rewards.length,funny?2:1);if(funny)assert.ok(notes.length>at);else assert.equal(notes.length,at);frames(20);assert.equal(rewards.length,funny?2:1);}
  assert.deepEqual(rewards,[5,5]);assert.deepEqual(speech,['Yum! Thank you!','Yum! Thank you!']);
 });
+
+test('flavor mix-ins tumble, submerge and chop into small flecks without requiring extra toppings',async()=>{
+ const {milkshakeChunkKinds,milkshakeParticles}=await import('../src/milkshake.js');
+ const r=selectMilkshake({...createIceRecipe(),flavors:['cookies','mint','rockyroad'],toppings:[]});
+ assert.deepEqual(milkshakeChunkKinds(r),['oreo','chips','chocolatePieces','marshmallows','almonds']);
+ const large=milkshakeParticles(r,3,0),small=milkshakeParticles(r,3,1),later=milkshakeParticles(r,3.4,0);
+ assert.ok(large.some(p=>p.id==='oreo'&&p.size>=42));
+ large.forEach((p,i)=>{assert.ok(small[i].size<p.size);assert.ok(small[i].size<=4.5);assert.ok(Math.abs(p.x)<90&&p.y>=-288&&p.y<=-111);});
+ assert.ok(large.some(p=>p.opacity===0));assert.ok(large.some(p=>p.opacity>.7));assert.notDeepEqual(large,later);
+ const before=JSON.stringify(r);drawMilkshakeBlender(context(),{...r,blend:{phase:'blending',time:4}});assert.equal(JSON.stringify(r),before);
+});
+test('milkshake syrup can be squeezed into the bowl and remains contained before blending',async()=>{
+ const {pourIceChocolate,tickIceChocolate}=await import('../src/ice-cream.js');
+ const {drawMilkshakeBowl}=await import('../src/milkshake.js');const r=selectMilkshake({...createIceRecipe(),toppings:['sauce']});
+ pourIceChocolate(r,20,-30,.5);pourIceChocolate(r,210,0,.3);assert.equal(r.sauceDrops.length,2);assert.ok(r.sauceDrops.every(d=>Math.abs(d.x)<=88));assert.ok(r.sauceDrops[0].amount>.4);
+ const before=JSON.stringify(r);tickIceChocolate(r,1);drawMilkshakeBowl(context(),r);assert.equal(JSON.stringify(r),before);assert.deepEqual(r.saucePuddles,[]);
+ startMilkshakeBlend(r);const locked=JSON.stringify(r);pourIceChocolate(r,0,0,1);assert.equal(JSON.stringify(r),locked);
+});

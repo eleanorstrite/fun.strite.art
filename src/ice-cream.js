@@ -1,5 +1,5 @@
 import {iceDragonCleanupAtlas,iceDragonCleanupFacing,drawIceDragonCleanup} from './ice-dragon-cleanup.js';
-import {isMilkshake,selectMilkshake,resetMilkshakeBlend,chooseMilkshakeTopping,startMilkshakeBlend,tickMilkshakeBlend,milkshakeBlendView,milkshakeEndingSounds,MILKSHAKE_DRINK_SECONDS,MILKSHAKE_THANKS,drawMilkshakeGlass,drawMilkshakeBlender,drawMilkshakeDrink} from './milkshake.js';
+import {isMilkshake,selectMilkshake,resetMilkshakeBlend,chooseMilkshakeTopping,startMilkshakeBlend,tickMilkshakeBlend,milkshakeBlendView,milkshakeEndingSounds,MILKSHAKE_DRINK_SECONDS,MILKSHAKE_THANKS,drawMilkshakeBowl,drawMilkshakeGlass,drawMilkshakeBlender,drawMilkshakeDrink} from './milkshake.js';
 import {drawIceIngredient,iceArtReady} from './ice-art.js';
 import {drawPlayBackdrop,drawPlaySprite} from './play-art.js';
 import { createMazeAudio } from './maze-audio.js';
@@ -25,6 +25,7 @@ function drawReferenceIceToppings(c,recipe){
 export function pourIceChocolate(recipe,x,y,seconds,kind="sauce"){
   if(!isIceSyrup(kind)||!recipe.toppings.includes(kind)||!Number.isFinite(seconds)||seconds<=0||!Number.isFinite(x)||!Number.isFinite(y))return;
   if(Math.abs(x)>240||y< -90||y>162)return;
+  if(isMilkshake(recipe)){if(recipe.blend?.phase!=='choosing')return;recipe.sauceDrops??=[];const gx=Math.round(iceClamp(x,-85,85)/4)*4,gy=Math.round(iceClamp(y,-75,15)/4)*4;let drop=recipe.sauceDrops.find(p=>p.kind===kind&&p.x===gx&&p.y===gy);if(!drop){drop={kind,x:gx,y:gy,amount:0};recipe.sauceDrops.push(drop);}drop.amount=Math.min(3,drop.amount+seconds);return;}
   if((x/66)**2+((y+30)/58)**2>1){
     recipe.sauceFalling??=[];
     const top=Math.abs(x)<66?-30-58*Math.sqrt(1-(x/66)**2):null;
@@ -54,7 +55,7 @@ function chocolateSurfaceX(recipe,x,y){
   return x*coneWidth(recipe.cone,y)/coneWidth(recipe.cone,20);
 }
 export function tickIceChocolate(recipe,seconds){
-  if(!hasSyrup(recipe)||!Number.isFinite(seconds)||seconds<=0)return;
+  if(isMilkshake(recipe)||!hasSyrup(recipe)||!Number.isFinite(seconds)||seconds<=0)return;
   recipe.sauceFalling??=[];recipe.saucePuddles??=[];
   // Small steps keep gravity and surface flow stable at different frame rates.
   for(let remaining=Math.min(seconds,1);remaining>0;){
@@ -363,7 +364,7 @@ export function drawIceScene(ctx,recipe,width,height,clipTime=null,reducedMotion
     const v=milkshakeBlendView(recipe);
     if(clipTime!==null)drawMilkshakeDrink(ctx,recipe,clipTime,drawIceDragon,reducedMotion);
     else if(v.phase==='countdown'||v.phase==='blending')drawMilkshakeBlender(ctx,recipe,450,505,{reduced:reducedMotion});
-    else{drawMilkshakeGlass(ctx,recipe,450,503,{time:v.time,reduced:reducedMotion});ctx.font='800 23px system-ui';ctx.fillStyle='#533e4a';ctx.fillText(v.phase==='ready'?'Your milkshake is ready! ✨':'Build your milkshake · choose up to 3 toppings',450,553);ctx.font='17px system-ui';ctx.fillText(v.phase==='ready'?'Little topping chunks are mixed into your ice cream.':'Ice cream and toppings go into the blender next.',450,584);}
+    else{if(v.phase==='ready')drawMilkshakeGlass(ctx,recipe,450,503,{time:v.time,reduced:reducedMotion});else drawMilkshakeBowl(ctx,recipe);ctx.font='800 23px system-ui';ctx.fillStyle='#533e4a';ctx.fillText(v.phase==='ready'?'Your milkshake is ready! ✨':'Build your milkshake · choose up to 3 toppings',450,553);ctx.font='17px system-ui';ctx.fillText(v.phase==='ready'?'Little topping chunks are mixed into your ice cream.':'Ice cream and toppings go into the blender next.',450,584);}
     ctx.restore();return;
   }
   if(clipTime===null){
@@ -420,12 +421,12 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
   const stopPour=()=>{squeezing=false;pointer=null;drag=null;};
   const isMixing=()=>isMilkshake(recipe)&&['countdown','blending'].includes(recipe.blend?.phase);
   const blendKey=()=>isMilkshake(recipe)?milkshakeBlendView(recipe).phase+':'+milkshakeBlendView(recipe).count:'';
-  const canPour=()=>!isMilkshake(recipe)&&active&&!paused&&clip===null&&step===2&&isIceSyrup(activeTopping)&&recipe.toppings.includes(activeTopping)&&!document.hidden;
+  const canPour=()=>!isMixing()&&(!isMilkshake(recipe)||recipe.blend?.phase==='choosing')&&active&&!paused&&clip===null&&step===2&&isIceSyrup(activeTopping)&&recipe.toppings.includes(activeTopping)&&!document.hidden;
   const canvasPoint=e=>{const rect=canvas.getBoundingClientRect();return {x:(e.clientX-rect.left)*900/rect.width,y:(e.clientY-rect.top)*620/rect.height};};
   const events={signal:controller.signal};
   canvas.addEventListener?.('pointerdown',e=>{
     if(!canPour()||pointer!==null||e.button>0)return;
-    const p=canvasPoint(e),bx=450+bottle.x*1.15,by=307+bottle.y*1.15-85;
+    const p=canvasPoint(e),bx=450+bottle.x*1.15,by=307+bottle.y*1.15-85+(isMilkshake(recipe)?70:0);
     if(Math.abs(p.x-bx)>32||p.y<by-50||p.y>by+40)return;
     e.preventDefault();canvas.focus();audio.unlock();canvas.setPointerCapture?.(e.pointerId);
     pointer=e.pointerId;drag={...p,bx:bottle.x,by:bottle.y};squeezing=true;
@@ -466,7 +467,7 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
   });
   function renderControls(){
     modeButton.textContent=funny?'Funny mode · switch to Normal':'Normal mode · switch to Funny';modeButton.setAttribute('aria-pressed',String(funny));
-    stopPour();sauceHelp.hidden=!(!isMilkshake(recipe)&&step===2&&isIceSyrup(activeTopping)&&recipe.toppings.includes(activeTopping)&&clip===null);
+    stopPour();sauceHelp.textContent=isMilkshake(recipe)?'Squeeze syrup into your bowl: tap and hold the bottle, then drag it to drizzle. With a keyboard, focus the canvas, use arrow keys to move the bottle, and hold Space to squeeze. Choose up to three toppings, then send everything to the blender.':'Syrup bottle: tap to squeeze, hold for more, and drag to spread it around. Thick syrup makes up to two slow drips, then sets in place. Squeeze beside the ice cream to make a puddle on the floor. With a keyboard, focus the canvas, move with arrow keys, and hold Space to pour. Choose another topping to put the bottle away. Choose the same drizzle to bring it back; tap it again while the bottle is out to remove the syrup.';sauceHelp.hidden=!(step===2&&isIceSyrup(activeTopping)&&recipe.toppings.includes(activeTopping)&&clip===null);
     const mixing=isMixing(),shake=isMilkshake(recipe),blend=milkshakeBlendView(recipe),locked=!active||paused||clip!==null||mixing;blendControlKey=blendKey();choices.hidden=mixing||(shake&&blend.phase==='ready'&&step===2);
     stepButtons.forEach((button,index)=>{button.disabled=locked;button.setAttribute('aria-pressed',String(index===step));});
     heading.textContent=clip!==null?(shake?'Your dragon is drinking its milkshake!':'Your dragon is enjoying its ice cream!'):mixing?(blend.count?'Blender countdown · '+blend.count:'Blending your ice cream and toppings…'):shake&&blend.phase==='ready'&&step===2?'Your milkshake is ready — feed your dragon!':step===0?'Choose your cone or make a milkshake':step===1?'Choose 1–3 ice cream flavors · '+iceRecipeFlavors(recipe).length+' selected':shake?'Choose up to 3 milkshake toppings · '+recipe.toppings.length+' selected':'Choose your toppings — mix as many as you like';
@@ -481,18 +482,18 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
       button.setAttribute('aria-pressed',String(selected));
       button.onclick=()=>{
         if(!active||paused||clip!==null||isMixing()||!iceIngredientUnlocked(kind,id,getUpgrades()))return;
-        if(!isMilkshake(recipe)&&step===2&&isIceSyrup(id)&&activeTopping!==id&&recipe.toppings.includes(id)){
+        if(step===2&&isIceSyrup(id)&&activeTopping!==id&&recipe.toppings.includes(id)){
           activeTopping=id;renderControls();return;
         }
         if(step===2)activeTopping=id;
         if(step===0){recipe.drink='icecream';delete recipe.blend;recipe.cone=id;}else if(step===1){if(!chooseIceFlavor(recipe,id,!flavorTouched&&!iceRecipeFlavors(recipe).includes(id))){heading.textContent='Choose up to 3 flavors — remove one to try another.';return;}flavorTouched=true;resetMilkshakeBlend(recipe);}
         else if(isMilkshake(recipe)){if(!chooseMilkshakeTopping(recipe,id)){heading.textContent='Choose up to 3 toppings — remove one to try another.';return;}}
         else recipe.toppings=recipe.toppings.includes(id)?recipe.toppings.filter(item=>item!==id):[...recipe.toppings,id];
-        if(!isMilkshake(recipe)&&step===2&&isIceSyrup(id)){
+        if(step===2&&isIceSyrup(id)){
           for(const key of ['sauceDrops','sauceFalling','saucePuddles'])recipe[key]=(recipe[key]||[]).filter(p=>syrupKind(p)!==id);bottle={x:0,y:-30};
         }
         audio.play('gem');renderControls();
-        if(!isMilkshake(recipe)&&step===2&&isIceSyrup(id)&&recipe.toppings.includes(id))canvas.scrollIntoView?.({block:'center',behavior:reduced?'auto':'smooth'});
+        if(step===2&&isIceSyrup(id)&&recipe.toppings.includes(id))canvas.scrollIntoView?.({block:'center',behavior:reduced?'auto':'smooth'});
         choices.children[Object.keys(options).indexOf(id)]?.focus({preventScroll:true});
       };
       choices.append(button);
@@ -535,8 +536,8 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
     if(canPour()&&squeezing)pourIceChocolate(recipe,bottle.x,bottle.y,dt,activeTopping);
     if(active&&!paused&&!document.hidden&&clip===null)tickIceChocolate(recipe,dt);
     drawIceScene(ctx,recipe,canvas.width,canvas.height,clip,reduced);
-    if(!isMilkshake(recipe)&&active&&step===2&&isIceSyrup(activeTopping)&&clip===null&&recipe.toppings.includes(activeTopping)){
-      ctx.save();ctx.scale(canvas.width/900,canvas.height/620);drawChocolateBottle(ctx,bottle,squeezing&&!paused,activeTopping);ctx.restore();
+    if(!isMixing()&&(!isMilkshake(recipe)||recipe.blend?.phase==='choosing')&&active&&step===2&&isIceSyrup(activeTopping)&&clip===null&&recipe.toppings.includes(activeTopping)){
+      ctx.save();ctx.scale(canvas.width/900,canvas.height/620);drawChocolateBottle(ctx,isMilkshake(recipe)?{...bottle,y:bottle.y+70/1.15}:bottle,squeezing&&!paused,activeTopping);ctx.restore();
     }
     paintIngredientPreviews();frame=requestAnimationFrame(tick);
   }
