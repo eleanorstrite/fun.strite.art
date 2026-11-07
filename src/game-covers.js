@@ -9,7 +9,7 @@ export const GAME_COVERS={
  tag:{name:'Tag',file:'tag.jpg'},
  'family-van':{name:'The Raven',file:'family-van.jpg'},
  'knight-ember':{name:'Knights and Dragons',file:'knight-ember.jpg'},
- 'sky-flight':{name:'Flappy Animals',file:'sky-flight.jpg'},
+ 'sky-flight':{name:'Flappy Animals',file:'sky-flight-animals.jpg'},
  'hoop-flight':{name:'Hoop Flight',file:'hoop-flight.jpg'},
  'ice-cream':{name:'Make Your Own Ice Cream',file:'ice-cream.jpg'},
  'carve-pumpkin':{name:'Carve the Pumpkin',file:'carve-pumpkin.jpg'}

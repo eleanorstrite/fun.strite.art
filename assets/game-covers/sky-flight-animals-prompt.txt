@@ -1,0 +1,5 @@
+Background plate edited with the built-in image_gen tool from the original sky-flight.jpg.
+
+Prompt: Remove ONLY the giant blue bird, green dragon and small flying taco. Fill their silhouettes seamlessly with the existing blue sky, glowing white clouds, distant green mountains, waterfalls and river valley. Preserve the original landscape, lighting, green pipes, wide 16:9 composition, and exact gold-and-cream FLAPPY ANIMALS title in its existing position. Do not add replacement animals, people, food, banners or other text.
+
+The final sky-flight-animals.jpg is composed in native canvas by src/flappy-cover-art.js. All eight foreground animals are drawn by the actual game's drawFlyer renderer using assets/gameplay/objects.png and flyers-detailed.png. The animals are not generated substitutes. The original cover is preserved at sky-flight.jpg. The reusable edited plate is sky-flight-background.jpg. An animated view is available at previews/flappy-animals-homepage.html.
