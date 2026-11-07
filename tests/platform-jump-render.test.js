@@ -37,3 +37,10 @@ test('taco trucks are mixed through every course and their roofs remain landable
  for(const difficulty of Object.keys(JUMP_LEVELS)){const course=createJumpState(difficulty),trucks=course.platforms.map((p,i)=>jumpSurface(i)==='taco truck'?i:0).filter(Boolean);assert.ok(trucks.length>=6);assert.ok(trucks[0]<10&&trucks.at(-1)>40);assert.ok(new Set(course.platforms.slice(1,48).map((p,i)=>jumpSurface(i+1))).size>=7);
  for(const number of trucks){const s=createJumpState(difficulty),p=s.platforms[number];s.x=p.x;s.y=p.y-5;s.vy=200;s.grounded=false;s.platform=number-1;s.landingLimit=number;tickJump(s,.04);assert.equal(s.grounded,true);assert.equal(s.platform,number);assert.equal(s.y,p.y);assert.equal(s.coins[number].collected,true);}}
 });
+
+ test('hair and clothing changes keep the same starter face and fitted body scale',async t=>{
+ const {drawJumper}=await import('../src/platform-jump-person.js'),{JUMP_HAIR}=await import('../src/platform-jump-hair.js'),{JUMP_OUTFITS}=await import('../src/platform-jump-clothes.js');
+ const old=globalThis.Image;t.after(()=>globalThis.Image=old);globalThis.Image=class{complete=true;naturalWidth=1263;naturalHeight=1246;};
+ const faces=[],scales=[];const c=new Proxy({drawImage:(...a)=>{if(a[0].src?.endsWith('/characters.png'))faces.push(a);},scale:(...a)=>scales.push(a),createLinearGradient:()=>({addColorStop(){}})},{get:(o,k)=>o[k]||(()=>{})});
+ for(const hairstyle of JUMP_HAIR)for(const outfit of JUMP_OUTFITS){if(hairstyle===JUMP_DEFAULTS.hairstyle&&outfit===JUMP_DEFAULTS.outfit)continue;faces.length=scales.length=0;drawJumper(c,0,0,{...JUMP_DEFAULTS,hairstyle,outfit},1);assert.equal(faces.length,1);assert.deepEqual(faces[0].slice(1,5),[157,20,49,54],'Every haircut uses the starter girl rather than swapping faces');assert.ok(scales.some(a=>a[0]===.68&&a[1]===1.25),'Clothes retain one body size');assert.ok(scales.some(a=>a[0]===.48&&a[1]===.5),'The girl keeps the same head size');}
+ });
