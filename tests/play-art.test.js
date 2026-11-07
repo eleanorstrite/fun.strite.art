@@ -21,3 +21,11 @@ test('the actual hero, athlete, van, flyer, airplane, burger and knight renderer
 test('detailed scenery crops remain within the shared background atlas at phone and desktop sizes',t=>{const{c,draws}=fixture(t);for(let index=0;index<8;index++)for(const[w,h]of[[900,650],[540,720]]){assert.equal(drawPlayBackdrop(c,index,w,h),true);const a=draws.at(-1);assert.ok(a[1]>=0&&a[2]>=0&&a[1]+a[3]<=1182+.001&&a[2]+a[4]<=1330+.001);assert.deepEqual(a.slice(5),[0,0,w,h]);}});
 
 test('taco truck artwork begins at the numbered landing roof and keeps the full platform width',t=>{const {c,draws,labels}=fixture(t);drawJumpSurface(c,{x:200,w:130},5,250);const art=draws.find(a=>a[0].src.endsWith('/taco-truck.png'));assert.ok(art);assert.equal(Math.abs(art[6]),0);assert.equal(art[7],130);assert.equal(art[8],130*.44);assert.ok(labels.includes('5'));});
+
+test('fresh burger layers use the complete round artwork, and cuts match the collision edges',t=>{
+ const {c,draws}=fixture(t);
+ for(const [kind,index]of Object.entries({bun:0,cheese:1,lettuce:2,tomato:3,patty:4}))for(const width of [220,190,100]){draws.length=0;drawBurgerLayer(c,{x:190,width,kind},600);const a=draws[0],b=PLAY_ART.details.bounds[index];assert.deepEqual(a.slice(1,5),[b.x,b.y,b.w,b.h]);assert.equal(a[5],190);assert.equal(a[7],width,'Artwork ends exactly at the physical edge');}
+ const b=PLAY_ART.details.bounds[0];draws.length=0;drawBurgerLayer(c,{x:220,width:190,kind:'bun',textureWidth:220,textureOffset:0},600);let a=draws[0];assert.equal(a[1],b.x);assert.ok(Math.abs(a[3]-b.w*190/220)<1e-8);
+ draws.length=0;drawBurgerLayer(c,{x:220,width:170,kind:'bun',textureWidth:190,textureOffset:20},600);a=draws[0];assert.ok(Math.abs(a[1]-(b.x+b.w*20/190))<1e-8);assert.ok(Math.abs(a[3]-b.w*170/190)<1e-8);
+ draws.length=0;drawBurgerLayer(c,{x:0,width:.00001,kind:'bun',textureWidth:220,textureOffset:0},0);assert.ok(draws[0][3]<b.w*.001,'Tiny remnants are actual slices rather than a forced one-percent texture');
+});

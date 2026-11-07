@@ -10,8 +10,9 @@ export function dropBurger(s){if(s.status!=='playing')return false;s.status='dro
 export function landBurger(s,emit=()=>{}){
   const top=s.layers.at(-1),piece=s.moving,left=Math.max(top.x,piece.x),right=Math.min(top.x+top.width,piece.x+piece.width),width=right-left;
   if(width<=0){s.scraps.push({...piece,y:600-s.layers.length*25+s.camera,vy:30,vx:piece.x<top.x?-80:80,angle:0});s.status='missed';s.missTime=0;emit('crash');return;}
-  for(const [x,w,dir] of [[piece.x,left-piece.x,-1],[right,piece.x+piece.width-right,1]])if(w>0)s.scraps.push({x,width:w,kind:piece.kind,y:600-s.layers.length*25+s.camera,vy:30,vx:dir*85,angle:0});
-  s.layers.push({x:left,width,kind:piece.kind});s.score++;s.dir=-s.dir;
+  const textureWidth=piece.textureWidth??piece.width,textureOffset=piece.textureOffset??0;
+  for(const [x,w,dir] of [[piece.x,left-piece.x,-1],[right,piece.x+piece.width-right,1]])if(w>0)s.scraps.push({x,width:w,kind:piece.kind,textureWidth,textureOffset:textureOffset+x-piece.x,y:600-s.layers.length*25+s.camera,vy:30,vx:dir*85,angle:0});
+  s.layers.push({x:left,width,kind:piece.kind,textureWidth,textureOffset:textureOffset+left-piece.x});s.score++;s.dir=-s.dir;
   s.moving={x:s.dir>0?30:560-width,width,kind:BURGER_INGREDIENTS[s.score%BURGER_INGREDIENTS.length]};
   s.status='playing';emit('gem');
 }
@@ -38,7 +39,7 @@ function burgerOval(c,x,y,rx,ry,color){c.fillStyle=color;c.beginPath();c.ellipse
 function burgerRound(c,x,y,w,h,r,color){c.fillStyle=color;c.beginPath();c.roundRect(x,y,w,h,r);c.fill();}
 function burgerGradient(c,y1,y2,colors){const g=c.createLinearGradient(0,y1,0,y2);if(!g?.addColorStop)return colors[0];colors.forEach((color,i)=>g.addColorStop(i/(colors.length-1),color));return g;}
 export function drawBurgerLayer(c,piece,y){
- const sprite={bun:0,cheese:1,lettuce:2,tomato:3,patty:4}[piece.kind];if(drawPlayFood(c,sprite,piece.x,y-34,piece.width+58,57,358))return;
+ const sprite={bun:0,cheese:1,lettuce:2,tomato:3,patty:4}[piece.kind];if(drawPlayFood(c,sprite,piece.x,y-34,piece.width,57,piece.textureWidth??piece.width,piece.textureOffset??0))return;
   const {x,width:w,kind}=piece,depth=58,rise=34;
   const colors={cheese:['#ffdb65','#dda135','#f0b94a'],lettuce:['#a8d97b','#528b4d','#74aa56'],tomato:['#f78a70','#bd4c48','#db5d50'],patty:['#a36b4d','#603b32','#7d4d38'],bun:['#edc086','#b77b42','#d59753']}[kind];
   const top=[[x,y],[x+w,y],[x+w+depth,y-rise],[x+depth,y-rise]];
@@ -175,9 +176,9 @@ function drawBurgerBackdrop(c,background){
 }
 function drawBurgerPlate(c,camera){
   const y=614+camera;if(y>780)return;
-  burgerOval(c,330,y+24,205,39,'#483f352c');burgerOval(c,330,y+9,202,48,'#a5b9bc');
-  burgerOval(c,330,y,202,48,'#f5f6e9');burgerOval(c,330,y,177,36,'#bed5d7');burgerOval(c,330,y+2,168,31,'#e8f0e7');
-  c.strokeStyle='#ffffffaa';c.lineWidth=3;c.beginPath();c.ellipse(330,y,192,43,0,0,Math.PI*2);c.stroke();
+  burgerOval(c,300,y+24,205,39,'#483f352c');burgerOval(c,300,y+9,202,48,'#a5b9bc');
+  burgerOval(c,300,y,202,48,'#f5f6e9');burgerOval(c,300,y,177,36,'#bed5d7');burgerOval(c,300,y+2,168,31,'#e8f0e7');
+  c.strokeStyle='#ffffffaa';c.lineWidth=3;c.beginPath();c.ellipse(300,y,192,43,0,0,Math.PI*2);c.stroke();
 }
 export function drawBurgerScene(c,s,width,height,best=0,reduced=false){
   if(s.status==='ending'||s.status==='finished'){drawBurgerEnding(c,s.clip,width,height,s.score,best,reduced);return;}

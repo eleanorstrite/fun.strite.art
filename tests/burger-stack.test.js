@@ -10,6 +10,12 @@ test('burger drops trim each edge and preserve the exact surviving width for the
  for(let i=0;i<30;i++){s.moving.x=s.layers.at(-1).x+s.moving.width/2;landBurger(s);}
  assert.ok(s.moving.width<.001);assert.equal(s.status,'playing');
 });
+test('only the actual overhang is sliced from the texture and scraps retain their own side of the ingredient',()=>{
+ const s=ready();s.moving.x=220;landBurger(s);const leftCut=s.layers.at(-1),leftScrap=s.scraps.at(-1);
+ assert.equal(leftCut.textureWidth,220);assert.equal(leftCut.textureOffset,0);assert.equal(leftCut.width,190);assert.equal(leftScrap.textureOffset,190);assert.equal(leftScrap.width,30);
+ s.moving.x=200;landBurger(s);const rightCut=s.layers.at(-1),rightScrap=s.scraps.at(-1);
+ assert.equal(rightCut.textureWidth,190);assert.equal(rightCut.textureOffset,20);assert.equal(rightCut.width,170);assert.equal(rightScrap.textureOffset,0);assert.equal(rightScrap.width,20);assert.equal(s.moving.width,170);assert.equal(s.moving.textureOffset,undefined,'The next ingredient starts with its complete texture');
+});
 test('ingredients cycle, click freezes horizontal motion, and duplicate drops are ignored',()=>{
  const s=ready();assert.equal(dropBurger({...s,status:'ready'}),false);
  for(let i=0;i<10;i++){
