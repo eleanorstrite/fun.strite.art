@@ -11,6 +11,6 @@ export function drawJumper(c,x,y,s,time=0,moving=false,waving=false,pose={}){
  const dressed=outfitReady(s.outfit),headY=dressed?outfitHeadOffset(s.outfit):0;
  c.save();c.translate(0,headY);drawJumpHair(c,s.hairstyle,s.hair,'back',time);c.restore();
  if(dressed){drawOutfitBody(c,s,time,moving,waving);drawJumpOutfit(c,s.outfit,time,moving,waving);}else drawClassicBody(c,s,time,moving,waving);
- c.translate(0,headY);oval(c,0,-66,20,23,s.skin);
+ c.translate(0,headY);const face=drawPlaySprite(c,'platform-faces',['Short','Short waves','Side swept','Spikes','Tousled','Center part','Curls','Afro','Bald'].includes(s.hairstyle)?0:1,0,-66,40,46,{anchor:.5,tint:s.skin,region:[0,0,1,1]});if(!face)oval(c,0,-66,20,23,s.skin);
  drawJumpHair(c,s.hairstyle,s.hair,'front',time);
- for(const side of [-1,1]){oval(c,side*7,-66,2.5,3.5,'#202435');oval(c,side*7-1,-67,1,1,'white');}c.strokeStyle='#894b44';c.lineWidth=2;c.beginPath();c.arc(0,-59,5,.15,Math.PI-.15);c.stroke();drawJumpFacialHair(c,s.facialHair);c.restore();}
+ if(!face){for(const side of [-1,1]){oval(c,side*7,-66,2.5,3.5,'#202435');oval(c,side*7-1,-67,1,1,'white');}c.strokeStyle='#894b44';c.lineWidth=2;c.beginPath();c.arc(0,-59,5,.15,Math.PI-.15);c.stroke();}drawJumpFacialHair(c,s.facialHair);c.restore();}

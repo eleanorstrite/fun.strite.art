@@ -1,3 +1,5 @@
+import {drawMazeMaterial} from './maze-materials.js';
+import {drawDetailedKnight} from './knight-art.js';
 import {drawPlayBackdrop,drawPlaySprite} from './play-art.js';
 import { bindMazeSwipes } from './touch-controls.js';
 import { ARMORS, DRAGON_STYLES, MAZE_BOOST_IDS } from './system.js';
@@ -150,6 +152,7 @@ function pixels(ctx,sprite,x,y,size,palette,flip=false) {
   sprite.forEach((row,iy)=>[...row].forEach((c,ix)=>{if(c!=='.'){ctx.fillStyle=palette[c];ctx.fillRect(Math.floor(ix*unit),Math.floor(iy*unit),Math.ceil(unit),Math.ceil(unit));}}));ctx.restore();
 }
 export function drawKnight(ctx,x,y,size,character,flip=false) {
+  if(drawDetailedKnight(ctx,x,y,size,character,flip))return;
   const armor=ARMORS[character.armor]||ARMORS.silver,helmet=character.helmet||'plume';
   const sprite=KNIGHT.map(row=>row.replace(/p/g,helmet==='plume'?'p':'.').replace(/c/g,character.cape===false?'.':'c'));
   if(!(helmet==='plume'&&character.cape!==false&&(!character.armor||character.armor==='silver')&&drawPlaySprite(ctx,'knight',0,x,y,size*1.1,size*1.1,{anchor:.5,flip,tint:character.color,region:[0,.35,.3,.6]})))pixels(ctx,sprite,x,y,size,{p:character.color,s:armor.dark,w:armor.light,k:'#1d2838',c:character.color},flip);
@@ -259,7 +262,7 @@ function drawMazeTerrain(ctx,s,theme,board,ox,oy){
 }
 export function drawMaze(ctx,s,character,width,height,preview=false) {
   const theme=KNIGHT_LEVELS[s.level];
-  ctx.imageSmoothingEnabled=false;ctx.fillStyle='#10151f';ctx.fillRect(0,0,width,height);if(drawPlayBackdrop(ctx,2,width,height)){ctx.fillStyle='#10151fcc';ctx.fillRect(0,0,width,55);}
+  ctx.imageSmoothingEnabled=true;ctx.fillStyle='#10151f';ctx.fillRect(0,0,width,height);if(drawPlayBackdrop(ctx,2,width,height)){ctx.fillStyle='#10151fcc';ctx.fillRect(0,0,width,55);}
   const board=Math.min(preview?width*.55:width-24,height-76),cell=board/19,ox=preview?width-board-24:(width-board)/2,oy=preview?38:64;
   if(preview){ctx.fillStyle='#e5c68a';ctx.font='600 17px monospace';ctx.textAlign='left';ctx.fillText('THE FIRST QUEST',35,95);ctx.fillStyle='#f5ecd7';ctx.font='bold 42px monospace';ctx.fillText('KNIGHTS AND',35,157);ctx.fillText('DRAGONS',35,207);ctx.font='16px monospace';ctx.fillStyle='#99a9b8';ctx.fillText('Gems. Dragons. Glory.',35,250);drawKnight(ctx,100,365,100,character);sword(ctx,175,360,80);}
   else {ctx.textAlign='left';ctx.font='bold 16px monospace';ctx.fillStyle='#e5c68a';ctx.fillText(`LEVEL ${s.level+1} · ${theme.name.toUpperCase()}`,18,29);ctx.textAlign='right';ctx.fillStyle=s.sword>0?'#f4d388':'#b6c4cf';ctx.fillText(s.sword>0?`SWORD  ${s.sword.toFixed(1)}s`:'FIND A SWORD',width-18,29);ctx.fillStyle='#293243';ctx.fillRect(18,42,width-36,5);ctx.fillStyle='#f3c674';ctx.fillRect(18,42,(width-36)*s.sword/SWORD_SECONDS,5);}
@@ -299,9 +302,9 @@ export function projectMazePoint(s,x,y,z,width,height,angle=-Math.PI/2,raw=false
 }
 export function drawMaze3D(ctx,s,character,width,height,angle=-Math.PI/2){
   const theme=KNIGHT_LEVELS[s.level],project=(x,y,z=0)=>projectMazePoint(s,x,y,z,width,height,angle,true);
-  ctx.imageSmoothingEnabled=false;
+  ctx.imageSmoothingEnabled=true;
   const sky=ctx.createLinearGradient(0,0,0,height);sky.addColorStop(0,theme.shadow);sky.addColorStop(1,theme.floor);
-  ctx.fillStyle=sky;ctx.fillRect(0,0,width,height);
+  ctx.fillStyle=sky;ctx.fillRect(0,0,width,height);drawPlayBackdrop(ctx,2,width,height);
   const face=(points,color)=>{
     if(points.some(p=>!p))return;
     // Clip polygons against the eye's near plane, so nearby walls stay solid.
@@ -323,13 +326,13 @@ export function drawMaze3D(ctx,s,character,width,height,angle=-Math.PI/2){
   const objects=[];
   for(let y=0;y<s.maze.length;y++)for(let x=0;x<s.maze[y].length;x++){
     const base=[project(x-.5,y-.5),project(x+.5,y-.5),project(x+.5,y+.5),project(x-.5,y+.5)];
-    face(base,(x+y)%2?theme.floor:theme.shadow);
+    face(base,(x+y)%2?theme.floor:theme.shadow);drawMazeMaterial(ctx,base,theme,'floor');
     const center=project(x,y);if(!center)continue;
     if(s.maze[y][x]==='#'){
       const top=[project(x-.5,y-.5,MAZE_WALL_HEIGHT),project(x+.5,y-.5,MAZE_WALL_HEIGHT),project(x+.5,y+.5,MAZE_WALL_HEIGHT),project(x-.5,y+.5,MAZE_WALL_HEIGHT)];
       objects.push({depth:center.depth,draw:()=>{
-        for(let i=0;i<4;i++){const j=(i+1)%4;face([base[i],base[j],top[j],top[i]],i%2?theme.wall:theme.shadow);}
-        face(top,theme.light);
+        for(let i=0;i<4;i++){const j=(i+1)%4;const side=[base[i],base[j],top[j],top[i]];face(side,i%2?theme.wall:theme.shadow);drawMazeMaterial(ctx,side,theme,'wall');}
+        face(top,theme.light);drawMazeMaterial(ctx,top,theme,'cap');
       }});
     }else if(center.depth>=.08&&s.gems.has(key(x,y))){
       const p=project(x,y,.14);if(p&&p.depth>=.08)objects.push({depth:center.depth,draw:()=>{
@@ -356,39 +359,14 @@ export function drawMaze3D(ctx,s,character,width,height,angle=-Math.PI/2){
       if(!drawPlaySprite(ctx,'details',dragon.index%2?11:10,p.x,p.y,p.scale*1.55,p.scale*1.55,{anchor:.5,flip:dragon.dir==='left',tint:s.boosts.frost>0?'#93d9f2':colors[dragon.index],region:[0,0,1,1]}))pixels(ctx,DRAGON,p.x,p.y,p.scale*1.55,{h:'#e2d8bd',d:s.boosts.frost>0?'#93d9f2':colors[dragon.index],b:'#e9b47e',w:'#c99373',e:s.sword>0?'#bcecff':'#ffda70'},dragon.dir==='right');ctx.globalAlpha=1;
     }});
   }
-  const foot=project(s.player.x,s.player.y),knight=project(s.player.x,s.player.y,.52);
+  const foot=project(s.player.x,s.player.y),knight=project(s.player.x,s.player.y,.9);
   if(knight&&foot&&(s.grace<=0||Math.floor(s.elapsed*8)%2===0)){
     objects.push({depth:foot.depth,draw:()=>{
       actorShadow(ctx,foot.x,foot.y,knight.scale*.8);
       if(s.boosts.ward>0){ctx.strokeStyle='#97e9ff';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(knight.x,knight.y,knight.scale*.55,knight.scale*.75,0,0,7);ctx.stroke();}
-      // Turn only the character; the world and camera remain steady.
-      ctx.save();ctx.translate(knight.x,knight.y);ctx.scale(knight.scale/60,knight.scale/60);
-      const armor=ARMORS[character.armor]||ARMORS.silver;
-      const facing=s.player.dir,profile=facing==='left'||facing==='right',front=facing==='down';
-      if(profile)ctx.scale(facing==='left'?-.78:.78,1);
-      // A side-facing cape trails behind the shoulder, never over the face.
-      if(character.cape!==false&&(profile||front)){
-        ctx.fillStyle=character.color;ctx.beginPath();ctx.moveTo(-15,-1);ctx.lineTo(profile?-5:15,-1);ctx.lineTo(profile?-15:21,27);ctx.lineTo(profile?-29:-21,27);ctx.closePath();ctx.fill();
-      }
-      ctx.fillStyle=armor.dark;ctx.fillRect(-16,1,32,24);ctx.fillRect(-15,24,10,10);ctx.fillRect(5,24,10,10);
-      if(character.cape!==false&&!profile&&!front){ctx.fillStyle=character.color;ctx.beginPath();ctx.moveTo(-15,-1);ctx.lineTo(15,-1);ctx.lineTo(21,27);ctx.lineTo(-21,27);ctx.closePath();ctx.fill();}
-      ctx.fillStyle=armor.light;ctx.beginPath();ctx.roundRect(-16,-24,32,26,8);ctx.fill();ctx.fillStyle=armor.dark;ctx.fillRect(-16,-5,32,5);
-      if(front||profile){
-        // Visor, eye slit, and projecting nose make the heading easy to read.
-        ctx.fillStyle=armor.dark;ctx.fillRect(profile?3:-13,-17,profile?15:26,12);
-        ctx.fillStyle='#172431';ctx.fillRect(profile?8:-11,-15,profile?12:22,4);
-        ctx.fillStyle='#e2f3f5';ctx.fillRect(profile?12:-8,-14,profile?6:5,2);
-        if(front)ctx.fillRect(3,-14,5,2);
-        ctx.fillStyle=armor.light;ctx.fillRect(profile?16:-2,-13,profile?7:4,12);
-        ctx.fillRect(-10,4,20,14);ctx.fillStyle=armor.dark;ctx.fillRect(-1,5,2,12);
-      }
-      if(character.helmet==='horns'){ctx.fillStyle='#f3dfb2';ctx.fillRect(-23,-29,7,18);ctx.fillRect(16,-29,7,18);}
-      else if(character.helmet==='crown'){ctx.fillStyle='#f5cc65';ctx.fillRect(-17,-28,34,9);for(let i=-17;i<=17;i+=14)ctx.fillRect(i,-36,6,12);}
-      else if(character.helmet==='winged'){ctx.fillStyle='#e0f3ff';face([{x:-16,y:-18},{x:-29,y:-31},{x:-25,y:-10}],ctx.fillStyle);face([{x:16,y:-18},{x:29,y:-31},{x:25,y:-10}],ctx.fillStyle);}
-      else if(character.helmet!=='plain'){ctx.fillStyle=character.color;ctx.fillRect(-4,-37,8,16);}
-      if(character.shield){ctx.fillStyle=armor.light;ctx.beginPath();ctx.ellipse(-23,9,9,14,0,0,7);ctx.fill();}
-      if(s.sword>0)sword(ctx,27,0,45);
-      ctx.restore();
+      // The exact detailed knight and accessories are shared with 2D, the studio and the cover.
+      drawKnight(ctx,knight.x,knight.y,knight.scale*1.6,character,s.player.dir==='left');
+      if(s.sword>0)sword(ctx,knight.x+knight.scale*.5,knight.y,knight.scale*.65);
     }});
   }
   objects.sort((a,b)=>b.depth-a.depth);for(const object of objects)object.draw();

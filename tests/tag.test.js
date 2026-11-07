@@ -25,7 +25,7 @@ test('computer actively chases, flees and jumps in every layout',()=>{
  for(const layout of Object.keys(TAG_LAYOUTS)){
   const s=createTagState({...defaultTagSettings(),layout},1);s.status='playing';const start=s.players[1].x;
   for(let i=0;i<10;i++)tickTag(s,.05);assert.ok(s.players[1].x<start);
-  let airborne=false;for(let i=0;i<1200;i++){tickTag(s,.05);airborne ||= !s.players[1].grounded;for(const p of s.players){assert.ok(Number.isFinite(p.x)&&Number.isFinite(p.y));assert.ok(p.x>=24&&p.x<=876);assert.ok(p.y<=540);}}
+  let airborne=false;for(let i=0;i<1200;i++){tickTag(s,.05);airborne ||= !s.players[1].grounded;for(const p of s.players){assert.ok(Number.isFinite(p.x)&&Number.isFinite(p.y));assert.ok(p.x>=24&&p.x<=(TAG_LAYOUTS[layout].width||900)-24);assert.ok(p.y<=540);}}
   assert.equal(airborne,true);assert.equal(s.status,'finished');
  }
 });
@@ -77,4 +77,12 @@ test('computer reacts more slowly and runs slower than human players',()=>{
  assert.ok(Math.abs(s.players[1].vx)<=230);assert.ok(s.players[0].vx>260);
  const local=ready();for(let i=0;i<10;i++)tickTag(local,.05,[{right:true},{right:true}]);
  assert.equal(local.players[0].vx,local.players[1].vx);
+});
+
+test('the long playground scrolls through three screens and has climbable play structures and slides',async()=>{
+ const {tagCameraViews,tagSlideY}=await import('../src/tag.js');const s=ready(),layout=TAG_LAYOUTS.park,p=s.players[0];assert.ok(layout.width>=2700);assert.ok(layout.structures.length>=3);assert.ok(layout.trampolines.length>=6);
+ p.x=356;p.y=540;for(let i=0;i<30;i++)tickTag(s,.05,[{jump:true},{}]);assert.equal(p.y,335);assert.equal(p.grounded,true);
+ const slide=layout.slides[0];p.x=620;p.y=tagSlideY(slide,p.x)-10;p.vy=300;p.grounded=false;p.jumpHeld=false;tickTag(s,.05);assert.ok(p.slide);const startX=p.x;for(let i=0;i<20;i++)tickTag(s,.05);assert.ok(p.x>startX+100);assert.equal(p.slide,null);assert.equal(p.y,540);
+ p.x=1400;p.y=540;s.settings.mode='computer';const view=tagCameraViews(s)[0];assert.ok(view.camera>0);assert.ok(p.x>=view.camera&&p.x<=view.camera+view.width);
+ s.settings.mode='local';s.players[0].x=100;s.players[1].x=2300;const split=tagCameraViews(s);assert.equal(split.length,2);assert.equal(split[0].width,450);assert.ok(split[1].camera>1800);
 });

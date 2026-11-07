@@ -1,3 +1,4 @@
+import {actorHead,drawActorAccessories} from './actor-accessories.js';
 import {drawPlayBackdrop,drawPlaySprite} from './play-art.js';
 import {drawEquipmentSprite} from './sports-equipment-art.js';
 import {sportsShotPoint,sportsShotAligned} from './animal-sports-rules.js';
@@ -8,7 +9,8 @@ const line=(c,points,color='#ffffffbb',width=3)=>{c.strokeStyle=color;c.lineWidt
 function panel(c,x,y,w,h,color,r=10){c.fillStyle=color;c.beginPath();c.roundRect(x,y,w,h,r);c.fill();}
 function text(c,value,x,y,size=22,color='#fff'){c.fillStyle=color;c.font=`700 ${size}px system-ui`;c.textAlign='center';c.fillText(value,x,y);}
 export function drawSportsAnimal(c,x,y,size,settings=SPORTS_DEFAULTS,time=0,moving=false){
- const sprite={dog:['characters',10],fox:['characters',11],rabbit:['characters',12],cat:['characters',13],dragon:['characters',14],capybara:['details',13],bird:['details',14]}[settings.animal];if(sprite&&drawPlaySprite(c,...sprite,x,y+(moving?Math.sin(time*10)*2:0),size*1.25,size*1.5,{tint:settings.jersey,fur:settings.color!==SPORTS_DEFAULTS.color?settings.color:undefined})){c.save();c.translate(x,y);c.scale(size/60,size/60);if(settings.accessory==='headband')panel(c,-18,-66,36,5,settings.jersey,3);if(settings.accessory==='cap'){panel(c,-19,-77,38,12,settings.jersey,8);panel(c,-17,-68,43,4,settings.jersey,3);}if(settings.accessory==='glasses'){c.strokeStyle='#26324a';c.lineWidth=2;c.strokeRect(-16,-66,13,9);c.strokeRect(3,-66,13,9);}c.restore();return;}
+ const sprite={dog:['characters',10],fox:['characters',11],rabbit:['characters',12],cat:['characters',13],dragon:['characters',14],capybara:['details',13],bird:['details',14]}[settings.animal];if(sprite&&drawPlaySprite(c,...sprite,x,y+(moving?Math.sin(time*10)*2:0),size*1.25,size*1.5,{tint:settings.jersey,fur:settings.color!==SPORTS_DEFAULTS.color?settings.color:undefined})){const landmark=settings.animal==='dragon'?{x:.72,y:.24,w:.4,h:.3}:settings.animal==='capybara'?{x:.62,y:.19,w:.55,h:.34}:settings.animal==='bird'?{x:.64,y:.2,w:.5,h:.32}:{x:.59,y:.16,w:.48,h:.28},head=actorHead(...sprite,size*1.25,size*1.5,landmark);c.save();c.translate(x,y+(moving?Math.sin(time*10)*2:0));drawActorAccessories(c,{hat:settings.accessory==='cap'?'cap':'none',accessory:settings.accessory,color:settings.jersey},head,time);c.restore();return;}
+
  c.save();c.translate(x,y);c.scale(size/60,size/60);const coat=settings.color,jersey=settings.jersey,animal=settings.animal,bob=moving?Math.sin(time*11)*2:0;
  ellipse(c,0,6,27,8,'#101c3435');c.translate(0,bob);
  if(animal==='dragon'){for(const side of [-1,1]){c.fillStyle=coat;c.beginPath();c.moveTo(side*15,-25);c.lineTo(side*48,-50);c.quadraticCurveTo(side*42,-20,side*22,-7);c.fill();line(c,[[side*18,-25],[side*40,-41],[side*25,-15]],'#eee2cc77',2);}}

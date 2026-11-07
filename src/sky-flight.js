@@ -1,41 +1,13 @@
+import {createFlightDuel,startFlightDuel,flapFlightDuel,tickFlightDuel,loadFlightDuel,flightDuelSettings,flightDuelPlayerAt,FLIGHT_DUEL_KEY} from './flight-duel.js';
+import {FLIGHT_ANIMALS} from './flight-settings.js';
 import {drawPlayBackdrop,drawPlaySprite} from './play-art.js';
 import { FLIGHT_LEVELS, FLIGHT_DEFAULTS, validateFlightSettings } from './flight-settings.js';
 import { createMazeAudio } from './maze-audio.js';
-export const FLIGHT_WIDTH=540, FLIGHT_HEIGHT=720, FLIGHT_FLOOR=680;
-export function createFlightState(settings=FLIGHT_DEFAULTS,random=Math.random){
-  const config=validateFlightSettings(settings);
-  const state={settings:config,level:FLIGHT_LEVELS[config.difficulty],x:150,y:330,velocity:0,radius:16,pipes:[],passed:0,earned:0,time:0,distance:0,status:'ready',crashTime:0,random};
-  addPipe(state,680);addPipe(state,980);addPipe(state,1280);return state;
-}
-function addPipe(s,x){
-  const previous=s.pipes.at(-1),margin=s.level.gap/2+65;
-  let center=margin+s.random()*(FLIGHT_FLOOR-2*margin);
-  if(previous)center=Math.max(previous.center-105,Math.min(previous.center+105,center));
-  s.pipes.push({x,width:70,center,scored:false});
-}
-export function flapFlight(s){if(s.status==='playing')s.velocity=-340;}
-function circleRect(x,y,r,left,top,width,height){
-  const nearX=Math.max(left,Math.min(x,left+width)),nearY=Math.max(top,Math.min(y,top+height));
-  return (x-nearX)**2+(y-nearY)**2<=r*r;
-}
-export function tickFlight(s,dt,onPass=()=>{}){
-  if(s.status!=='playing')return;
-  let remaining=Math.max(0,Math.min(dt,.1));
-  while(remaining>1e-7&&s.status==='playing'){
-    const step=Math.min(remaining,1/120);remaining-=step;s.time+=step;s.distance+=s.level.speed*step;s.velocity+=1000*step;s.y+=s.velocity*step;
-    for(const pipe of s.pipes)pipe.x-=s.level.speed*step;
-    if(s.y-s.radius<=0||s.y+s.radius>=FLIGHT_FLOOR){s.status='lost';break;}
-    for(const pipe of s.pipes){
-      const upper=pipe.center-s.level.gap/2,lower=pipe.center+s.level.gap/2;
-      if(circleRect(s.x,s.y,s.radius,pipe.x-7,0,pipe.width+14,upper)||circleRect(s.x,s.y,s.radius,pipe.x-7,lower,pipe.width+14,FLIGHT_FLOOR-lower)){s.status='lost';break;}
-      if(!pipe.scored&&pipe.x+pipe.width+7<s.x-s.radius){pipe.scored=true;s.passed++;s.earned=s.passed*s.level.reward;onPass(s.level.reward);}
-    }
-    if(s.pipes[0]?.x< -100){s.pipes.shift();addPipe(s,s.pipes.at(-1).x+300);}
-  }
-}
+import {FLIGHT_WIDTH,FLIGHT_HEIGHT,FLIGHT_FLOOR,createFlightState,flapFlight,tickFlight} from './flight-rules.js';
+export * from './flight-rules.js';
 function polygon(ctx,points,color){ctx.fillStyle=color;ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();ctx.fill();}
 export function drawFlyer(ctx,x,y,size,settings,time=0,tilt=0){
- const pose=Math.sin(time*10)>0?1:0,sprite=settings.animal==='bluebird'?['objects',8+pose]:settings.animal==='dragon'?['objects',10+pose]:settings.animal==='taco'?['details',15]:settings.animal==='burger'?['details',5]:null;if(sprite&&drawPlaySprite(ctx,...sprite,x,y,size*1.1,size,{anchor:.5,angle:tilt,tint:settings.animal==='dragon'?settings.color:undefined,region:[0,0,1,1]}))return;
+ const pose=Math.sin(time*10)>0?1:0,extra={hummingbird:0,eagle:1,duck:2,capybara:3,cat:4,dog:5,hotdog:6,pizza:7}[settings.animal],sprite=extra!==undefined?['flyers-detailed',extra]:settings.animal==='bluebird'?['objects',8+pose]:settings.animal==='dragon'?['objects',10+pose]:settings.animal==='taco'?['details',15]:settings.animal==='burger'?['details',5]:null;if(sprite&&drawPlaySprite(ctx,...sprite,x,y,size*1.1,size,{anchor:.5,angle:tilt,tint:settings.animal==='dragon'?settings.color:undefined,region:[0,0,1,1]}))return;
   ctx.save();ctx.translate(x,y);ctx.rotate(tilt);ctx.scale(size/80,size/80);
   const flap=Math.sin(time*(settings.animal==='hummingbird'?34:10)),color=settings.color;
   // Original animated silhouettes inspired by the supplied animal references.
@@ -265,7 +237,7 @@ export function drawFirstPersonFlight(ctx,s,width,height,reducedMotion=false){
   }
   ctx.restore();
 }
-export function drawFlight(ctx,s,width,height,reducedMotion=false,backgroundOnly=false){
+export function drawFlight(ctx,s,width,height,reducedMotion=false,backgroundOnly=false,hideHud=false){
   if(s.settings.view==='firstperson'&&!backgroundOnly){drawFirstPersonFlight(ctx,s,width,height,reducedMotion);return;}
   ctx.save();ctx.scale(width/FLIGHT_WIDTH,height/FLIGHT_HEIGHT);
   const dragon=s.settings.animal==='dragon',eagle=s.settings.animal==='eagle',background=s.settings.background;
@@ -349,45 +321,50 @@ export function drawFlight(ctx,s,width,height,reducedMotion=false,backgroundOnly
       ctx.fillStyle=i%2?'#fff2ba':'#e9ab43';ctx.font='bold 20px sans-serif';
       ctx.fillText('✦',s.x+Math.cos(angle)*r,flyerY+Math.sin(angle)*r);
     }
-    ctx.fillStyle=(night||underwater)?'#f6edcf':'#233747';ctx.font='bold 28px sans-serif';ctx.fillText(t<.65?'BONK!':'What a flight!',270,280);
+    ctx.fillStyle=(night||underwater)?'#f6edcf':'#233747';ctx.font='bold 28px sans-serif';if(!hideHud)ctx.fillText(t<.65?'BONK!':'What a flight!',270,280);
   }
-  ctx.textAlign='center';ctx.font='bold 38px monospace';ctx.fillStyle=(night||underwater)?'#f6edcf':'#233747';ctx.fillText(String(s.passed),270,62);ctx.font='15px monospace';ctx.fillText(`${s.level.name} · ${s.level.reward} coin${s.level.reward===1?'':'s'} per pipe`,270,90);
+  if(!hideHud){ctx.textAlign='center';ctx.font='bold 38px monospace';ctx.fillStyle=(night||underwater)?'#f6edcf':'#233747';ctx.fillText(String(s.passed),270,62);ctx.font='15px monospace';ctx.fillText(`${s.level.name} · ${s.level.reward} coin${s.level.reward===1?'':'s'} per pipe`,270,90);}
   ctx.restore();
 }
 export function drawFlightPreview(canvas,character){const ctx=canvas.getContext('2d');if(!ctx)return;const s=createFlightState(character.flight);s.pipes=[{x:380,width:70,center:330}];drawFlight(ctx,s,canvas.width,canvas.height);}
-export function createSkyFlight({canvas,character,onHud,onFinish}){
-  const ctx=canvas.getContext('2d');if(!ctx)throw Error('Your browser does not support canvas.');
-  let settings=validateFlightSettings(character.flight),state=createFlightState(settings),active=false,paused=false,destroyed=false,last=0,frame;
-  const reducedMotion=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false;
-  let flapSoundAt=-Infinity;
-  const audio=createMazeAudio(),controller=new AbortController(),options={signal:controller.signal};
-  function flap(){
-    if(!active||paused||document.hidden||state.status!=='playing')return;
-    audio.unlock();flapFlight(state);
-    if(state.time-flapSoundAt>=.08){
-      audio.play({dragon:'flap',hummingbird:'chirp',eagle:'whoosh',duck:'flap',capybara:'jet',cat:'jet',dog:'jet',hotdog:'jet',burger:'jet',pizza:'jet',taco:'jet'}[state.settings.animal]);
-      flapSoundAt=state.time;
-    }
+export function drawFlightDuel(c,duel,width,height,reduced=false){
+ const compact=width/height<1,logicalWidth=compact?540:1080,pane=logicalWidth/2,crop=compact?60:0;c.save();c.scale(width/logicalWidth,height/720);
+ for(let i=0;i<2;i++){const p=duel.players[i];c.save();c.beginPath();c.rect(i*pane,0,pane,720);c.clip();c.translate(i*pane-crop,0);drawFlight(c,p,540,720,reduced,false,true);c.restore();c.fillStyle='#142c46e8';c.beginPath();c.roundRect(i*pane+8,8,pane-16,94,12);c.fill();c.fillStyle=i?'#aeeaf4':'#ffe2ab';c.font='700 22px system-ui';c.textAlign='center';c.fillText('PLAYER '+(i+1)+' · '+p.passed,i*pane+pane/2,39);c.font='16px system-ui';c.fillText(i?'↑ / Enter · tap right':'W / Space · tap left',i*pane+pane/2,67);c.fillText(p.status==='lost'?'Landed · cheering you on!':FLIGHT_ANIMALS[p.settings.animal],i*pane+pane/2,89);}
+ c.fillStyle='#fff1bd';c.fillRect(pane-2,0,4,720);c.restore();
+}
+export function createSkyFlight({canvas,character,onHud,onFinish,duelFactory=createFlightDuel}){
+ const ctx=canvas.getContext('2d');if(!ctx)throw Error('Your browser does not support canvas.');
+ let settings=validateFlightSettings(character.flight),state=createFlightState(settings),duelLook=loadFlightDuel(),duel=duelFactory(settings,duelLook),active=false,paused=false,destroyed=false,last=0,frame;
+ const reducedMotion=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false,audio=createMazeAudio(),controller=new AbortController(),options={signal:controller.signal},soundAt=[-Infinity,-Infinity],modeButtons=[],touchButtons=[];
+ const dialog=canvas.closest?.('dialog');let section,animalSelect,colorInput,rivalPreview;
+ const local=()=>duelLook.mode==='local';
+ function resize(){if(!local()){canvas.width=540;canvas.height=720;}else{canvas.width=(globalThis.innerWidth||1080)<650?540:1080;canvas.height=720;}if(canvas.style)canvas.style.aspectRatio=canvas.width+' / '+canvas.height;dialog?.classList?.toggle('flight-local',local());}
+ function sync(){for(const[id,b]of modeButtons){b.disabled=active;b.setAttribute('aria-pressed',String(duelLook.mode===id));}for(const b of touchButtons)b.hidden=!local();if(animalSelect){animalSelect.disabled=colorInput.disabled=active;animalSelect.closest('label').hidden=colorInput.closest('label').hidden=rivalPreview.hidden=!local();}}
+ function changeMode(mode){if(active||!['single','local'].includes(mode))return false;duelLook={...duelLook,mode};saveLook();state=createFlightState(settings);duel=duelFactory(settings,duelLook);resize();sync();return true;}
+ function saveLook(){try{globalThis.localStorage?.setItem(FLIGHT_DUEL_KEY,JSON.stringify(duelLook));}catch{}}
+ function flap(index=0){const p=local()?duel.players[index]:state;if(!active||paused||document.hidden||!p||p.status!=='playing'||!local()&&index!==0)return;
+  audio.unlock();if(local())flapFlightDuel(duel,index);else flapFlight(state);if(p.time-soundAt[index]>=.08){audio.play({dragon:'flap',hummingbird:'chirp',eagle:'whoosh',duck:'flap',capybara:'jet',cat:'jet',dog:'jet',hotdog:'jet',burger:'jet',pizza:'jet',taco:'jet'}[p.settings.animal]);soundAt[index]=p.time;}
+ }
+ if(typeof document.createElement==='function'&&canvas.closest?.('.canvas-wrap')){
+  section=document.createElement('section');section.className='flight-multiplayer';section.setAttribute('aria-label','Flappy Animals players');
+  for(const[id,label]of [['single','One player'],['local','Two players']]){const b=document.createElement('button');b.type='button';b.className='button outline';b.textContent=label;b.setAttribute('data-flight-mode',id);b.onclick=()=>changeMode(id);section.append(b);modeButtons.push([id,b]);}
+  const animalLabel=document.createElement('label');animalLabel.textContent='Player 2 animal';animalSelect=document.createElement('select');animalSelect.setAttribute('data-flight-rival','');for(const[id,name]of Object.entries(FLIGHT_ANIMALS)){const option=document.createElement('option');option.value=id;option.textContent=name;animalSelect.append(option);}animalSelect.value=duelLook.animal;animalSelect.onchange=()=>{if(active)return;duelLook=flightDuelSettings({...duelLook,animal:animalSelect.value});duel=duelFactory(settings,duelLook);saveLook();};animalLabel.append(animalSelect);section.append(animalLabel);
+  const colorLabel=document.createElement('label');colorLabel.textContent='Player 2 color';colorInput=document.createElement('input');colorInput.type='color';colorInput.value=duelLook.color;colorInput.onchange=()=>{if(active)return;duelLook=flightDuelSettings({...duelLook,color:colorInput.value});duel=duelFactory(settings,duelLook);saveLook();};colorLabel.append(colorInput);section.append(colorLabel);rivalPreview=document.createElement('canvas');rivalPreview.width=110;rivalPreview.height=80;rivalPreview.setAttribute('aria-label','Player 2 animal preview');section.append(rivalPreview);
+  for(let i=0;i<2;i++){const b=document.createElement('button');b.type='button';b.className='button dark flight-player-flap';b.textContent='Player '+(i+1)+' · Flap';b.setAttribute('data-flight-flap',String(i));b.addEventListener('pointerdown',e=>{e.preventDefault();flap(i);},options);b.addEventListener('click',e=>{if(e.detail===0)flap(i);},options);section.append(b);touchButtons.push(b);}
+  canvas.closest('.canvas-wrap').before(section);
+ }
+ canvas.addEventListener('pointerdown',e=>{e.preventDefault();canvas.focus();const r=canvas.getBoundingClientRect?.();flap(local()&&r?flightDuelPlayerAt(e.clientX-r.left,r.width):0);},options);
+ canvas.addEventListener('keydown',e=>{if([' ','ArrowUp','w','W','Enter'].includes(e.key)){e.preventDefault();if(!e.repeat)flap(local()&&['ArrowUp','Enter'].includes(e.key)?1:0);}},options);
+ function hud(){if(local())onHud({text:'Two players · P1 '+duel.players[0].passed+' pipes · P2 '+duel.players[1].passed+' pipes · W / Space and Up / Enter'});else onHud({text:`${state.level.name} · ${state.passed} pipes passed · ✦ ${state.earned} coins`});}
+ function finish(){if(!active)return;active=false;sync();if(local()){const finished=duel.status==='finished';onFinish(duel.players.reduce((n,p)=>n+p.earned,0),{title:finished?(duel.winner===-1?'A shared victory!':'Player '+(duel.winner+1)+' wins!'):'Flights saved.',detail:duel.players.map((p,i)=>'P'+(i+1)+': '+p.passed+' pipes · '+p.earned+' coins').join(' · ')});}else onFinish(state.earned,{title:state.status==='lost'?'A brave flight!':'Flight saved.',detail:`${state.passed} pipes × ${state.level.reward} coins · ${state.level.name}`});}
+ function tick(now){if(destroyed)return;const dt=last?Math.min(.05,(now-last)/1000):0;last=now;
+  if(active&&!paused&&!document.hidden){if(local()){const before=duel.players.map(p=>p.status);tickFlightDuel(duel,dt,()=>audio.play('flightCoin'));for(let i=0;i<2;i++)if(before[i]==='playing'&&duel.players[i].status==='lost')audio.play('crash');hud();if(duel.status==='finished')finish();}
+   else if(state.status==='lost'){const before=state.crashTime;state.crashTime+=dt;if(before<.55&&state.crashTime>=.55)audio.play('bounce');if(before<1.15&&state.crashTime>=1.15)audio.play('flightEnd');if(state.crashTime>=2)finish();}
+   else{tickFlight(state,dt,()=>audio.play('flightCoin'));hud();if(state.status==='lost'){audio.play('crash');onHud({text:'Bonk! Coming in for a landing…'});}}
   }
-  canvas.addEventListener('pointerdown',e=>{e.preventDefault();canvas.focus();flap();},options);
-  canvas.addEventListener('keydown',e=>{if([' ','ArrowUp','w','W'].includes(e.key)){e.preventDefault();if(!e.repeat)flap();}},options);
-  function hud(){onHud({text:`${state.level.name} · ${state.passed} pipes passed · ✦ ${state.earned} coins`});}
-  function finish(){if(!active)return;active=false;onFinish(state.earned,{title:state.status==='lost'?'A brave flight!':'Flight saved.',detail:`${state.passed} pipes × ${state.level.reward} coins · ${state.level.name}`});}
-  function tick(now){if(destroyed)return;const dt=last?Math.min(.05,(now-last)/1000):0;last=now;
-    if(active&&!paused&&!document.hidden){
-      if(state.status==='lost'){
-        const before=state.crashTime;state.crashTime+=dt;
-        if(before<.55&&state.crashTime>=.55)audio.play('bounce');
-        if(before<1.15&&state.crashTime>=1.15)audio.play('flightEnd');
-        if(state.crashTime>=2)finish();
-      }else{
-        tickFlight(state,dt,()=>audio.play('flightCoin'));hud();
-        if(state.status==='lost'){audio.play('crash');onHud({text:'Bonk! Coming in for a landing…'});}
-      }
-    }
-    drawFlight(ctx,state,canvas.width,canvas.height,reducedMotion);frame=requestAnimationFrame(tick);
-  }
-  document.addEventListener?.('visibilitychange',()=>{last=0;if(document.hidden)audio.stop();},options);
+  if(local())drawFlightDuel(ctx,duel,canvas.width,canvas.height,reducedMotion);else drawFlight(ctx,state,canvas.width,canvas.height,reducedMotion);if(rivalPreview){const c=rivalPreview.getContext('2d');c.clearRect(0,0,110,80);drawFlyer(c,55,43,68,{...settings,animal:duelLook.animal,color:duelLook.color},active?duel.players[1].time:0);}
   frame=requestAnimationFrame(tick);
-  return {setView(view){if(destroyed||!['side','firstperson'].includes(view))return false;settings={...settings,view};state.settings={...state.settings,view};return true;},start(){audio.stop();audio.unlock();state=createFlightState(settings);state.status='playing';active=true;paused=false;last=0;flapSoundAt=-Infinity;flap();hud();canvas.focus();},pause(value){paused=value;last=0;if(value)audio.stop();},input:flap,setMuted:value=>audio.setMuted(value),setCharacter(value){settings=validateFlightSettings(value.flight);if(!active)state=createFlightState(settings);},destroy(){if(destroyed)return;destroyed=true;cancelAnimationFrame(frame);controller.abort();audio.destroy();finish();}};
+ }
+ document.addEventListener?.('visibilitychange',()=>{last=0;if(document.hidden)audio.stop();},options);globalThis.window?.addEventListener?.('resize',resize,options);resize();sync();frame=requestAnimationFrame(tick);
+ return {setMode:changeMode,setView(view){if(destroyed||!['side','firstperson'].includes(view)||local()&&view==='firstperson')return false;settings={...settings,view};state.settings={...state.settings,view};return true;},start(){audio.stop();audio.unlock();soundAt.fill(-Infinity);if(local()){duel=duelFactory(settings,duelLook);startFlightDuel(duel);}else{state=createFlightState(settings);state.status='playing';}active=true;paused=false;last=0;if(!local())flap();resize();sync();hud();canvas.focus();},pause(value){paused=value;last=0;if(value)audio.stop();},input:flap,setMuted:value=>audio.setMuted(value),setCharacter(value){settings=validateFlightSettings(value.flight);if(!active){state=createFlightState(settings);duel=duelFactory(settings,duelLook);}},destroy(){if(destroyed)return;destroyed=true;cancelAnimationFrame(frame);controller.abort();audio.destroy();finish();section?.remove();dialog?.classList?.remove('flight-local');}};
 }

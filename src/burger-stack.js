@@ -140,7 +140,7 @@ export function drawBurgerEnding(c,time,width,height,score,best,reduced=false){
   c.font='bold 25px sans-serif';c.fillText(score+' layers stacked · Best '+Math.max(score,best),450,577);c.restore();
 }
 function drawBurgerBackdrop(c,background){
- if(['classic','diner'].includes(background)&&drawPlayBackdrop(c,6,620,720))return;
+ if(['classic','diner','kitchen'].includes(background)&&drawPlayBackdrop(c,6,620,720))return;
   if(background==='classic'){
     c.fillStyle=burgerGradient(c,0,720,['#176d83','#5c9e9f','#b0c6a0']);c.fillRect(0,0,620,720);
     for(let i=0;i<14;i++){c.fillStyle='#ffffff22';c.fillRect((i*97)%620,(i*131)%720,3,3);}return;

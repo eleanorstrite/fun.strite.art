@@ -146,7 +146,7 @@ export function drawCity(canvas,state,hover=null,tool='cottage',time=0){
 let cityPreviewImage;
 export function drawCityPreview(canvas){
   if(typeof Image!=='undefined'){
-    if(!cityPreviewImage){cityPreviewImage=new Image();cityPreviewImage.src='./assets/city-builder-preview.jpg';}
+    if(!cityPreviewImage){cityPreviewImage=new Image();cityPreviewImage.src=new URL('../assets/city-builder-preview.jpg',import.meta.url).href;}
     if(cityPreviewImage.complete&&cityPreviewImage.naturalWidth){canvas.getContext('2d').drawImage(cityPreviewImage,0,0,canvas.width,canvas.height);return;}
     if(!cityPreviewImage.complete)cityPreviewImage.addEventListener('load',()=>{if(canvas.isConnected)drawCityPreview(canvas);},{once:true});
   }

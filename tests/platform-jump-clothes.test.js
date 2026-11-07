@@ -11,14 +11,14 @@ test('all twenty-two reference clothing choices save without changing the defaul
 test('each outfit uses its own atlas cell and preserves the existing head dimensions',t=>{
  const previous=globalThis.Image;t.after(()=>{globalThis.Image=previous;});
  globalThis.Image=class{constructor(){this.complete=true;this.naturalWidth=1236;this.naturalHeight=1236;}};
- const cells=new Set(),images=[],heads=[];
- const c=new Proxy({drawImage:(...args)=>images.push(args),ellipse:(...args)=>heads.push(args)},{get:(o,k)=>k in o?o[k]:()=>{}});
+ const cells=new Set(),images=[],faces=[],heads=[];
+ const c=new Proxy({drawImage:(...args)=>{images.push(args);if(args[0].src?.endsWith('platform-faces.png'))faces.push(args);},ellipse:(...args)=>heads.push(args)},{get:(o,k)=>k in o?o[k]:()=>{}});
  for(const outfit of JUMP_OUTFITS.slice(1)){
   images.length=0;assert.equal(drawJumpOutfit(c,outfit),true);assert.equal(images.length,1);cells.add(images[0][0].src+':'+images[0][1]+':'+images[0][2]);
   assert.equal(images[0][7]>0&&images[0][7]<=62,true);assert.equal(images[0][8]>0&&images[0][8]<=58,true);
   for(const wave of [false,true,'clap'])assert.doesNotThrow(()=>drawJumper(c,0,0,{...JUMP_DEFAULTS,hairstyle:'Bald',outfit},1,true,wave));
  }
- assert.equal(cells.size,22);assert.equal(heads.filter(a=>a[2]===20&&a[3]===23).length,66);
+ assert.equal(cells.size,22);assert.equal(faces.length,66);assert.ok(faces.every(a=>a[7]<=40&&a[8]<=46));assert.equal(heads.filter(a=>a[2]===20&&a[3]===23).length,0);
  assert.equal(drawJumpOutfit(c,'Classic colors'),false);
 });
 
@@ -63,7 +63,7 @@ test('waving sleeves include the shoulder and share the arm joint instead of rot
  for(const outfit of JUMP_OUTFITS.slice(1))for(const time of [0,.4,1]){
   const images=[],bodyAngles=[],sleeveAngles=[],bodyJoints=[],sleeveJoints=[];
   const body=new Proxy({rotate:a=>bodyAngles.push(a),translate:(...a)=>bodyJoints.push(a)},{get:(o,k)=>k in o?o[k]:()=>{}});
-  const clothes=new Proxy({drawImage:(...a)=>images.push(a),rotate:a=>sleeveAngles.push(a),translate:(...a)=>sleeveJoints.push(a)},{get:(o,k)=>k in o?o[k]:()=>{}});
+  const clothes=new Proxy({drawImage:(...a)=>{images.push(a);if(a[0].src?.endsWith('platform-faces.png'))faces.push(a);},rotate:a=>sleeveAngles.push(a),translate:(...a)=>sleeveJoints.push(a)},{get:(o,k)=>k in o?o[k]:()=>{}});
   drawOutfitBody(body,{...JUMP_DEFAULTS,outfit},time,false,true);drawJumpOutfit(clothes,outfit,time,false,true);
   const sleeveless=outfit.endsWith('butterfly dress');assert.equal(images.length,sleeveless?1:3);
   const cell=outfitCell(outfit);for(const image of images)assert.equal(image[3]>=image[0].naturalWidth/cell.columns*.9,true,'Retain the complete sleeve artwork, including its inner seam');

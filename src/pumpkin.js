@@ -59,7 +59,7 @@ export function drawCarvedPumpkin(ctx,pumpkin,x,y,size=1,lit=false){
   for(const width of [140,88,34]){
     ctx.strokeStyle=look.shade+'80';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(0,0,width,148,0,0,Math.PI*2);ctx.stroke();
   }
-  if(pumpkin.kind==='classic'||pumpkin.kind==='white')drawPlaySprite(ctx,'details',pumpkin.kind==='white'?7:6,0,-25,360,350,{anchor:.5,stretch:true});
+  drawPlaySprite(ctx,'details',pumpkin.kind==='white'?7:6,0,-25,360,350,{anchor:.5,stretch:true,tint:['green','tall'].includes(pumpkin.kind)?look.color:undefined,region:[0,.2,1,.8]});
   ctx.save();ctx.beginPath();ctx.ellipse(0,0,175,145,0,0,Math.PI*2);ctx.clip();
   const inside=ctx.createLinearGradient(0,-145,0,145);
   inside.addColorStop(0,lit?'#fff0b0':'#59371e');inside.addColorStop(.55,lit?'#ffd76b':'#885222');inside.addColorStop(1,lit?'#ffbb44':'#c1853e');

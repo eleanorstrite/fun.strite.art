@@ -1,0 +1,21 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {PLAY_ART} from '../src/play-art-bounds.js';
+import {drawKnight,drawMaze3D,createMazeState} from '../src/knight-maze.js';
+import {drawTagCharacter} from '../src/tag.js';
+import {drawFlyer} from '../src/sky-flight.js';
+import {FLIGHT_ANIMALS,FLIGHT_DEFAULTS} from '../src/flight-settings.js';
+import {drawAirplane} from '../src/air-race.js';
+import {GAMES} from '../src/games.js';
+import {drawGamePresentation} from '../src/game-presentation.js';
+import {freshSave} from '../src/system.js';
+function images(t){const old=globalThis.Image,doc=globalThis.document;globalThis.document=undefined;t.after(()=>{globalThis.Image=old;globalThis.document=doc;});globalThis.Image=class{complete=true;set src(value){this.url=value;if(value.includes('sports-equipment-atlas.png'))this.complete=false;const group=value.match(/gameplay\/(.+)\.png/)?.[1],data=PLAY_ART[group];this.naturalWidth=data?.width||1774;this.naturalHeight=data?.height||887;}get src(){return this.url;}};}
+function context(){const draws=[],rects=[],c=new Proxy({canvas:{width:960,height:540},drawImage:(...a)=>draws.push(a),fillRect:(...a)=>rects.push(a),measureText:()=>({width:80}),createLinearGradient:()=>({addColorStop(){}}),createRadialGradient:()=>({addColorStop(){}})},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});return {c,draws,rects};}
+test('all new character atlas crops fit their actual transparent PNG dimensions',()=>{for(const group of ['flyers-detailed','tag-people','platform-faces']){const b=readFileSync(new URL('../assets/gameplay/'+group+'.png',import.meta.url)),art=PLAY_ART[group];assert.equal(b.readUInt32BE(16),art.width);assert.equal(b.readUInt32BE(20),art.height);for(const r of art.bounds){assert.ok(r.w>20&&r.h>20);assert.ok(r.x>=0&&r.y>=0&&r.x+r.w<=art.width&&r.y+r.h<=art.height);}}});
+test('every knight armor, helmet, cape and shield combination retains the detailed knight',t=>{images(t);const {c,draws,rects}=context();for(const armor of ['silver','gold','midnight','rose'])for(const helmet of ['plume','plain','crown','horns'])for(const cape of [false,true])for(const shield of [false,true]){draws.length=rects.length=0;drawKnight(c,100,100,160,{armor,helmet,cape,shield,color:'#9f84c1'});assert.ok(draws.some(a=>a[0].src.endsWith('/knight.png')));assert.equal(rects.length,0,'no pixel-body fallback after changing knight gear');}});
+test('every Tag clothing choice and all twelve flyer species retain their detailed artwork',t=>{images(t);const {c,draws}=context();for(const[outfit,index]of [['shirt',0],['stripes',1],['cape',2],['hoodie',3]])for(const facing of [-1,1]){draws.length=0;drawTagCharacter(c,{x:10,y:20,facing,grounded:true,vx:50},{animal:'person',outfit,hat:'cap',accessory:'glasses',color:'#e87643'},1);const art=draws.find(a=>a[0].src.endsWith('/tag-people.png'));assert.ok(art);assert.equal(art[1],PLAY_ART['tag-people'].bounds[index].x);}for(const animal of Object.keys(FLIGHT_ANIMALS)){draws.length=0;drawFlyer(c,100,100,70,{...FLIGHT_DEFAULTS,animal},1);assert.ok(draws.length>0,animal+' has a detailed sprite');}});
+test('decorating the sport airplane does not replace its detailed model',t=>{images(t);const {c,draws}=context();for(const hat of ['none','crown','beanie'])for(const scarf of ['none','long']){draws.length=0;drawAirplane(c,100,100,150,{style:'sport',hat,scarf,color:'#e87643'},0,1);assert.ok(draws.some(a=>a[0].src.endsWith('/objects.png')));}});
+test('all thirteen homepage scenes render through the actual game paths without changing saved character settings',t=>{images(t);const {c,draws}=context(),character=freshSave().character,before=JSON.stringify(character);for(const game of GAMES){draws.length=0;assert.doesNotThrow(()=>drawGamePresentation(c,game.id,character,1));assert.ok(draws.length>0,game.name+' draws its deployed artwork');for(const a of draws)assert.ok(a.slice(1).every(Number.isFinite),game.name);assert.equal(JSON.stringify(character),before);}});
+
+test('the playable 3D maze uses the detailed knight with customized gear',t=>{images(t);const {c,draws}=context();drawMaze3D(c,createMazeState(),{armor:'gold',helmet:'crown',cape:true,shield:true,color:'#ed6e40'},960,540);assert.ok(draws.some(a=>a[0].src.endsWith('/knight.png')));});

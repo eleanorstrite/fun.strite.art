@@ -1,10 +1,11 @@
+import {actorHead,drawActorAccessories} from './actor-accessories.js';
 import {drawPlayBackdrop,drawPlaySprite} from './play-art.js';
 import { bindTagSwipes } from './touch-controls.js';
 import { createMazeAudio } from './maze-audio.js';
 
 export const TAG_ROUND_SECONDS=60;
 export const TAG_LAYOUTS={
-  park:{name:'Playground',platforms:[[100,430,180],[620,430,180],[330,335,240],[65,240,190],[645,240,190]],trampolines:[360,540]},
+  park:{name:'Adventure playground',width:2700,platforms:[0,900,1800].flatMap(offset=>[[100,430,180],[620,430,180],[330,335,240],[65,240,190],[645,240,190]].map(([x,y,w])=>[x+offset,y,w])),trampolines:[360,540,1160,1420,2020,2500],structures:[330,1230,2130].map(x=>({x,y:335,w:240})),slides:[520,1420,2320].map(x=>({x,y:335,end:x+240}))},
   towers:{name:'Twin towers',platforms:[[85,440,160],[655,440,160],[180,345,170],[550,345,170],[340,245,220],[30,155,180],[690,155,180]],trampolines:[80,820]},
   steps:{name:'Sky steps',platforms:[[60,445,160],[265,365,160],[475,285,160],[680,365,160],[690,175,170],[160,185,190]],trampolines:[450,785]},
 };
@@ -32,7 +33,7 @@ export function createTagState(settings=defaultTagSettings(),tagger=0){return {s
 export function tagComputerInput(s){
   const p=s.players[1],other=s.players[0],chasing=s.tagger===1;
   let direction=Math.sign(chasing?other.x-p.x:p.x-other.x);
-  if(!chasing&&(p.x<65||p.x>835))direction=p.x<450?1:-1;
+  const width=TAG_LAYOUTS[s.settings.layout].width||900;if(!chasing&&(p.x<65||p.x>width-65))direction=p.x<width/2?1:-1;
   const above=other.y<p.y-40;
   if(chasing&&above){
     const steps=TAG_LAYOUTS[s.settings.layout].platforms.filter(([x,y,w])=>y<p.y-5&&p.y-y<=125);
@@ -60,14 +61,18 @@ export function tickTag(s,seconds,inputs=[{},{}],emit=()=>{}){
     }
     const input=computer?p.aiInput:inputs[i]||{};
     p.aiWait=Math.max(0,p.aiWait-dt);
+    if(p.slide&&!input.jump){p.x=Math.min(p.slide.end,p.x+220*dt);p.y=tagSlideY(p.slide,p.x);p.vx=220;p.vy=0;p.grounded=true;if(p.x>=p.slide.end){p.slide=null;p.y=540;}continue;}if(input.jump)p.slide=null;
+    const ladder=(layout.structures||[]).find(t=>Math.abs(p.x-(t.x+26))<20&&p.y>t.y&&p.y<=540);
+    if(ladder&&input.jump&&!input.left&&!input.right){p.y=Math.max(ladder.y,p.y-180*dt);p.vx=0;p.vy=0;p.grounded=p.y===ladder.y;p.jumpHeld=true;continue;}
+
     const direction=Number(Boolean(input.right))-Number(Boolean(input.left));
     // Slow the whole airborne motion, preserving jump height and trampoline reach.
     const gentle=Boolean(input.touchAssist)&&!computer,airborne=!p.grounded||input.jump;
     const motionDt=dt*(gentle&&airborne?.78:1);
     p.vx+=(direction*(computer?230:gentle&&airborne?220:270)-p.vx)*Math.min(1,motionDt*(computer?(p.grounded?10:6):(p.grounded?15:8)));if(direction)p.facing=direction;
     if(input.jump&&!p.jumpHeld&&p.grounded){p.vy=-540;p.grounded=false;p.aiWait=.35;emit('bounce');}p.jumpHeld=Boolean(input.jump);
-    const oldY=p.y;p.vy+=1200*motionDt;p.x=tagClamp(p.x+p.vx*motionDt,24,876);p.y+=p.vy*motionDt;p.grounded=false;
-    const surfaces=[...layout.platforms,[0,540,900]].sort((a,b)=>a[1]-b[1]);
+    const oldY=p.y;p.vy+=1200*motionDt;p.x=tagClamp(p.x+p.vx*motionDt,24,(layout.width||900)-24);p.y+=p.vy*motionDt;p.grounded=false;
+    const surfaces=[...layout.platforms,[0,540,layout.width||900]].sort((a,b)=>a[1]-b[1]);
     if(p.vy>=0)for(const [x,y,w] of surfaces){
       if(oldY<=y+.01&&p.y>=y&&p.x+15>x&&p.x-15<x+w){
         p.y=y;p.vy=0;p.grounded=true;
@@ -75,6 +80,7 @@ export function tickTag(s,seconds,inputs=[{},{}],emit=()=>{}){
         break;
       }
     }
+    if(p.vy>=0)for(const slide of layout.slides||[]){if(p.x>=slide.x&&p.x<=slide.end){const y=tagSlideY(slide,p.x);if(oldY<535&&oldY<=y+8&&p.y>=y){p.y=y;p.vy=0;p.grounded=true;p.slide=slide;break;}}}
     if(p.y<75){p.y=75;p.vy=Math.max(0,p.vy);}
   }
   const [a,b]=s.players;
@@ -143,7 +149,12 @@ function drawTagPlatform(c,x,y,w,theme){
   if(theme==='forest')for(let xx=x+20;xx<x+w;xx+=65){c.strokeStyle='#678b57';c.lineWidth=2;c.beginPath();c.moveTo(xx,y+23);c.quadraticCurveTo(xx-9,y+42,xx+3,y+48);c.stroke();tagOval(c,xx-4,y+34,5,2,'#8eb67a');tagOval(c,xx+1,y+43,5,2,'#8eb67a');}
 }
 export function drawTagCharacter(c,p,look,time=0){
- const sprite=look.animal==='person'&&look.outfit==='hoodie'?['characters',p.grounded?6:7]:look.animal==='dragon'?['characters',8]:look.animal==='dog'?['characters',9]:look.animal==='cat'?['characters',13]:null;if(sprite&&drawPlaySprite(c,...sprite,p.x,p.y,58,76,{flip:p.facing<0,tint:look.animal==='person'?look.color:undefined,fur:look.animal==='person'?undefined:look.color})){c.save();c.translate(p.x,p.y);if(look.hat==='cap'){tagRound(c,-17,-70,34,10,5,'#304c6e');tagRound(c,-1,-64,25,4,2,'#f8d274');}if(look.hat==='beanie')tagOval(c,0,-67,18,10,'#f2bd64');if(look.hat==='crown')tagShape(c,[[-16,-63],[-18,-78],[-6,-70],[0,-81],[8,-70],[18,-78],[16,-63]],'#ffd36a');if(look.accessory==='scarf'){tagRound(c,-13,-45,26,6,3,'#ffce6c');tagRound(c,8,-41,6,14,2,'#ffce6c');}if(look.accessory==='glasses'){c.strokeStyle='#293848';c.lineWidth=2;c.strokeRect(-13,-60,11,8);c.strokeRect(2,-60,11,8);}c.restore();return;}
+ const sprite=look.animal==='person'?['tag-people',({shirt:0,stripes:1,cape:2,hoodie:3})[look.outfit]??3]:look.animal==='dragon'?['characters',8]:look.animal==='dog'?['characters',9]:look.animal==='cat'?['characters',13]:null;
+ if(sprite){const person=look.animal==='person',cape=person&&look.outfit==='cape',landmark=person?{x:cape?.8:.65,y:.15,w:cape?.29:.45,h:.23}:look.animal==='dog'?{x:.73,y:.2,w:.38,h:.3}:look.animal==='dragon'?{x:.72,y:.24,w:.4,h:.3}:{x:.62,y:.16,w:.45,h:.28},head=actorHead(...sprite,58,76,landmark),gear={hat:look.hat,accessory:look.accessory,color:look.color};
+  c.save();c.translate(p.x,p.y);if(p.facing<0)c.scale(-1,1);drawActorAccessories(c,gear,head,time,'back');c.restore();
+  if(drawPlaySprite(c,...sprite,p.x,p.y,58,76,{flip:p.facing<0,tint:person?look.color:undefined,fur:person?undefined:look.color})){c.save();c.translate(p.x,p.y);if(p.facing<0)c.scale(-1,1);drawActorAccessories(c,gear,head,time);c.restore();return;}
+ }
+
   c.save();c.translate(p.x,p.y);c.scale(p.facing,1);
   const stride=p.grounded?Math.sin(time*15)*Math.min(5,Math.abs(p.vx)/40):3;
   if(look.outfit==='cape')tagShape(c,[[-12,-40],[-30,-15],[-19,-4],[3,-16]],'#f2bf57');
@@ -182,15 +193,24 @@ export function drawTagCharacter(c,p,look,time=0){
   if(look.hat==='crown')tagShape(c,[[-17,-63],[-19,-80],[-7,-71],[0,-83],[8,-71],[19,-80],[17,-63]],'#ffd36a');
   c.restore();
 }
-export function drawTagScene(c,s,width,height,reduced=false){
-  c.save();c.scale(width/900,height/600);
-  const theme=s.settings.background;
-  drawTagBackdrop(c,theme,reduced?0:s.time);
-  const layout=TAG_LAYOUTS[s.settings.layout];
+export function tagSlideY(slide,x){const t=tagClamp((x-slide.x)/(slide.end-slide.x),0,1);return slide.y+(540-slide.y)*(t*t*(3-2*t));}
+export function tagCameraViews(s){const width=TAG_LAYOUTS[s.settings.layout].width||900,[a,b]=s.players,clampCamera=(x,viewWidth)=>tagClamp(x-viewWidth/2,0,Math.max(0,width-viewWidth));if(s.settings.mode==='local'&&Math.abs(a.x-b.x)>700)return [{x:0,width:450,camera:clampCamera(a.x,450)},{x:450,width:450,camera:clampCamera(b.x,450)}];return [{x:0,width:900,camera:clampCamera(s.settings.mode==='local'?(a.x+b.x)/2:a.x,900)}];}
+function drawTagStructure(c,t,theme){
+ const wood=tagGradient(c,t.y-100,t.y+200,['#d2ac75','#7e543b']),metal=tagGradient(c,t.y-100,t.y+200,['#d7e7e6','#5a7b89']);
+ for(const x of [t.x+8,t.x+t.w-18])tagRound(c,x,t.y-70,12,540-t.y+70,4,wood);
+ tagShape(c,[[t.x-22,t.y-72],[t.x+t.w/2,t.y-150],[t.x+t.w+22,t.y-72]],tagGradient(c,t.y-150,t.y-65,['#f8bb59','#bc6549']));
+ c.strokeStyle='#ffde8c';c.lineWidth=4;c.beginPath();c.moveTo(t.x-22,t.y-72);c.lineTo(t.x+t.w/2,t.y-150);c.lineTo(t.x+t.w+22,t.y-72);c.stroke();
+ for(let x=t.x+10;x<t.x+t.w;x+=24)tagRound(c,x,t.y-65,6,63,2,wood);tagRound(c,t.x,t.y-69,t.w,7,3,wood);
+ for(const x of [t.x+8,t.x+44])tagRound(c,x,t.y,5,540-t.y,2,metal);for(let y=t.y+14;y<538;y+=24)tagRound(c,t.x+8,y,42,5,2,wood);
+ tagRound(c,t.x+64,t.y-100,113,26,7,'#3d776d');c.fillStyle='#fff0cb';c.font='700 12px system-ui';c.textAlign='center';c.fillText('ADVENTURE CLUB',t.x+120,t.y-82);
+}
+function drawTagWorld(c,s,theme,reduced){const layout=TAG_LAYOUTS[s.settings.layout];
+ for(const t of layout.structures||[])drawTagStructure(c,t,theme);
+ for(const slide of layout.slides||[]){c.lineCap='round';for(const[width,color]of [[36,'#8b4a2d'],[29,'#f4ad45'],[20,'#ffd17a']]){c.strokeStyle=color;c.lineWidth=width;c.beginPath();for(let x=slide.x;x<=slide.end;x+=6){const y=tagSlideY(slide,x);x===slide.x?c.moveTo(x,y):c.lineTo(x,y);}c.stroke();}}
   for(const [x,y,w] of layout.platforms)drawTagPlatform(c,x,y,w,theme);
-  c.fillStyle=tagGradient(c,540,600,theme==='snow'?['#eaf5f9','#a6c8d9']:theme==='city'?['#536577','#344352']:['#bbab86','#8d8066']);c.fillRect(0,540,900,60);
-  c.fillStyle=theme==='snow'?'#ffffff':theme==='city'?'#b1d3db':'#a8c884';c.fillRect(0,540,900,7);
-  for(let i=0;i<45;i++){const x=(i*83)%900,y=554+(i*17)%43;tagOval(c,x,y,3+i%4,1,theme==='snow'?'#ffffff66':'#e9ddbb33');}
+  c.fillStyle=tagGradient(c,540,600,theme==='snow'?['#eaf5f9','#a6c8d9']:theme==='city'?['#536577','#344352']:['#bbab86','#8d8066']);c.fillRect(0,540,layout.width||900,60);
+  c.fillStyle=theme==='snow'?'#ffffff':theme==='city'?'#b1d3db':'#a8c884';c.fillRect(0,540,layout.width||900,7);
+  for(let i=0;i<Math.ceil((layout.width||900)/20);i++){const x=(i*83)%(layout.width||900),y=554+(i*17)%43;tagOval(c,x,y,3+i%4,1,theme==='snow'?'#ffffff66':'#e9ddbb33');}
   for(const x of layout.trampolines){
     tagOval(c,x,565,44,7,'#223b4a33');
     c.strokeStyle='#445769';c.lineWidth=4;c.lineCap='round';c.beginPath();c.moveTo(x-30,541);c.lineTo(x-34,562);c.moveTo(x+30,541);c.lineTo(x+34,562);c.stroke();
@@ -205,13 +225,14 @@ export function drawTagScene(c,s,width,height,reduced=false){
     c.textAlign='center';c.font='bold 12px sans-serif';c.fillStyle='#283e50';c.fillText(i===1&&s.settings.mode==='computer'?'CPU':'P'+(i+1),p.x,p.y-86);
     if(i===s.tagger){tagRound(c,p.x-25,p.y-123,50,26,10,'#e65f72');c.fillStyle='#fff';c.font='bold 16px sans-serif';c.fillText('Tag',p.x,p.y-105);}
   }
-  tagRound(c,18,14,864,44,12,'#253e50');c.fillStyle='#fff3d6';c.textAlign='left';c.font='bold 20px sans-serif';c.fillText('TAG · '+layout.name,34,43);c.textAlign='right';c.fillText(Math.ceil(TAG_ROUND_SECONDS-s.time)+'s',862,43);
-  if(s.status==='ready'||s.status==='countdown'||s.time<.65&&s.status==='playing'){
-    const text=s.status==='ready'?'Ready to run?':s.status==='countdown'?String(Math.ceil(s.countdown)):'GO!';
-    tagRound(c,305,190,290,125,24,'#fff5e8ed');c.textAlign='center';c.fillStyle='#35495c';c.font='bold '+(s.status==='ready'?32:70)+'px sans-serif';c.fillText(text,450,272);
-  }
-  if(s.flash>0){c.textAlign='center';c.fillStyle='#c33f66';c.font='bold 34px sans-serif';c.fillText('TAG! Your turn!',450,103);}
-  c.restore();
+ }
+export function drawTagScene(c,s,width,height,reduced=false){
+ c.save();c.scale(width/900,height/600);const theme=s.settings.background,layout=TAG_LAYOUTS[s.settings.layout];drawTagBackdrop(c,theme,reduced?0:s.time);
+ const views=tagCameraViews(s);for(const view of views){c.save();c.beginPath();c.rect(view.x,58,view.width,542);c.clip();c.translate(view.x-view.camera,0);drawTagWorld(c,s,theme,reduced);c.restore();}
+ if(views.length===2){c.fillStyle='#f9e7bb';c.fillRect(447,58,6,542);}
+ tagRound(c,18,14,864,44,12,'#253e50');c.fillStyle='#fff3d6';c.textAlign='left';c.font='bold 20px sans-serif';c.fillText('TAG · '+layout.name,34,43);c.textAlign='right';c.fillText(Math.ceil(TAG_ROUND_SECONDS-s.time)+'s',862,43);
+ if(s.status==='ready'||s.status==='countdown'||s.time<.65&&s.status==='playing'){const text=s.status==='ready'?'Ready to run?':s.status==='countdown'?String(Math.ceil(s.countdown)):'GO!';tagRound(c,305,190,290,125,24,'#fff5e8ed');c.textAlign='center';c.fillStyle='#35495c';c.font='bold '+(s.status==='ready'?32:70)+'px sans-serif';c.fillText(text,450,272);}
+ if(s.flash>0){c.textAlign='center';c.fillStyle='#c33f66';c.font='bold 34px sans-serif';c.fillText('TAG! Your turn!',450,103);}c.restore();
 }
 export function drawTagPreview(canvas){const c=canvas.getContext('2d');if(c){const s=createTagState();s.status='playing';s.time=5;s.players[0].x=310;s.players[1].x=570;drawTagScene(c,s,canvas.width,canvas.height,true);}}
 

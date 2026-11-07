@@ -101,7 +101,7 @@ function drawPlaneAccessories(ctx,look,time=0,sideView=false){
   ctx.restore();
 }
 export function drawAirplane(ctx,x,y,size,look={},bank=0,time=0){
- if((!look.style||look.style==='sport')&&(!look.hat||look.hat==='none')&&(!look.scarf||look.scarf==='none')&&drawPlaySprite(ctx,'objects',12,x,y,size*1.35,size*.8,{anchor:.5,angle:bank,tint:look.color,region:[0,0,1,1]}))return;
+ if((!look.style||look.style==='sport')&&drawPlaySprite(ctx,'objects',12,x,y,size*1.35,size*.8,{anchor:.5,angle:bank,tint:look.color,region:[0,0,1,1]})){ctx.save();ctx.translate(x,y);ctx.rotate(bank);ctx.scale(size/100,size/100);drawPlaneAccessories(ctx,look,time);ctx.restore();return;}
   ctx.save();ctx.translate(x,y);ctx.rotate(bank);ctx.scale(size/100,size/100);
   const color=look.color||'#ed6e40',jet=look.style==='jet',swept=look.style==='swept'||look.style==='stealth',biplane=look.style==='biplane';
   // Chase camera: foreshortened fuselage, broad horizontal wings, and the
