@@ -101,7 +101,7 @@ export function tickStorm(s,dt,fast=false,emit=()=>{}){
   s.remaining=Math.max(0,s.remaining-dt*(slow?.4:1));
   if(s.remaining<=1e-7){s.remaining=0;endStorm(s,s.mode==='survival',emit);return;}
   s.fall+=dt*(slow?.4:1);
-  while(s.status==='playing'){const interval=s.piece.effects?.balloon?.8:fast?.032:(s.fallInterval||.48);if(s.fall<interval)break;s.fall-=interval;dropRow(s,emit);}
+  while(s.status==='playing'){const interval=s.piece.effects?.balloon?.8:fast?(s.wobbly?Math.max(.12,(s.fallInterval||.48)*.3):.032):(s.fallInterval||.48);if(s.fall<interval)break;s.fall-=interval;dropRow(s,emit);}
 }
 
 export function reshapeWizardPiece(s,cells){

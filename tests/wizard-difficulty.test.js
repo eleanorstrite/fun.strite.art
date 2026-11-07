@@ -41,3 +41,5 @@ test('even Expert can choose an imperfect landing, while difficulty increases ac
 test('a crowded spawn retries above the tower instead of awarding the opponent a win',()=>{
  const m=createWizardMatch({opponent:'local'});startWizardMatch(m);const p=m.players[0];p.next={kind:1,cells:[[0,0],[1,0],[0,1],[1,1]],x:3,y:0};p.board[p.board.length-12][3]=3;p.piece={kind:1,cells:[[0,0],[1,0],[0,1],[1,1]],x:0,y:p.board.length-2};wizardPlayerAction(m,0,'drop');tickWizardMatch(m,.001);assert.equal(m.status,'playing');assert.ok(stormFits(p,p.piece.cells,p.piece.x,p.piece.y));
 });
+
+test('holding down speeds pieces up at a controllable rate on every difficulty',async()=>{const {tickStorm}=await import('../src/wizard-rules.js');for(const difficulty of Object.keys(WIZARD_DIFFICULTIES)){const m=createWizardMatch({difficulty}),p=m.players[0],initial=p.piece.y;startWizardMatch(m);for(let i=0;i<20;i++)tickStorm(p,.05,true);assert.ok(p.piece.y-initial>=5&&p.piece.y-initial<=9,'Soft drop stays between five and nine rows per second');assert.equal(p.locked,0);}});
