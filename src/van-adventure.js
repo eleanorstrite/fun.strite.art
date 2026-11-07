@@ -100,7 +100,21 @@ export function tickVan(s,seconds,keys={},emit=()=>{}){
 }
 function vanOval(c,x,y,rx,ry,color){c.fillStyle=color;c.beginPath();c.ellipse(x,y,rx,ry,0,0,Math.PI*2);c.fill();}
 function vanRound(c,x,y,w,h,r,color){c.fillStyle=color;c.beginPath();c.roundRect(x,y,w,h,r);c.fill();}
-export function drawFamilyVan(c,x,y,scale=1,side=false,door=false){
+// Golden feathered wings share the van's transform, with their roots hidden
+// beneath its body. They tuck in on the road and spread while flying.
+export function drawRavenWings(c,x,y,scale=1,side=false,flying=false,time=0){
+ c.save();c.translate(x,y);c.scale(scale,scale);
+ const spread=flying?1:0,flap=flying?Math.sin(time*6)*.12:0;
+ for(const direction of [-1,1]){c.save();c.translate(direction*(side?76:25),side?-33:-7);c.scale(direction,1);c.rotate(-.12+flap);
+  const reach=(side?85:53)+spread*(side?48:55),rise=side?62:27;
+  const g=c.createLinearGradient?.(0,0,reach,-rise);if(g?.addColorStop){g.addColorStop(0,'#f5c66c99');g.addColorStop(.5,'#fff8dfdd');g.addColorStop(1,'#ffeaa1aa');}c.fillStyle=g?.addColorStop?g:'#fff0bf';c.strokeStyle='#ffe5a0';c.lineWidth=1.5;c.shadowColor='#ffd675';c.shadowBlur=flying?15:8;
+  c.beginPath();c.moveTo(-6,-5);c.bezierCurveTo(reach*.27,-rise*.7,reach*.7,-rise*.45,reach,-rise);c.bezierCurveTo(reach*.91,-rise*.06,reach*.4,27,-5,15);c.closePath();c.fill();c.stroke();
+  for(let feather=0;feather<8;feather++){const endX=reach*(1-feather*.075),endY=-rise+feather*(rise+14)/8;c.beginPath();c.moveTo(2+feather,9);c.bezierCurveTo(reach*.34,-rise*.13,endX*.82,endY+12,endX,endY);c.quadraticCurveTo(endX-3,endY+10,8+feather*2,15);c.stroke();}
+  c.shadowBlur=0;c.strokeStyle='#fffbe5';c.lineWidth=1;c.beginPath();c.moveTo(0,5);c.quadraticCurveTo(reach*.45,-rise*.45,reach*.87,-rise*.73);c.stroke();c.restore();
+ }c.restore();
+}
+export function drawFamilyVan(c,x,y,scale=1,side=false,door=false,flying=false,time=0){
+ drawRavenWings(c,x,y,scale,side,flying,time);
  if(drawPlaySprite(c,'objects',side?(door?2:1):0,x,y,scale*(side?330:66),scale*(side?150:116),{anchor:.5})){if(side&&!door){c.save();c.translate(x,y);c.scale(scale,scale);c.beginPath();c.rect(-75,-55,190,43);c.clip();for(let i=0;i<4;i++)drawPlaySprite(c,i===2?'daughter':'objects',i===2?0:4+i,-50+i*45,-7,35,i===3?42:66);c.restore();}return;}
   c.save();c.translate(x,y);c.scale(scale,scale);
   if(side){
@@ -244,8 +258,7 @@ export function drawVanScene(c,s,width,height){
   const finishY=screenY(s.config.finish);if(finishY> -30&&finishY<650){for(let i=0;i<12;i++){c.fillStyle=i%2?'#fff4d5':'#1e3545';c.fillRect(vanRoadCenter(s.config.finish)-144+i*24,finishY,24,28);}c.fillStyle='#fff';c.font='bold 25px sans-serif';c.textAlign='center';c.fillText('FINISH',vanRoadCenter(s.config.finish),finishY-12);}
   const heightUp=s.fly>0?45:s.jump>0?Math.sin((1-s.jump/.95)*Math.PI)*36:0;
   vanOval(c,s.x,511,34,14,'#18334355');
-  if(s.fly>0){c.fillStyle='#dce9ed';c.beginPath();c.moveTo(s.x-20,495-heightUp);c.lineTo(s.x-85,520-heightUp);c.lineTo(s.x+85,520-heightUp);c.lineTo(s.x+20,495-heightUp);c.fill();}
-  if(s.invincible<=0||Math.floor(s.invincible*8)%2)drawFamilyVan(c,s.x,500-heightUp,1+heightUp/200);
+  if(s.invincible<=0||Math.floor(s.invincible*8)%2)drawFamilyVan(c,s.x,500-heightUp,1+heightUp/200,false,false,s.fly>0,s.time);
   drawSnackAttack(c,s,heightUp);
   // Side minimap, visible throughout the course.
   vanRound(c,710,16,174,618,18,'#203e4c');c.fillStyle='#f5ecd4';c.textAlign='center';c.font='bold 18px sans-serif';c.fillText('COURSE MAP',797,47);
