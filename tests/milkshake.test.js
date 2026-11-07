@@ -35,3 +35,21 @@ test('milkshake syrup can be squeezed into the bowl and remains contained before
  const before=JSON.stringify(r);tickIceChocolate(r,1);drawMilkshakeBowl(context(),r);assert.equal(JSON.stringify(r),before);assert.deepEqual(r.saucePuddles,[]);
  startMilkshakeBlend(r);const locked=JSON.stringify(r);pourIceChocolate(r,0,0,1);assert.equal(JSON.stringify(r),locked);
 });
+
+test('the dragon reaches a fixed straw, opens before sealing, then detaches before speaking',async()=>{
+ const {milkshakeDragonPose,MILKSHAKE_STRAW_TIP}=await import('../src/milkshake.js');
+ assert.ok(milkshakeDragonPose(0).mouth.x>800);assert.equal(milkshakeDragonPose(1.3).open,true);
+ for(const t of [1.5,2,3.2,5.99]){const p=milkshakeDragonPose(t);assert.deepEqual(p.mouth,MILKSHAKE_STRAW_TIP);assert.equal(p.sealed,true);assert.equal(p.open,false);const anchor=milkshakeMouthPoint(p.x,p.y,0,p.open);assert.ok(Math.hypot(anchor.x-p.mouth.x,anchor.y-p.mouth.y)<.00001);}
+ const away=milkshakeDragonPose(6.65);assert.equal(away.sealed,false);assert.ok(away.mouth.x-MILKSHAKE_STRAW_TIP.x>=94);assert.equal(away.thanks,false);
+ for(const t of [6.75,7.1,7.55])assert.equal(milkshakeDragonPose(t).speaking,true);
+ for(const t of [6.95,7.36,7.85])assert.equal(milkshakeDragonPose(t).speaking,false);
+});
+test('swallow bulges travel down the throat only during drinking and pause uses the same pose',async()=>{
+ const {milkshakeDragonPose}=await import('../src/milkshake.js');const a=milkshakeDragonPose(1.75),b=milkshakeDragonPose(1.95);
+ assert.equal(a.swallows.length,1);assert.equal(b.swallows.length,1);assert.ok(b.swallows[0].progress>a.swallows[0].progress);assert.ok(a.swallows[0].strength>0);assert.deepEqual(a,milkshakeDragonPose(1.75));
+ for(const t of [0,1.3,6,6.6,7.2,8.5])assert.deepEqual(milkshakeDragonPose(t).swallows,[]);
+ assert.deepEqual(milkshakeDragonPose(3,{reduced:true}).swallows,[]);
+});
+test('Normal and Funny both show mouth contact and speech mouth movements without changing their audio modes',async()=>{
+ const {drawMilkshakeDrink}=await import('../src/milkshake.js');for(const funny of [false,true]){const r=shake();r.funny=funny;const mouths=[];for(const time of [1.3,2,6.6,6.75,6.95,7.1,7.36,7.55,7.85])drawMilkshakeDrink(context(),r,time,(c,x,y,t,mouth)=>mouths.push(mouth));assert.deepEqual(mouths.map(m=>m>.2),[true,false,false,true,false,true,false,true,false]);}
+});

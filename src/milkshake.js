@@ -1,6 +1,7 @@
 import {drawIceToppingScatter} from './ice-topping-scatter.js';
 import {ICE_FLAVORS,ICE_TOPPINGS,ICE_SYRUPS} from './ice-settings.js';
 import {drawIceIngredient} from './ice-art.js';
+import {playSprite} from './play-art.js';
 import {PLAY_ART} from './play-art-bounds.js';
 export const MILKSHAKE_COUNTDOWN=3,MILKSHAKE_BLEND_SECONDS=5,MILKSHAKE_DRINK_SECONDS=8.5,MILKSHAKE_THANKS=6.7;
 const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
@@ -82,7 +83,34 @@ export function drawMilkshakeBlender(c,r,x=450,y=505,{reduced=false}={}){
  c.restore();c.textAlign='center';c.fillStyle='#553b52';c.font='800 25px system-ui';c.fillText(v.count?'Ready to blend · '+v.count:'Blending your toppings! '+Math.round(v.progress*100)+'%',450,554);c.font='17px system-ui';c.fillText(v.count?'Watch your ingredients go into the blender':'Blending and chopping your mix-ins into a creamy shake',450,583);
 }
 export function milkshakeMouthPoint(x,y,time=0,open=false){const b=PLAY_ART.objects.bounds[open?15:14],s=Math.min(245/b.w,260/b.h),w=b.w*s,h=b.h*s,angle=Math.sin(time*3)*.015,rx=(.16-.5)*w,ry=(.29-1)*h;return {x:x+28+Math.cos(angle)*rx-Math.sin(angle)*ry,y:y+197+Math.sin(angle)*rx+Math.cos(angle)*ry};}
-export function drawMilkshakeDrink(c,r,time,drawDragon,reduced=false){const v=milkshakeDrinkView(time),x=900-v.arrive*300,y=277,open=!!r.funny&&v.drinking&&Math.sin(time*9)>.2;drawDragon(c,x,y,reduced?0:time,open?.45:.1);drawMilkshakeGlass(c,r,380,500,{scale:.72,remaining:1-v.consumed,time,reduced,straw:false});const mouth=milkshakeMouthPoint(x,y,reduced?0:time,open),connect=clamp((time-1)/.5),tip={x:432+(mouth.x-432)*connect,y:261+(mouth.y-261)*connect};drawMilkshakeStraw(c,[[389,480],[411,292],[432,261],[tip.x,tip.y]],{width:7});
- c.fillStyle='#533e4a';c.textAlign='center';c.font='22px system-ui';c.fillText(v.drinking?(r.funny?'Slurp! Gulp!':'Your dragon is drinking through the straw.'):'A delicious milkshake for your dragon.',450,566);
- if(v.thanks){c.fillStyle='#fff8e8';c.beginPath();c.roundRect(194,160,292,95,22);c.fill();c.fillStyle='#533e4a';c.font='800 32px system-ui';c.fillText('Yum! Thank you!',340,219);c.font='22px system-ui';c.fillText('One very happy dragon.',450,566);}
+export const MILKSHAKE_STRAW_TIP={x:460,y:293};
+const ease=v=>{v=clamp(v);return v*v*(3-2*v);};
+export function milkshakeDragonPose(time,{reduced=false}={}){
+ const v=milkshakeDrinkView(time),approach=ease(time/1.5),retreat=ease((time-6)/.6),talk=time-MILKSHAKE_THANKS;
+ const syllables=[[0,.2],[.33,.59],[.76,1.06]],speaking=syllables.some(([a,b])=>talk>=a&&talk<b);
+ const open=(time>=1.05&&time<1.5)||speaking,mouth={x:850+(MILKSHAKE_STRAW_TIP.x-850)*approach+retreat*95,y:MILKSHAKE_STRAW_TIP.y},offset=milkshakeMouthPoint(0,0,0,open),x=mouth.x-offset.x,y=mouth.y-offset.y;
+ const swallows=[];
+ if(v.drinking&&!reduced)for(let i=0;i<7;i++){const age=time-(1.65+i*.6);if(age>=0&&age<.52)swallows.push({progress:age/.52,strength:Math.sin(Math.PI*age/.52)});}
+ return {...v,x,y,mouth,open,sealed:v.drinking,retreat,speaking,swallows};
+}
+function drawMilkshakeSwallow(c,pose){
+ const sprite=playSprite('objects',14),b=PLAY_ART.objects.bounds[14],scale=Math.min(245/b.w,260/b.h),left=pose.x+28-b.w*scale/2,top=pose.y+197-b.h*scale;
+ for(const swallow of pose.swallows){const p=swallow.progress,sy=b.h*(.36+p*.27),cx=b.w*(.25+p*.07),width=b.w*.17,height=15,amount=swallow.strength;
+  // Magnify the dragon's own neck scales into a traveling bulge, keeping the skin attached.
+  if(sprite){c.save();c.beginPath();c.ellipse(left+cx*scale,top+sy*scale,width*scale*.63,height*scale*.72,0,0,Math.PI*2);c.clip();c.drawImage(sprite.image,b.x+cx-width/2,b.y+sy-height/2,width,height,left+(cx-width/2)*scale-9*amount,top+(sy-height/2)*scale,width*scale+14*amount,height*scale);c.restore();}
+  const xx=left+cx*scale-8,yy=top+sy*scale;c.save();c.globalAlpha=amount*.75;c.strokeStyle='#b08ab6';c.lineWidth=1.5;c.beginPath();c.ellipse(xx,yy,9+amount*3,6,-.2,.18,Math.PI*.9);c.stroke();c.strokeStyle='#fff4da';c.lineWidth=2;c.beginPath();c.ellipse(xx,yy-3,8,4,-.2,Math.PI*1.05,Math.PI*1.8);c.stroke();c.restore();
+ }
+}
+export function drawMilkshakeDrink(c,r,time,drawDragon,reduced=false){
+ const pose=milkshakeDragonPose(time,{reduced}),{x,y}=pose;
+ // The straw stays fixed: the dragon walks to its tip, then backs away after drinking.
+ drawDragon(c,x,y,0,pose.open?.65:.1);drawMilkshakeSwallow(c,pose);
+ drawMilkshakeGlass(c,r,380,500,{scale:.72,remaining:1-pose.consumed,time,reduced,straw:false});
+ drawMilkshakeStraw(c,[[389,480],[408,329],[440,293],[MILKSHAKE_STRAW_TIP.x,MILKSHAKE_STRAW_TIP.y]],{width:7});
+ if(pose.sealed){const {x:mx,y:my}=pose.mouth;
+  // Front lip overlaps the inserted tip, while the cheek gently tightens with each sip.
+  const sip=reduced?0:Math.sin(time*12)*.6;c.save();c.strokeStyle='#9d70b4';c.lineWidth=3.8;c.lineCap='round';c.beginPath();c.ellipse(mx+2,my,5+ sip,6,0,-Math.PI*.45,Math.PI*.45);c.stroke();c.strokeStyle='#e1c2ec';c.lineWidth=1.2;c.beginPath();c.ellipse(mx+2,my,5+sip,6,0,-Math.PI*.45,.1);c.stroke();c.restore();
+ }
+ c.fillStyle='#533e4a';c.textAlign='center';c.font='22px system-ui';if(!pose.thanks)c.fillText(pose.drinking?(r.funny?'Slurp! Gulp!':'Your dragon is drinking through the straw.'):time>=6?'One delicious milkshake, all finished.':'Your dragon is coming over for a milkshake.',450,566);
+ if(pose.thanks){c.fillStyle='#fff8e8';c.beginPath();c.roundRect(194,160,292,95,22);c.fill();c.fillStyle='#533e4a';c.font='800 32px system-ui';c.fillText('Yum! Thank you!',340,219);c.font='22px system-ui';c.fillText('One very happy dragon.',450,566);}
 }
