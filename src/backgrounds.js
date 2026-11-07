@@ -11,6 +11,7 @@ export const BACKGROUNDS = [
   { id: 'reef', name: 'Underwater reef' },
   { id: 'dragon', name: 'Dragon sky' },
   { id: 'cow', name: 'Meadow cow' },
+  { id: 'jungle', name: 'Jungle friends' },
   { id: 'classic', name: 'Classic' },
 ];
 export function loadBackground(storage,owned=[]) {
