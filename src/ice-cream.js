@@ -1,3 +1,4 @@
+import {iceDragonCleanupAtlas,iceDragonCleanupFacing,drawIceDragonCleanup} from './ice-dragon-cleanup.js';
 import {isMilkshake,selectMilkshake,resetMilkshakeBlend,chooseMilkshakeTopping,startMilkshakeBlend,tickMilkshakeBlend,milkshakeBlendView,milkshakeEndingSounds,MILKSHAKE_DRINK_SECONDS,MILKSHAKE_THANKS,drawMilkshakeGlass,drawMilkshakeBlender,drawMilkshakeDrink} from './milkshake.js';
 import {drawIceIngredient,iceArtReady} from './ice-art.js';
 import {drawPlayBackdrop,drawPlaySprite} from './play-art.js';
@@ -381,12 +382,9 @@ export function drawIceScene(ctx,recipe,width,height,clipTime=null,reducedMotion
     const mouth=lunge>.3&&phase<.65?.9:lunge>.15?.15:0;
     ctx.save();ctx.translate(450,307);ctx.scale(1.15,1.15);drawChocolateSpill(ctx,{...recipe,saucePuddles:cleanup.puddles},false);ctx.restore();
     const lickX=450+cleanup.x*1.15;
-    const dragonX=cleanup.licking?lickX+54:900-arrive*330;
-    drawIceDragon(ctx,dragonX,277,reducedMotion?0:t,cleanup.licking?.45:mouth,cleanup.licking?0:(420+target.x-516)*lunge,cleanup.licking?110:(dessertY+target.y-333)*lunge);
+    if(cleanup.end>ICE_CLIP_SECONDS&&t>=5)drawIceDragonCleanup(ctx,t,lickX,{reduced:reducedMotion,direction:iceDragonCleanupFacing(recipe)});
+    else drawIceDragon(ctx,900-arrive*330,277,reducedMotion?0:t,mouth,(420+target.x-516)*lunge,(dessertY+target.y-333)*lunge);
     if(cleanup.licking){
-      const reach=reducedMotion?1:.65+.35*Math.sin((t-5.5)*Math.PI*8)**2;
-      ctx.strokeStyle='#eb9baf';ctx.lineWidth=13;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(lickX,450);
-      ctx.quadraticCurveTo(lickX-10,478,lickX-20*reach,450+43*reach);ctx.stroke();
       ctx.fillStyle='#533e4a';ctx.font='23px sans-serif';ctx.fillText('Slurp! Cleaning up every last drop…',450,565);
     }
     if(bites<4||recipe.cone==='cup'){
@@ -413,6 +411,7 @@ export function drawIcePreview(canvas){
 }
 export function createIceCream({canvas,onHud,onFinish,controls=document.querySelector('#ice-controls'),getUpgrades=()=>[]}){
   const ctx=canvas.getContext('2d');if(!ctx)throw Error('Your browser does not support canvas.');
+  iceDragonCleanupAtlas();
   const audio=createMazeAudio(),controller=new AbortController();
   const reduced=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false;
   let recipe=createIceRecipe(),step=0,active=false,paused=false,clip=null,spoken=false,destroyed=false,last=0,frame;

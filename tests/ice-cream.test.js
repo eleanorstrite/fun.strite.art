@@ -194,7 +194,7 @@ test('dragon cleanup removes all puddles after eating and extends only messy end
   assert.equal(iceCleanup(recipe,7).puddles.length<3,true);
   assert.equal(iceCleanup(recipe,8.5).puddles.length,0);
   assert.equal(iceCleanup(recipe,10.8).puddles.length,0);
-  const ctx=new Proxy({},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
+  const ctx=new Proxy({createLinearGradient:()=>({addColorStop(){}})},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
   for(const t of [5,5.5,6,7,8.5,10.8])for(const reduced of [false,true])drawIceScene(ctx,recipe,900,620,t,reduced);
   assert.equal(JSON.stringify(recipe),before);
   assert.equal(iceCleanup(createIceRecipe(),6).end,7.5);
