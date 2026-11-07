@@ -2,12 +2,12 @@ import {validateCustomWizard} from './wizard-custom.js';
 import {validateWizardSidekick} from './wizard-sidekicks.js';
 import {WIZARD_POWERS,WIZARD_LEVEL_STEP,wizardPower,wizardChoicePosition} from './wizard-powers.js';
 import {createStormState,tickStorm,stormMove,stormRotate,stormHardDrop,stormFits,stormBalance,enlargeWizardPiece,reshapeWizardPiece,twistWizardPiece} from './wizard-rules.js';
-export const WIZARD_DIFFICULTIES={easy:{name:'Easy',target:60,cell:28,botDelay:5.5,botStep:.4,fall:.65,lives:8,accuracy:.45},medium:{name:'Medium',target:76,cell:25,botDelay:4,botStep:.28,fall:.55,lives:6,accuracy:.7},hard:{name:'Hard',target:96,cell:22,botDelay:3,botStep:.2,fall:.48,lives:5,accuracy:.9},expert:{name:'Expert',target:120,cell:19,botDelay:2.2,botStep:.14,fall:.4,lives:4,accuracy:1}};
+export const WIZARD_DIFFICULTIES={easy:{name:'Easy',target:60,cell:28,botDelay:5.5,botStep:.4,fall:.65,accuracy:.45},medium:{name:'Medium',target:76,cell:25,botDelay:4,botStep:.28,fall:.55,accuracy:.7},hard:{name:'Hard',target:96,cell:22,botDelay:3,botStep:.2,fall:.48,accuracy:.9},expert:{name:'Expert',target:120,cell:19,botDelay:2.2,botStep:.14,fall:.4,accuracy:.94}};
 export const WIZARD_MATCH_TYPES=['computer','local'];
 export function createWizardMatch({random=Math.random,background=0,mode='race',opponent='computer',difficulty='easy',wizard='sorceress',rivalWizard='blue-mage',blocks='galaxy',rivalBlocks='gold',sidekick,rivalSidekick,customWizard,rivalCustomWizard}={}){
  difficulty=Object.hasOwn(WIZARD_DIFFICULTIES,difficulty)?difficulty:'easy';const settings=WIZARD_DIFFICULTIES[difficulty];
- const players=[0,1].map(i=>{const p=createStormState(random,background,mode);p.wizard=i?rivalWizard:wizard;p.blockStyle=i?rivalBlocks:blocks;p.customWizard=validateCustomWizard(i?rivalCustomWizard:customWizard);p.sidekick=validateWizardSidekick(i?rivalSidekick:sidekick);p.remaining=Infinity;p.wobbly=true;p.settled=[];p.target=settings.target;p.board=Array.from({length:p.target+14},()=>Array(10).fill(0));p.cellSize=settings.cell;p.lifeLimit=settings.lives;p.fallInterval=settings.fall;p.scrollTower=true;p.spawnY=p.board.length-12;p.piece.y=p.next.y=p.spawnY;p.spells=0;p.earnSpells=false;p.inventory={};p.choices=[];p.level=0;p.nextPowerHeight=WIZARD_LEVEL_STEP;p.pendingLevels=0;p.highWater=0;return p;});
- return {players,background,mode,difficulty,introTime:0,opponent:WIZARD_MATCH_TYPES.includes(opponent)?opponent:'computer',remaining:mode==='race'||mode==='practice'?Infinity:240,status:'ready',elapsed:0,clip:0,winner:null,reason:'',ai:{clock:0,step:0,plan:null},random};
+ const players=[0,1].map(i=>{const p=createStormState(random,background,mode);p.wizard=i?rivalWizard:wizard;p.blockStyle=i?rivalBlocks:blocks;p.customWizard=validateCustomWizard(i?rivalCustomWizard:customWizard);p.sidekick=validateWizardSidekick(i?rivalSidekick:sidekick);p.remaining=Infinity;p.wobbly=true;p.settled=[];p.target=settings.target;p.board=Array.from({length:p.target+14},()=>Array(10).fill(0));p.cellSize=settings.cell;p.lifeLimit=Infinity;p.unlimitedFalls=true;p.fallInterval=settings.fall;p.scrollTower=true;p.spawnY=p.board.length-12;p.piece.y=p.next.y=p.spawnY;p.spells=0;p.earnSpells=false;p.inventory={};p.choices=[];p.level=0;p.nextPowerHeight=WIZARD_LEVEL_STEP;p.pendingLevels=0;p.highWater=0;return p;});
+ return {players,background,mode,difficulty,introTime:0,opponent:WIZARD_MATCH_TYPES.includes(opponent)?opponent:'computer',remaining:Infinity,status:'ready',elapsed:0,clip:0,winner:null,reason:'',ai:{clock:0,step:0,plan:null},random};
 }
 export function startWizardMatch(match,tour=false){match.status=tour?'intro':'playing';match.introTime=0;for(const p of match.players)p.status=tour?'ready':'playing';}
 export function wizardCameraHeight(match,p){const top=p.target-8,t=match.introTime||0,ease=v=>v*v*(3-2*v);if(match.status==='intro'){if(t<1.8)return top*ease(t/1.8);if(t<4.8)return top;return top*(1-ease(Math.min(1,(t-4.8)/1.5)));}return Math.max(0,p.height-6);}
@@ -72,18 +72,17 @@ export function chooseWizardComputerMove(p){
 function tickComputer(match,dt,emit){
  const p=match.players[1],ai=match.ai;if(p.status!=='playing')return;
  const settings=WIZARD_DIFFICULTIES[match.difficulty]||WIZARD_DIFFICULTIES.easy;ai.clock+=dt;ai.step+=dt;
- if(!ai.plan){ai.plan=chooseWizardComputerMove(p);if(match.random()>settings.accuracy){const x=ai.plan.x+(match.random()<.5?-1:1);if(stormFits(p,ai.plan.cells,x,p.piece.y))ai.plan.x=x;}p.piece.cells=ai.plan.cells;p.piece.x=Math.min(6,p.piece.x);if(!stormFits(p,p.piece.cells,p.piece.x,p.piece.y))p.piece.x=ai.plan.x;}
+ if(!ai.plan){ai.plan=chooseWizardComputerMove(p);if(match.random()>settings.accuracy){const legal=Array.from({length:10},(_,x)=>x).filter(x=>stormFits(p,ai.plan.cells,x,p.piece.y));if(legal.length)ai.plan.x=legal[Math.min(legal.length-1,Math.floor(match.random()*legal.length))];}p.piece.cells=ai.plan.cells;p.piece.x=Math.min(6,p.piece.x);if(!stormFits(p,p.piece.cells,p.piece.x,p.piece.y))p.piece.x=ai.plan.x;}
  if(p.choices.length){const slot=p.choices.findIndex(id=>canUseWizardPower(match,1,id));if(slot>=0){chooseWizardPower(match,1,slot,emit);ai.plan=null;return;}}
  if(ai.step>=settings.botStep){ai.step=0;if(p.piece.x!==ai.plan.x)stormMove(p,Math.sign(ai.plan.x-p.piece.x));}
- if(ai.clock>=settings.botDelay&&!p.piece.effects?.balloon){if(stormFits(p,p.piece.cells,ai.plan.x,p.piece.y))p.piece.x=ai.plan.x;stormHardDrop(p,emit);updateWizardLevels(match,1);ai.plan=null;ai.clock=0;}
+ if(ai.clock>=settings.botDelay&&!p.piece.effects?.balloon){stormHardDrop(p,emit);updateWizardLevels(match,1);ai.plan=null;ai.clock=0;}
 }
 export function tickWizardMatch(match,dt,fast=[false,false],emit=()=>{}){
  dt=Math.max(0,Math.min(.1,dt));if(match.status==='intro'){match.introTime+=dt;if(match.introTime>=6.3){match.status='playing';for(const p of match.players)p.status='playing';}return;}if(match.status==='ending'){match.clip+=dt;if(match.clip>=3.5)match.status='finished';return;}if(match.status!=='playing')return;
  match.elapsed+=dt;match.remaining=Math.max(0,match.remaining-dt);
  for(let i=0;i<2;i++){const p=match.players[i],previous=p.piece,version=p.piece.shapeVersion;tickStorm(p,dt,!!fast[i],emit);const level=p.level;updateWizardLevels(match,i);if(p.level>level)emit('bell');if(i===1&&(p.piece!==previous||p.piece.shapeVersion!==version))match.ai.plan=null;}
  if(match.opponent==='computer')tickComputer(match,dt,emit);
- const [a,b]=match.players,win=[a.won||a.height>=a.target,b.won||b.height>=b.target],lost=[a.status==='ending'&&!a.won||a.misses>=(a.lifeLimit||3),b.status==='ending'&&!b.won||b.misses>=(b.lifeLimit||3)];
+ const [a,b]=match.players,win=[a.won||a.height>=a.target,b.won||b.height>=b.target];
  if(win[0]||win[1]){endMatch(match,win[0]&&win[1]?-1:win[0]?0:1,'Reached the goal');emit('win');return;}
- if(lost[0]||lost[1]){endMatch(match,lost[0]&&lost[1]?-1:lost[0]?1:0,'Tower toppled');emit('bell');return;}
- if(match.remaining<=0){const score=p=>match.mode==='survival'?((p.lifeLimit||3)-p.misses)*100+p.height:p.height;endMatch(match,score(a)===score(b)?-1:score(a)>score(b)?0:1,'Time’s up');emit('bell');}
+ if(match.remaining<=0){const score=p=>p.height;endMatch(match,score(a)===score(b)?-1:score(a)>score(b)?0:1,'Time’s up');emit('bell');}
 }

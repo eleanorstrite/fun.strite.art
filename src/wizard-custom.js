@@ -20,11 +20,16 @@ export function drawCustomWizard(c,value,x,baseline,time=0,{height=190,reduced=f
  const {index,cellWidth:bw,cellHeight:bh}=outfit,hw=head.naturalWidth/4,hh=head.naturalHeight/4,bodyHeight=height*(look.age==='kid'?.78:.84),bodyScale=bodyHeight/bh,bodyWidth=bw*bodyScale,headHeight=height*(look.age==='kid'?.21:.19),headScale=headHeight/hh;
  const bodyNeck=outfit.neck,headNeck=CUSTOM_WIZARD_NECKS[look.age+'-heads'][look.hair];
  // Attach the actual portrait neck to the actual outfit neck, including tile offsets.
- const neckX=-bodyWidth/2+(bodyNeck.x-index%4*bw)*bodyScale,neckY=-bodyHeight+(bodyNeck.y+3-Math.floor(index/4)*bh)*bodyScale;
+ const neckInset=look.outfit>=5?9:6;
+ const neckX=-bodyWidth/2+(bodyNeck.x-index%4*bw)*bodyScale,neckY=-bodyHeight+(bodyNeck.y+neckInset-Math.floor(index/4)*bh)*bodyScale;
  const headX=neckX-(headNeck.x-look.hair%4*hw)*headScale,headY=neckY-(headNeck.y-Math.floor(look.hair/4)*hh)*headScale;
  c.save();c.translate(x,baseline+(reduced?0:Math.sin(time*2)*1.5));
  const backIndex=({9:0,10:1,12:2,13:3,14:4,15:5})[look.hair],back=backIndex===undefined?null:customWizardAtlas('hair-back');if(back?.complete&&back.naturalWidth){const sw=back.naturalWidth/3,sh=back.naturalHeight/2,hairScale=look.age==='kid'?7/9:1,w=height*.35*hairScale,h=height*(look.hair===15?.39:.62)*hairScale;c.drawImage(back,backIndex%3*sw,Math.floor(backIndex/3)*sh,sw,sh,neckX-w/2,headY,w,h);}
  const b=outfit.bounds;c.drawImage(body,b.x,b.y,b.w,b.h,-bodyWidth/2+(b.x-index%4*bw)*bodyScale,-bodyHeight+(b.y-Math.floor(index/4)*bh)*bodyScale,b.w*bodyScale,b.h*bodyScale);
+ // Carry the portrait's own skin into the outfit neck stub, so the seam does not look pasted on.
+ const stubDepth=look.outfit>=12?25:look.outfit>=8?22:look.outfit>=5?17:9,joinWidth=(bodyNeck.width||(look.outfit>=12?27:25))*bodyScale,joinHeight=Math.max(1,(stubDepth-neckInset)*bodyScale);
+ c.save();c.beginPath();c.moveTo(neckX-joinWidth/2,neckY-1);c.lineTo(neckX+joinWidth/2,neckY-1);c.lineTo(neckX+joinWidth*.43,neckY+joinHeight);c.quadraticCurveTo(neckX,neckY+joinHeight+1,neckX-joinWidth*.43,neckY+joinHeight);c.closePath();c.clip();
+ c.drawImage(head,headNeck.x-headNeck.width/2,headNeck.y-10,headNeck.width,7,neckX-joinWidth/2,neckY-1,joinWidth,joinHeight+2);c.restore();
  const face=CUSTOM_WIZARD_BOUNDS[look.age+'-heads'][look.hair];c.drawImage(head,face.x,face.y,face.w,face.h,headX+(face.x-look.hair%4*hw)*headScale,headY+(face.y-Math.floor(look.hair/4)*hh)*headScale,face.w*headScale,face.h*headScale);
  c.restore();return true;
 }

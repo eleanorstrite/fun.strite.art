@@ -1,3 +1,4 @@
+import {createWizardMatch} from '../src/wizard-match.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createStormState,stormFits,stormMove,stormRotate,tickStorm,drawStorm,createStormStack,stormBalance} from '../src/storm-stack.js';
@@ -44,12 +45,12 @@ test('engine pause and hidden tabs freeze time, controls release, rewards settle
  const hazardSaves=[];globalThis.localStorage={getItem:()=>hazardSaves.at(-1)??null,setItem:(key,value)=>hazardSaves.push(value)};
  let engine;const frames=n=>{for(let i=0;i<n;i++){frame(now);now+=100;}};
  try{
-  engine=createStormStack({canvas,controls,onHud:v=>hud=v.text,onFinish:coins=>finishes.push(coins)});engine.start();frames(3);engine.pause(true);const before=hud;frames(30);assert.equal(hud,before);
+  engine=createStormStack({canvas,controls,createMatch:options=>{const m=createWizardMatch(options);const p=m.players[1];for(let y=p.board.length-p.target;y<p.board.length;y++)p.board[y][4]=2;p.height=p.target;return m;},onHud:v=>hud=v.text,onFinish:coins=>finishes.push(coins)});engine.start();frames(3);engine.pause(true);const before=hud;frames(30);assert.equal(hud,before);
   engine.pause(false);globalThis.document.hidden=true;frames(30);assert.equal(hud,before);globalThis.document.hidden=false;
   handlers.keydown({key:'ArrowDown',preventDefault(){}});handlers.blur();frames(3);
   frames(3000);assert.equal(finishes.length,1);assert.ok([5,25].includes(finishes[0]));engine.destroy();assert.equal(finishes.length,1);
-  engine=createStormStack({canvas,controls,onHud(){},onFinish:coins=>finishes.push(coins)});engine.start();engine.destroy();assert.equal(finishes.at(-1),0);
-  for(let i=0;i<6;i++){engine=createStormStack({canvas,controls,onHud(){},onFinish(){}});engine.start();engine.destroy();}
+  engine=createStormStack({canvas,controls,createMatch:options=>{const m=createWizardMatch(options);const p=m.players[1];for(let y=p.board.length-p.target;y<p.board.length;y++)p.board[y][4]=2;p.height=p.target;return m;},onHud(){},onFinish:coins=>finishes.push(coins)});engine.start();engine.destroy();assert.equal(finishes.at(-1),0);
+  for(let i=0;i<6;i++){engine=createStormStack({canvas,controls,createMatch:options=>{const m=createWizardMatch(options);const p=m.players[1];for(let y=p.board.length-p.target;y<p.board.length;y++)p.board[y][4]=2;p.height=p.target;return m;},onHud(){},onFinish(){}});engine.start();engine.destroy();}
   assert.deepEqual(hazardSaves,[]); // Chosen backdrop remains unchanged between rounds.
  }finally{engine?.destroy();Object.assign(globalThis,original);}
 });

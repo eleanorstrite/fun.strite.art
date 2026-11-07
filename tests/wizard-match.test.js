@@ -19,7 +19,7 @@ test('computer plans legal supported placements and plays actual blocks without 
  for(let i=0;i<650&&m.status==='playing';i++){tickWizardMatch(m,.05);assert.ok(p.board.flat().filter(Boolean).length<=p.locked*4);assert.equal(p.board.flat().filter(Boolean).length%4,0);if(p.status==='playing')assert.ok(stormFits(p,p.piece.cells,p.piece.x,p.piece.y));}assert.ok(p.locked>0);assert.notEqual(m.status,'ready');}
 });
 test('matches decide winners, finish once, and do not advance after finishing',()=>{
- const m=ready();m.players[0].board.at(-1)[4]=1;m.players[0].misses=m.players[0].lifeLimit-1;m.players[0].piece={kind:0,cells:[[0,0],[1,0],[2,0],[3,0]],x:4,y:m.players[0].board.length-2};stormHardDrop(m.players[0]);tickWizardMatch(m,.01);assert.equal(m.winner,1);assert.equal(m.status,'ending');for(let i=0;i<36;i++)tickWizardMatch(m,.1);assert.equal(m.status,'finished');const frozen=JSON.stringify(m);tickWizardMatch(m,.1);assert.equal(JSON.stringify(m),frozen);
+ const m=ready();m.players[1].height=m.players[1].target;tickWizardMatch(m,.01);assert.equal(m.winner,1);assert.equal(m.status,'ending');for(let i=0;i<36;i++)tickWizardMatch(m,.1);assert.equal(m.status,'finished');const frozen=JSON.stringify(m);tickWizardMatch(m,.1);assert.equal(JSON.stringify(m),frozen);
  const tie=ready();tie.remaining=.01;tickWizardMatch(tie,.02);assert.equal(tie.winner,-1);
 });
 test('golden magic follows the movable piece and stops drawing when the match ends',async()=>{

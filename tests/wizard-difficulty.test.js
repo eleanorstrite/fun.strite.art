@@ -26,3 +26,18 @@ test('a tall supported tower can reach the true gold finish and win',()=>{
 test('phone power targets stay on their own half after resizing',async()=>{
  const {wizardChoicePosition}=await import('../src/wizard-powers.js');const {wizardPowerChoiceAt}=await import('../src/wizard-match.js');const m=createWizardMatch();for(const p of m.players)p.choices=['ultra','ice','twist'];for(let player=0;player<2;player++)for(let slot=0;slot<3;slot++){const pos=wizardChoicePosition(player,slot,1600);assert.equal(pos.x<480,player===0);assert.deepEqual(wizardPowerChoiceAt(m,pos.x,pos.y,1600),{player,slot});}
 });
+
+test('unlimited actual fallen blocks never award a win or cause damage on any difficulty or mode',()=>{
+ for(const difficulty of Object.keys(WIZARD_DIFFICULTIES))for(const mode of ['race','survival','practice']){
+  const m=createWizardMatch({difficulty,mode,opponent:'local',random:()=>.42});startWizardMatch(m);
+  for(let n=0;n<40;n++)for(let i=0;i<2;i++){const p=m.players[i];p.board.forEach(row=>row.fill(0));p.board.at(-1)[4]=1;p.height=1;p.settled=[];p.piece={kind:0,cells:[[0,0],[1,0],[2,0],[3,0]],x:4,y:p.board.length-2};wizardPlayerAction(m,i,'drop');tickWizardMatch(m,.001);assert.equal(p.status,'playing');assert.equal(m.status,'playing');assert.equal(m.winner,null);}
+  for(const p of m.players){assert.equal(p.misses,40);assert.equal(p.lifeLimit,Infinity);assert.equal(p.remaining,Infinity);}assert.equal(m.remaining,Infinity);
+ }
+});
+test('even Expert can choose an imperfect landing, while difficulty increases accuracy and reaction speed',()=>{
+ const settings=Object.values(WIZARD_DIFFICULTIES);assert.ok(settings.every(s=>s.accuracy<1));for(let i=1;i<settings.length;i++){assert.ok(settings[i].accuracy>settings[i-1].accuracy);assert.ok(settings[i].botStep<settings[i-1].botStep);}
+ for(const difficulty of Object.keys(WIZARD_DIFFICULTIES)){const m=createWizardMatch({difficulty,random:()=>.99});startWizardMatch(m);const p=m.players[1];p.board.at(-1)[6]=1;p.height=1;p.piece={kind:0,cells:[[0,0],[1,0],[2,0],[3,0]],x:3,y:p.spawnY};advance(m,WIZARD_DIFFICULTIES[difficulty].botDelay+.15);assert.ok(p.misses>=1,difficulty+' bot can misjudge an overhang');assert.equal(m.status,'playing');}
+});
+test('a crowded spawn retries above the tower instead of awarding the opponent a win',()=>{
+ const m=createWizardMatch({opponent:'local'});startWizardMatch(m);const p=m.players[0];p.next={kind:1,cells:[[0,0],[1,0],[0,1],[1,1]],x:3,y:0};p.board[p.board.length-12][3]=3;p.piece={kind:1,cells:[[0,0],[1,0],[0,1],[1,1]],x:0,y:p.board.length-2};wizardPlayerAction(m,0,'drop');tickWizardMatch(m,.001);assert.equal(m.status,'playing');assert.ok(stormFits(p,p.piece.cells,p.piece.x,p.piece.y));
+});

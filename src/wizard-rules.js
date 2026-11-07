@@ -72,10 +72,13 @@ function dropRow(s,emit){
   }else{
     s.tumbling.push({...balance,kind:p.kind,cells:p.cells.map(([x,y])=>[p.x+x,p.y+y]),age:0});
     s.balanceNotice=2;s.combo=0;s.misses++;emit('whoosh');
-    if(s.mode==='survival'&&s.misses>=(s.lifeLimit||3)){endStorm(s,false,emit);return;}
+    if(!s.unlimitedFalls&&s.mode==='survival'&&s.misses>=(s.lifeLimit||3)){endStorm(s,false,emit);return;}
   }
   if(s.scrollTower)s.spawnY=Math.max(0,s.board.length-Math.max(s.height+6,12));s.piece=s.next;s.piece.y=s.spawnY||0;s.next=nextPiece(s);prepareWizardPiece(s,s.piece);
-  if(!stormFits(s,s.piece.cells,s.piece.x,s.piece.y))endStorm(s,false,emit);
+  if(!stormFits(s,s.piece.cells,s.piece.x,s.piece.y)){
+    if(s.unlimitedFalls){let found=false;for(let y=s.piece.y;y>=0&&!found;y--)for(const x of [3,4,2,5,1,6,0,7,8,9])if(stormFits(s,s.piece.cells,x,y)){s.piece.x=x;s.piece.y=y;found=true;break;}if(!found&&s.height>=s.target)endStorm(s,true,emit);}
+    else endStorm(s,false,emit);
+  }
 }
 export function tickStorm(s,dt,fast=false,emit=()=>{}){
   dt=clamp(dt,0,.1);
