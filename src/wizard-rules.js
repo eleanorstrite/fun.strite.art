@@ -23,14 +23,15 @@ export function stormRotate(s){
   const cells=rotated.map(([x,y])=>[x-minX,y-minY]);
   for(const dx of [0,-1,1,-2,2])if(stormFits(s,cells,p.x+dx,p.y)){p.cells=cells;p.x+=dx;return true;}return false;
 }
-// A piece balances only when its center of mass rests over its supporting cells.
+// Allow a small contact tolerance in tower matches; a centered single-cell support
+// can hold a wide piece. Real overhangs and missing supports still topple.
 export function stormBalance(s,p){
   const cells=p.cells.map(([x,y])=>[p.x+x,p.y+y]),own=new Set(cells.map(([x,y])=>`${x},${y}`));
   const supports=cells.filter(([x,y])=>!own.has(`${x},${y+1}`)&&(y===s.board.length-1||wizardSolidAt(s,x,y+1)));
   const center=cells.reduce((sum,[x])=>sum+x+.5,0)/cells.length;
   if(!supports.length)return {stable:false,direction:1,pivotX:center,pivotY:p.y+p.cells.length};
   const left=Math.min(...supports.map(([x])=>x)),right=Math.max(...supports.map(([x])=>x+1));
-  const margin=s.wobbly?.3:.08;const stable=center>=left+margin&&center<=right-margin&&(!s.wobbly||right-left>1||Math.max(...cells.map(([x])=>x))-Math.min(...cells.map(([x])=>x))===0),direction=center<(left+right)/2?-1:1;
+  const margin=s.wobbly?-.08:.08;const stable=center>=left+margin&&center<=right-margin,direction=center<(left+right)/2?-1:1;
   const edge=supports.find(([x])=>direction<0?x===left:x+1===right);
   return {stable,direction,pivotX:direction<0?left:right,pivotY:edge[1]+1};
 }
@@ -64,7 +65,7 @@ function dropRow(s,emit){
   const balance=stormBalance(s,p);
   if(balance.stable||s.ward){
     for(const [dx,dy] of p.cells){s.board[p.y+dy][p.x+dx]=p.kind+1;if(p.effects?.ice||p.effects?.ultra)s.surfaceEffects[`${p.x+dx},${p.y+dy}`]={ice:!!p.effects.ice,...(p.effects.ultra?{largeX:p.x+2*Math.floor(dx/2),largeY:p.y+2*Math.floor(dy/2)}:{})};}
-    if(s.wobbly){s.settled.push({kind:p.kind,cells:p.cells.map(([x,y])=>[p.x+x,p.y+y]),age:0,angle:.11*balance.direction});s.settleClock=.65;}
+    if(s.wobbly){s.settled.push({kind:p.kind,cells:p.cells.map(([x,y])=>[p.x+x,p.y+y]),age:0,angle:.055*balance.direction});s.settleClock=.65;}
     s.lastPlacement=p.cells.map(([x,y])=>[p.x+x,p.y+y]);s.ward=false;s.combo=balance.stable?s.combo+1:0;if(s.earnSpells!==false&&s.combo>0&&s.combo%3===0)s.spells=Math.min(5,s.spells+1);
     for(const [dx,dy] of p.cells)s.particles.push({x:p.x+dx+.5,y:p.y+dy+.5,age:0,color:COLORS[p.kind]});
     s.locked++;const top=s.board.findIndex(row=>row.some(Boolean));s.height=top<0?0:s.board.length-top;emit('bounce');
@@ -129,7 +130,7 @@ export function tickWizardTower(s,dt,emit=()=>{}){
   const above=groups.filter(p=>p!==group&&p.cells.some(([x,y])=>group.cells.some(([gx,gy])=>x===gx&&y===gy-1)));
   const all=[...group.cells,...above.flatMap(p=>p.cells)],center=all.reduce((n,[x])=>n+x+.5,0)/all.length;
   const bottom=group.cells.filter(([x,y])=>!group.cells.some(([gx,gy])=>gx===x&&gy===y+1)&&(y===s.board.length-1||wizardSolidAt(s,x,y+1)));
-  const loaded=bottom.length&&center>=Math.min(...bottom.map(p=>p[0]))+.25&&center<=Math.max(...bottom.map(p=>p[0]))+.75;
+  const loaded=bottom.length&&center>=Math.min(...bottom.map(p=>p[0]))-.08&&center<=Math.max(...bottom.map(p=>p[0]))+1.08;
   if(balance.stable&&loaded){for(const [x,y]of group.cells)s.board[y][x]=group.kind+1;continue;}
   s.tumbling.push({...balance,kind:group.kind,cells:group.cells,age:0});s.settled=s.settled.filter(p=>p!==group);s.balanceNotice=2;s.spellNotice='Tower slipping! Balance your next block';s.noticeTime=2;s.misses++;s.settleClock=.3;emit('whoosh');
   for(const [x,y]of group.cells)delete s.surfaceEffects[`${x},${y}`];
