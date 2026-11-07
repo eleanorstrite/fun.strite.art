@@ -1,3 +1,4 @@
+import {searchShopItems} from './shop-search.js';
 import {drawCustomWizard,customWizardAtlas} from './wizard-custom.js';
 import {costumePetAtlas,costumePetSprite} from './platform-costume-pets.js';
 import {drawJumper} from './platform-jump-person.js';
@@ -195,6 +196,15 @@ function renderRavenSnack(){
   button.disabled=!ravenSnackHud.canUse||ravenSnackHud.seconds>0||count<1;
 }
 $('#van-snack').onclick=()=>engine?.activateSnack?.();
+function applyShopSearch(){
+  const input=$('#shop-search'),query=input.value.trim(),matches=searchShopItems(UPGRADES,query),ids=new Set(matches.map(item=>item.id));
+  for(const group of ['gameplay','appearance']){const grid=$('#shop-'+group);let count=0;for(const card of grid.children){card.hidden=!ids.has(card.dataset.upgrade);if(!card.hidden)count++;}grid.closest('.shop-section').hidden=count===0;}
+  $('#shop-search-clear').hidden=!input.value;
+  $('#shop-search-status').textContent=query?`${matches.length} shop item${matches.length===1?'':'s'} matching “${query}”.`:`Showing all ${UPGRADES.length} shop items.`;
+  $('#shop-search-empty').hidden=matches.length>0;
+}
+$('#shop-search').addEventListener('input',applyShopSearch);
+$('#shop-search-clear').addEventListener('click',()=>{$('#shop-search').value='';applyShopSearch();$('#shop-search').focus({preventScroll:true});});
 function renderShop(){
   const state=system.snapshot(),full=mazeBagCount(state.boosts)>=3;
   $('#shop-gameplay').replaceChildren();$('#shop-appearance').replaceChildren();
@@ -209,6 +219,7 @@ function renderShop(){
     card.querySelector('button').onclick=()=>{try{system.buy(item.id);notify(`${item.name} ${consumable?'added to your inventory':'unlocked'}!`);}catch(e){notify(e.message);}};
     $('#shop-'+item.group).append(card);
   }
+  applyShopSearch();
 }
 
 function render(){const state=system.snapshot();$('#balance').textContent=state.unlimitedCoins?'∞':state.coins.toLocaleString();$('#explorer-name').textContent=state.character.name;$('#played-count').textContent=Object.values(state.stats).reduce((sum,s)=>sum+s.plays,0);$('#upgrade-count').textContent=`${state.upgrades.length} / ${UPGRADES.filter(item=>item.group==='appearance').length}`;$('#storage-status').textContent=system.isSaved()?'Progress stays in this browser':'Not saved — export to keep progress';document.documentElement.style.setProperty('--character',state.character.color);characterClass(state.character.style);applyRobotLook(state.character.robot);syncLevelButtons();renderLibrary();renderShop();renderBoosts();renderRavenSnack();syncKnightCustomizer();syncFlightCustomizer();syncPlaneCustomizer();}
