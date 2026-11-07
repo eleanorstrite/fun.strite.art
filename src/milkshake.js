@@ -1,3 +1,4 @@
+import {drawIceToppingScatter} from './ice-topping-scatter.js';
 import {ICE_FLAVORS,ICE_TOPPINGS,ICE_SYRUPS} from './ice-settings.js';
 import {drawIceIngredient} from './ice-art.js';
 import {PLAY_ART} from './play-art-bounds.js';
@@ -30,7 +31,8 @@ function bits(c,r,{top=-235,bottom=-26,time=0,swirl=false,progress=1}={}){
 export function drawMilkshakeBowl(c,r,x=450,y=440){
  c.save();c.translate(x,y);oval(c,0,56,139,15,'#75546b28');
  const ids=(r.flavors??[r.flavor]).filter(id=>ICE_FLAVORS[id]);ids.forEach((id,i)=>{const xx=ids.length===1?0:(i-(ids.length-1)/2)*65,yy=-110-(i%2)*28;if(!drawIceIngredient(c,'flavors',id,xx-64,yy,128,107))oval(c,xx,yy+52,60,49,ICE_FLAVORS[id].color);});
- r.toppings.filter(id=>!ICE_SYRUPS[id]).forEach((id,k)=>{for(let i=0;i<4;i++)drawIceIngredient(c,'toppings',id,-85+(i*53+k*19)%155,-111+(i*17+k*23)%60,32,32);});
+ drawIceToppingScatter(c,r.toppings,ids.map((id,i)=>({x:ids.length===1?0:(i-(ids.length-1)/2)*65,y:-64-(i%2)*28,rx:47,ry:30})));
+ for(const id of r.toppings.filter(id=>['cream','redVelvetWhip','cherry','waferRolls'].includes(id))){const cherry=id==='cherry',size=cherry?32:65;drawIceIngredient(c,'toppings',id,-size/2,cherry?-151:-155,size,size);}
  c.save();c.beginPath();c.ellipse(0,-56,119,63,0,0,Math.PI*2);c.clip();for(const drop of r.sauceDrops||[]){const syrup=ICE_SYRUPS[drop.kind||'sauce'];if(!syrup)continue;const xx=drop.x*1.15,yy=377+drop.y*1.15-y;c.strokeStyle=syrup.color;c.lineWidth=4+Math.min(4,drop.amount*3);c.lineCap='round';c.beginPath();c.moveTo(xx-6,yy);c.quadraticCurveTo(xx+9,yy+9,xx-3,yy+20);c.stroke();}c.restore();
  c.fillStyle=gradient(c,-120,0,120,40,[[0,'#b8cbd5'],[.22,'#ffffff'],[.55,'#e6edf0'],[1,'#96aeba']]);c.beginPath();c.moveTo(-124,-52);c.bezierCurveTo(-117,80,117,80,124,-52);c.quadraticCurveTo(0,-24,-124,-52);c.fill();c.strokeStyle='#8fa8b5';c.lineWidth=2;c.stroke();c.strokeStyle='#fff';c.lineWidth=5;c.beginPath();c.ellipse(0,-52,124,13,0,0,Math.PI);c.stroke();oval(c,0,49,57,8,'#bfced6');c.restore();
 }

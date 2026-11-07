@@ -1,3 +1,4 @@
+import {drawIceToppingScatter} from './ice-topping-scatter.js';
 import {iceDragonCleanupAtlas,iceDragonCleanupFacing,drawIceDragonCleanup} from './ice-dragon-cleanup.js';
 import {isMilkshake,selectMilkshake,resetMilkshakeBlend,chooseMilkshakeTopping,startMilkshakeBlend,tickMilkshakeBlend,milkshakeBlendView,milkshakeEndingSounds,MILKSHAKE_DRINK_SECONDS,MILKSHAKE_THANKS,drawMilkshakeBowl,drawMilkshakeGlass,drawMilkshakeBlender,drawMilkshakeDrink} from './milkshake.js';
 import {drawIceIngredient,iceArtReady} from './ice-art.js';
@@ -17,8 +18,7 @@ export function chooseIceFlavor(recipe,id,replace=false){if(!Object.hasOwn(ICE_F
 export function iceScoopLayout(recipe){return iceRecipeFlavors(recipe).map((flavor,i)=>({flavor,x:0,y:-76*i,scale:1}));}
 export function iceDessertBites(recipe){const count=iceRecipeFlavors(recipe).length;if(count<=1)return recipe.cone==='cup'?ICE_CUP_BITES:ICE_BITES;const offset=(count-1)*76;return [{x:24,y:-65-offset,r:88},{x:-24,y:-40-offset*.45,r:90},{x:12,y:recipe.cone==='cup'?-25:30,r:85},{x:0,y:recipe.cone==='cup'?-12:113,r:80}];}
 function drawReferenceIceToppings(c,recipe){
- const scattered={chips:6,pinkSprinkles:10,chocolateSprinkles:10,pearlSprinkles:10,mms:4,truFru:3,banana:3,strawberries:2,chocolatePieces:3,oreo:3,brownie:3,goldfish:4,cookieCrumbs:9,almonds:4,walnuts:4,raspberries:3,orangeSlice:1};
- for(const [id,count]of Object.entries(scattered)){if(!recipe.toppings.includes(id))continue;for(let i=0;i<count;i++){const x=count===1?10:-44+(i*37+id.length*3)%88,y=-65+(i*23+id.length*2)%55,size=count>6?15:count===1?42:25;if(!drawIceIngredient(c,'toppings',id,x-size/2,y-size/2,size,size)){c.fillStyle=['#f48bad','#784537','#f6dd8b','#8ec7df'][i%4];c.beginPath();c.ellipse(x,y,size*.3,size*.22,i,0,Math.PI*2);c.fill();}}}
+ drawIceToppingScatter(c,recipe.toppings);
  if(recipe.toppings.includes('waferRolls'))drawIceIngredient(c,'toppings','waferRolls',15,-102,48,65);
  if(recipe.toppings.includes('redVelvetWhip'))drawIceIngredient(c,'toppings','redVelvetWhip',-28,-130,56,65);
 }
@@ -226,7 +226,7 @@ function drawIceScoop(ctx,recipe){
     ctx.restore();
   }
   iceOval(ctx,-22,-57,24,10,'#ffffff44');
-  if(recipe.flavor==='mint'||recipe.toppings.includes('chips')){
+  if(recipe.flavor==='mint'){
     for(const chip of ICE_CHIP_POINTS){
       ctx.save();ctx.translate(chip.x,chip.y);ctx.rotate(chip.angle);
       iceShape(ctx,[[-chip.size,2],[0,-chip.size],[chip.size,1],[1,chip.size]],'#69463e');ctx.restore();
@@ -259,20 +259,6 @@ function drawIceScoop(ctx,recipe){
       ctx.strokeStyle=syrupColor(drop);ctx.lineWidth=3+Math.min(5,(drop.amount+(drop.flowVolume||0))*4);ctx.stroke();
       ctx.strokeStyle=syrupShine(drop);ctx.lineWidth=1;ctx.stroke();
     }
-  }
-  if(recipe.toppings.includes('sprinkles'))for(let i=0;i<35;i++){
-    ctx.save();ctx.translate(-52+(i*29)%105,-72+(i*17)%78);ctx.rotate(i);
-    ctx.fillStyle=['#df5283','#f5ce4d','#65b8c5','#fff7e1','#9c70c8'][i%5];ctx.fillRect(-3,-1,recipe.funny?11:7,recipe.funny?4:3);ctx.restore();
-  }
-  if(recipe.toppings.includes('stars'))for(let i=0;i<7;i++){
-    const x=-44+(i*29)%90,y=-63+(i*23)%60;
-    iceShape(ctx,Array.from({length:10},(_,j)=>[x+Math.cos(j*Math.PI/5-Math.PI/2)*(j%2?3:8),y+Math.sin(j*Math.PI/5-Math.PI/2)*(j%2?3:8)]),'#ffe18b');
-  }
-  if(recipe.toppings.includes('marshmallows'))for(const [x,y] of [[-37,-41],[5,-63],[35,-30],[-7,-12]]){
-    ctx.fillStyle='#fff8ef';ctx.beginPath();ctx.roundRect(x-7,y-6,14,13,4);ctx.fill();iceOval(ctx,x,y-5,7,3,'#ffe5ee');
-  }
-  if(recipe.toppings.includes('berries'))for(const [x,y,i] of [[-42,-27,0],[-18,-64,1],[23,-47,0],[37,-15,1]]){
-    iceOval(ctx,x,y,8,8,i?'#686ba6':'#cf5479');iceOval(ctx,x-2,y-3,2,2,'#ffffff88');
   }
   if(recipe.funny){
     for(const [x,y,r] of [[-20,-37,12],[17,-42,15]]){iceOval(ctx,x,y,r,r*1.15,'#fffef5');iceOval(ctx,x+3,y+2,4,6,'#342b3d');}
