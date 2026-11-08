@@ -23,8 +23,9 @@ import {FLIGHT_DEFAULTS} from './flight-settings.js';
 import {createAirState,drawAirRace} from './air-race.js';
 import {createIceRecipe,drawIceScene} from './ice-cream.js';
 import {iceArtAtlas} from './ice-art.js';
-import {createDragonAdventureState} from './dragon-adventure-rules.js';
-import {drawDragonAdventure,dragonAdventureArtReady} from './dragon-adventure-art.js';
+import {gameCoverImage} from './game-covers.js';
+import {dragonAdventureArtReady} from './dragon-adventure-art.js';
+import {drawDragonAdventurePreview} from './dragon-adventures.js';
 import {drawPumpkinScene,createPumpkin} from './pumpkin.js';
 const read=(key,fallback)=>{try{return JSON.parse(globalThis.localStorage?.getItem(key)||'null')||fallback;}catch{return fallback;}};
 let memoryArt,cityArt,ready;
@@ -35,7 +36,7 @@ export function gamePresentationReady(){if(!ready){const images=[...['characters
 export function drawGamePresentation(c,id,character={},time=0){
  c.save();c.fillStyle='#1c2f49';c.fillRect(0,0,960,540);const save=read('sidequest.save.v1',{}),owned=save.upgrades||[];
  switch(id){
-  case 'dragon-adventures':{const s=createDragonAdventureState();s.time=time;drawDragonAdventure(c,s,960,540);break;}
+  case 'dragon-adventures':{const image=gameCoverImage('dragon-adventures');if(image?.complete&&image.naturalWidth)c.drawImage(image,0,0,960,540);else drawDragonAdventurePreview({width:960,height:540,getContext:()=>c});break;}
   case 'knight-ember':{const look={armor:'silver',helmet:'plume',cape:true,shield:false,dragon:'classic',color:'#ed6e40',...character},s=createMazeState();s.elapsed=time;s.grace=0;let view;try{view=globalThis.localStorage?.getItem('sidequest.maze-view');}catch{}(view==='2d'?drawMaze:drawMaze3D)(c,s,look,960,540);break;}
   case 'platform-jump':{const look=validateJumpSettings(read('sidequest.platform-jump',JUMP_DEFAULTS),owned),s=createJumpState(look.difficulty);s.time=time;s.grounded=true;drawPlatformJump(c,s,look);break;}
   case 'animal-sports':{const look=validateSportsSettings(read('sidequest.animal-sports',SPORTS_DEFAULTS),owned),s=createSportsState(look.arena,look);s.time=time;drawSports(c,s,look,true);break;}
