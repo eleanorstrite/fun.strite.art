@@ -1,11 +1,14 @@
-// Original creature effects. The requested music uses its official embedded player.
+// Original local fantasy score and creature effects. Audio starts from the game’s Begin gesture.
 export function createDragonAdventureAudio(Context=globalThis.AudioContext||globalThis.webkitAudioContext){
- let context,muted=false,disposed=false;const voices=new Set();
+ let context,muted=false,musicMuted=false,musicWanted=false,nextNote=0,beat=0,disposed=false;const voices=new Set();
  function unlock(){if(disposed||!Context)return;try{context??=new Context();context.resume?.().catch(()=>{});}catch{}}
  function stop(){for(const voice of voices)try{voice.stop();}catch{}voices.clear();}
+ function tone(midi,when,length,volume=.035,type='triangle'){const source=context.createOscillator(),gain=context.createGain();source.type=type;source.frequency.value=440*2**((midi-69)/12);gain.gain.setValueAtTime(0,when);gain.gain.linearRampToValueAtTime(volume,when+.06);gain.gain.exponentialRampToValueAtTime(.0001,when+length);source.connect(gain);gain.connect(context.destination);voices.add(source);source.onended=()=>{voices.delete(source);source.disconnect();gain.disconnect();};source.start(when);source.stop(when+length+.03);}
+ function musicTick(){if(!musicWanted||musicMuted||disposed||!context||context.state!=='running')return;if(nextNote<context.currentTime)nextNote=context.currentTime+.03;const melody=[64,67,71,76,74,71,67,69,72,76,79,76,74,71,67,66,64,67,71,79,78,76,74,71,69,72,76,74,71,67,66,64];while(nextNote<context.currentTime+.45){tone(melody[beat%melody.length],nextNote,.65,.027);if(beat%4===0){const root=[40,36,43,38,40,45,36,38][Math.floor(beat/4)%8];tone(root,nextNote,2.4,.024,'sine');tone(root+19,nextNote,1.7,.01,'sine');}nextNote+=.34;beat++;}}
+ function startMusic(){musicWanted=true;unlock();nextNote=0;musicTick();}
  function roar(small=false){if(muted||disposed||!context||context.state!=='running')return;const length=small?.65:1.8,buffer=context.createBuffer(1,Math.ceil(context.sampleRate*length),context.sampleRate),data=buffer.getChannelData(0);let low=0,phase=0,seed=731;
   for(let i=0;i<data.length;i++){const t=i/context.sampleRate,progress=t/length;seed=(Math.imul(seed,1664525)+1013904223)>>>0;const noise=seed/2147483648-1;low+=.08*(noise-low);phase+=2*Math.PI*(small?180:58)*(1-progress*.45)/context.sampleRate;data[i]=(low*.75+Math.sin(phase)*.13+Math.sin(phase*1.93)*.08)*Math.sin(Math.PI*progress)**.8*(.8+.2*Math.sin(t*32));}
   const source=context.createBufferSource(),gain=context.createGain(),filter=context.createBiquadFilter();source.buffer=buffer;filter.type='lowpass';filter.frequency.value=small?1700:850;gain.gain.value=.45;source.connect(filter);filter.connect(gain);gain.connect(context.destination);voices.add(source);source.onended=()=>voices.delete(source);source.start();
  }
- return {unlock,roar,stop,setMuted(value){muted=!!value;if(muted)stop();},destroy(){disposed=true;stop();context?.close?.().catch(()=>{});}};
+ return {unlock,roar,stop,startMusic,playNote(note){if(context?.state==='running'&&!muted)tone([60,64,67][note-1]||60,context.currentTime,.55,.065,'sine');},tick:musicTick,setMusicMuted(value){musicMuted=!!value;if(musicMuted)stop();else if(musicWanted){nextNote=0;musicTick();}},setMuted(value){muted=!!value;if(muted)stop();},destroy(){disposed=true;stop();context?.close?.().catch(()=>{});}};
 }
