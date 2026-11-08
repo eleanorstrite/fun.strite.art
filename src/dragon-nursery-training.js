@@ -1,8 +1,8 @@
 export const TRAINING_POINT={x:0,z:-35};
 export const TRAINING_ROUTE=[{x:10,z:4},{x:12,z:-8},{x:12,z:-20},{x:8,z:-29},TRAINING_POINT];
 export const FLIGHT_RINGS=[{x:0,y:3,z:-43},{x:-2,y:4.5,z:-51},{x:1,y:6,z:-59},{x:3,y:5,z:-67},{x:0,y:3.5,z:-75}];
-export const DEFAULT_LOOK={skin:'#c89b7f',hair:'#493024',shirt:'#b88045',trousers:'#344859',hairStyle:'short',glasses:false};
-export function sanitizeKeeperLook(value={}){const out={...DEFAULT_LOOK};for(const key of ['skin','hair','shirt','trousers'])if(/^#[0-9a-f]{6}$/i.test(value?.[key]||''))out[key]=value[key];if(['short','long','curly'].includes(value?.hairStyle))out.hairStyle=value.hairStyle;out.glasses=value?.glasses===true;return out;}
+export const DEFAULT_LOOK={age:'adult',skin:'#c89b7f',hair:'#493024',shirt:'#b88045',trousers:'#344859',hairStyle:'short',glasses:false};
+export function sanitizeKeeperLook(value={}){const out={...DEFAULT_LOOK};for(const key of ['skin','hair','shirt','trousers'])if(/^#[0-9a-f]{6}$/i.test(value?.[key]||''))out[key]=value[key];if(['short','long','curly'].includes(value?.hairStyle))out.hairStyle=value.hairStyle;out.age=value?.age==='kid'?'kid':'adult';out.glasses=value?.glasses===true;return out;}
 export function nurseryMorningTasks(s){return s.hatched?[{id:'feed',label:'Feed your dragon',done:s.care.includes('feed')},{id:'wash',label:'A fresh bath',done:s.care.includes('wash')},{id:'training',label:'Training beyond the forest',done:s.care.includes('training')}]:[{id:'warm',label:'Warm the egg',done:s.care.includes('warm')},{id:'turn',label:'Gently turn the egg',done:s.care.includes('turn')},{id:'training',label:'Training beyond the forest',done:false,locked:true}];}
 export function selectNurseryTraining(s){s.routeActive=true;s.message=s.hatched?'Follow the sparkling yellow trail beyond the forest. Stand on the gold marker, then press Start training.':'Your training site is beyond the forest. Hatch your dragon first, then follow the yellow trail.';}
 export function canStartNurseryTraining(s){return !s.inside&&!s.sleep&&!s.riding&&s.hatched&&!s.care.includes('training')&&s.energy>=10&&Math.hypot(s.player.x-TRAINING_POINT.x,s.player.z-TRAINING_POINT.z)<1.5;}
