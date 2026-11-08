@@ -1,0 +1,323 @@
+"""Rebuild original, rigged Dragon Adventures GLBs with Blender 5.x.
+Run: blender -b --factory-startup --python tools/build-dragon-art.py -- assets/dragon-adventures/models
+All coordinates below use game axes (x, height, forward), converted to Blender at creation.
+No third-party character meshes or game artwork are used.
+"""
+import bpy, math, os, sys, random
+from mathutils import Vector
+OUT=os.path.abspath(sys.argv[sys.argv.index('--')+1])
+os.makedirs(OUT,exist_ok=True)
+random.seed(42)
+def v(p): return Vector((p[0],-p[2],p[1]))
+def clear():
+ bpy.ops.object.select_all(action='SELECT');bpy.ops.object.delete(use_global=False)
+ for collection in [bpy.data.meshes,bpy.data.armatures,bpy.data.materials]:
+  for item in list(collection):
+   if item.users==0: collection.remove(item)
+def material(name,hex,rough=.7,metal=0):
+ rgb=[int(hex[i:i+2],16)/255 for i in (1,3,5)];c=[x/12.92 if x<=.04045 else ((x+.055)/1.055)**2.4 for x in rgb]
+ m=bpy.data.materials.new(name);m.diffuse_color=(*c,1);m.use_nodes=True
+ p=m.node_tree.nodes.get('Principled BSDF');p.inputs['Base Color'].default_value=(*c,1);p.inputs['Roughness'].default_value=rough;p.inputs['Metallic'].default_value=metal
+ return m
+def finish(o,name,mat=None):
+ o.name=name
+ if mat:o.data.materials.append(mat)
+ if o.type=='MESH':
+  for face in o.data.polygons:face.use_smooth=True
+ return o
+def ellipsoid(name,p,r,mat=None):
+ bpy.ops.mesh.primitive_uv_sphere_add(segments=20,ring_count=12,location=v(p));o=bpy.context.object;o.scale=(r[0],r[2],r[1]);bpy.ops.object.transform_apply(location=False,rotation=False,scale=True);return finish(o,name,mat)
+def cube(name,p,size,mat,bevel=.025):
+ bpy.ops.mesh.primitive_cube_add(size=1,location=v(p));o=bpy.context.object;o.scale=(size[0],size[2],size[1]);bpy.ops.object.transform_apply(location=False,rotation=False,scale=True)
+ if bevel:
+  b=o.modifiers.new('Soft crafted edges','BEVEL');b.width=bevel;b.segments=2;bpy.ops.object.modifier_apply(modifier=b.name)
+ return finish(o,name,mat)
+def tube(name,points,radii,mat,sides=12):
+ pts=[v(p) for p in points];verts=[];faces=[]
+ for i,p in enumerate(pts):
+  tangent=(pts[min(i+1,len(pts)-1)]-pts[max(i-1,0)]).normalized();axis=tangent.cross(Vector((0,1,0)))
+  if axis.length<.01:axis=tangent.cross(Vector((1,0,0)))
+  axis.normalize();other=tangent.cross(axis).normalized()
+  for j in range(sides):verts.append(tuple(p+(axis*math.cos(j*math.tau/sides)+other*math.sin(j*math.tau/sides))*radii[i]))
+ for i in range(len(pts)-1):
+  for j in range(sides):faces.append((i*sides+j,i*sides+(j+1)%sides,(i+1)*sides+(j+1)%sides,(i+1)*sides+j))
+ faces += [tuple(reversed(range(sides))),tuple((len(pts)-1)*sides+j for j in range(sides))]
+ mesh=bpy.data.meshes.new(name);mesh.from_pydata(verts,[],faces);mesh.update();o=bpy.data.objects.new(name,mesh);bpy.context.collection.objects.link(o);return finish(o,name,mat)
+def loft(name,profiles,mat,sides=28):
+ # Profiles: (height, half width, half depth, forward offset).
+ verts=[];faces=[]
+ for y,rx,rz,z in profiles:
+  for j in range(sides):
+   a=j*math.tau/sides;verts.append(tuple(v((math.cos(a)*rx,y,z+math.sin(a)*rz))))
+ for i in range(len(profiles)-1):
+  for j in range(sides):faces.append((i*sides+j,(i+1)*sides+j,(i+1)*sides+(j+1)%sides,i*sides+(j+1)%sides))
+ faces.extend([tuple(range(sides)),tuple(reversed([(len(profiles)-1)*sides+j for j in range(sides)]))])
+ me=bpy.data.meshes.new(name);me.from_pydata(verts,[],faces);me.update();o=bpy.data.objects.new(name,me);bpy.context.collection.objects.link(o);finish(o,name,mat)
+ sub=o.modifiers.new('Tailored smooth surface','SUBSURF');sub.levels=1;bpy.context.view_layer.objects.active=o;bpy.ops.object.modifier_apply(modifier=sub.name);return o
+def fuse(name,objects,mat,voxel=.04):
+ bpy.ops.object.select_all(action='DESELECT')
+ for o in objects:o.select_set(True)
+ bpy.context.view_layer.objects.active=objects[0];bpy.ops.object.join();o=bpy.context.object;o.name=name
+ rem=o.modifiers.new('Continuous sculpted anatomy','REMESH');rem.mode='VOXEL';rem.voxel_size=voxel;rem.use_smooth_shade=True;bpy.ops.object.modifier_apply(modifier=rem.name)
+ sm=o.modifiers.new('Sculpt polish','SMOOTH');sm.factor=1.1;sm.iterations=4;bpy.ops.object.modifier_apply(modifier=sm.name)
+ o.data.materials.clear();o.data.materials.append(mat)
+ for f in o.data.polygons:f.use_smooth=True
+ # UVs are generated once offline, rather than stretching an egg texture across components.
+ bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT');bpy.ops.uv.smart_project(angle_limit=1.0,island_margin=.015);bpy.ops.object.mode_set(mode='OBJECT')
+ return o
+def rig(name,bones):
+ a=bpy.data.armatures.new(name);o=bpy.data.objects.new(name,a);bpy.context.collection.objects.link(o);bpy.context.view_layer.objects.active=o;o.select_set(True);bpy.ops.object.mode_set(mode='EDIT')
+ for key,head,tail,parent in bones:
+  b=a.edit_bones.new(key);b.head=v(head);b.tail=v(tail)
+  if parent:b.parent=a.edit_bones[parent]
+ bpy.ops.object.mode_set(mode='OBJECT');o.select_set(False);return o
+def bind(obj,arm,bone):
+ g=obj.vertex_groups.new(name=bone);g.add(list(range(len(obj.data.vertices))),1,'REPLACE');m=obj.modifiers.new('Skeletal deformation','ARMATURE');m.object=arm;obj.parent=arm
+ # Mesh locations remain authored game positions because the armature is at the origin.
+def skin(obj,arm,segments,selector=None):
+ groups={n:obj.vertex_groups.new(name=n) for n,a,b in segments}
+ for vert in obj.data.vertices:
+  p=obj.matrix_world@vert.co
+  choices=[]
+  for n,a,b in segments:
+   if selector and not selector(n,p):continue
+   aa,bb=v(a),v(b);d=bb-aa;t=max(0,min(1,(p-aa).dot(d)/max(d.length_squared,1e-8)));distance=(p-(aa+d*t)).length;choices.append((distance,n))
+  choices.sort();choices=choices[:2]
+  if not choices:continue
+  # Sharp anatomical ownership away from joints; blended at knees and shoulders.
+  values=[math.exp(-d*16) for d,n in choices];total=sum(values) or 1
+  for (d,n),w in zip(choices,values):groups[n].add([vert.index],w/total,'REPLACE')
+ m=obj.modifiers.new('Smooth skinning','ARMATURE');m.object=arm;obj.parent=arm
+
+def export(name):
+ for obj in list(bpy.context.scene.objects):
+  if obj.type=='MESH' and not obj.data.uv_layers:
+   bpy.ops.object.select_all(action='DESELECT');obj.select_set(True);bpy.context.view_layer.objects.active=obj
+   bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT');bpy.ops.uv.smart_project(angle_limit=1.0,island_margin=.015);bpy.ops.object.mode_set(mode='OBJECT')
+ bpy.ops.object.select_all(action='DESELECT')
+ for o in bpy.context.scene.objects:
+  if o.type in ['MESH','ARMATURE']:o.select_set(True)
+ bpy.ops.export_scene.gltf(filepath=os.path.join(OUT,name+'.glb'),export_format='GLB',use_selection=True,export_animations=False,export_skins=True,export_yup=True,export_materials='EXPORT',export_extras=True)
+ print('EXPORTED',name,flush=True)
+
+def dragon(adult):
+ clear();prefix='Adult' if adult else 'Baby';skinmat=material('DragonSkin','#9eaa91',.7);cream=material('DragonBelly','#bfa477',.74);horn=material('DragonHorn','#cfbc90',.55);claw=material('DragonClaw','#c9c0a9',.55);black=material('DragonPupil','#101d22',.12);iris=material('DragonIris','#715431',.26);white=material('DragonEyeGlint','#fff8df',.12);wingmat=material('DragonMembrane','#b99468',.8);leather=material('DragonSaddle','#66442b',.8)
+ sy=1.05 if adult else .7;heady=2.55 if adult else 1.4;headz=1.04 if adult else .52
+ bones=[('Root',(0,0,0),(0,.3,0),None),('Spine',(0,.7,-.3),(0,1.2,.5),'Root'),('Neck',(0,1.2,.45),(0,heady-.15,headz),'Spine'),('Head',(0,heady-.15,headz),(0,heady,headz+.5),'Neck')]
+ for i in range(4):bones.append(('Tail'+str(i),(0,.85-i*.13,-.65-i*.62),(0,.72-i*.13,-1.27-i*.62),'Spine' if i==0 else 'Tail'+str(i-1)))
+ for side in [-1,1]:
+  for rear in [False,True]:
+   label=('L' if side<0 else 'R')+('Hind' if rear else 'Fore');z=-.62 if rear else .46;hip=(side*.43,sy,z);knee=(side*.55,.43,z+(-.12 if rear else .12));toe=(side*.53,.1,z+.28);bones.extend([(label+'Upper',hip,knee,'Spine'),(label+'Lower',knee,toe,label+'Upper')])
+  label='LeftWing' if side<0 else 'RightWing';bones.extend([(label,(side*.42,1.3 if adult else .95,-.1),(side*1.3,2 if adult else 1.6,-.2),'Spine'),(label+'Tip',(side*1.3,2 if adult else 1.6,-.2),(side*2.9,1.5,-.4),label)])
+ arm=rig(prefix+'DragonRig',bones)
+ parts=[ellipsoid('torso',(0,sy,0),(.5,.56 if adult else .45,.85 if adult else .63)),ellipsoid('hips',(0,sy-.05,-.55),(.44,.49,.45)),ellipsoid('shoulders',(0,sy+.13,.45),(.46,.48,.4))]
+ neck=[(0,sy+.05,.4),(0,sy+.48,.65),(0,heady-.3,.65),(0,heady-.12,headz)];parts.append(tube('neck',neck,[.32,.27,.19,.23] if adult else [.29,.27,.27,.28],None,16))
+ parts += [ellipsoid('cranium',(0,heady,headz),(.29 if adult else .37,.27 if adult else .34,.36)),ellipsoid('cheeks',(0,heady-.11,headz+.18),(.29 if adult else .35,.2,.28)),ellipsoid('muzzle',(0,heady-.15,headz+.43),(.22 if adult else .29,.14 if adult else .17,.34))]
+ tailpoints=[(0,.88,-.65),(.1,.76,-1.2),(.32,.54,-1.9),(.48,.34,-2.55),(.65,.39,-3.05)];parts.append(tube('tail',tailpoints,[.29,.23,.16,.09,.012],None,16))
+ segments=[(n,h,t) for n,h,t,p in bones if not 'Wing' in n and n!='Root']
+ for side in [-1,1]:
+  for rear in [False,True]:
+   z=-.62 if rear else .46;parts += [ellipsoid('thigh',(side*.43,sy-.12,z),(.22,.34 if adult else .26,.25)),tube('limb',[(side*.43,sy,z),(side*.55,.43,z+(-.12 if rear else .12)),(side*.53,.12,z+.28)],[.18,.12,.095],None),ellipsoid('paw',(side*.53,.1,z+.35),(.18,.11,.25))]
+ body=fuse(prefix+'DragonBody',parts,skinmat,.047 if adult else .04)
+ def region(n,p):
+  x,y,z=p.x,p.z,-p.y
+  if 'Fore' in n or 'Hind' in n:
+   return abs(x)>.27 and ((x<0)==n.startswith('L')) and (('Hind' in n and z<-.15)or('Fore' in n and z>-.05)) and y<sy+.08
+  if n.startswith('Tail'):return z<-.7
+  if n=='Head':return y>heady-.48 and z>.38
+  if n=='Neck':return z>.2 and y>sy+.15
+  return n=='Spine'
+ # World-sized UVs keep scales small and consistent across the fused surface.
+ uv=body.data.uv_layers.active
+ for face in body.data.polygons:
+  axis=max(range(3),key=lambda i:abs(face.normal[i]))
+  axes=[i for i in range(3) if i!=axis]
+  for li in face.loop_indices:
+   co=body.data.vertices[body.data.loops[li].vertex_index].co
+   uv.data[li].uv=(co[axes[0]]*1.1,co[axes[1]]*1.1)
+ skin(body,arm,segments,region)
+ # A single shaped breastplate surface follows the neck rather than stacked white beads.
+ verts=[];faces=[]
+ profile=[(.4,.63,.19),(sy*.78,.82,.31),(sy+.2,.89,.27),(sy+.43,.94,.20),(heady-.32,headz+.18,.15)]
+ for i,(y,z,width) in enumerate(profile):
+  for j in range(13):
+   a=(j/12-.5)*2;verts.append(tuple(v((a*width,y,z-.09*a*a))))
+ for i in range(len(profile)-1):
+  for j in range(12):a=i*13+j;faces.append((a,a+1,a+14,a+13))
+ me=bpy.data.meshes.new('VentralArmor');me.from_pydata(verts,[],faces);me.update();chest=bpy.data.objects.new('DragonBreast',me);bpy.context.collection.objects.link(chest);finish(chest,chest.name,cream);skin(chest,arm,segments,lambda n,p:n in ['Spine','Neck','Head'])
+ for side in [-1,1]:
+  eye=ellipsoid(prefix+'Eye',(side*(.255 if adult else .305),heady+.055,headz+.22),(.055 if adult else .083,.068 if adult else .1,.03),iris);bind(eye,arm,'Head')
+  pupil=ellipsoid('DragonDarkPupil',(side*(.255 if adult else .305),heady+.052,headz+.257),(.027 if adult else .067,.059 if adult else .088,.012),black);bind(pupil,arm,'Head');glint=ellipsoid('EyeHighlight',(side*(.245 if adult else .293),heady+.084,headz+.275),(.013,.016,.005),white);bind(glint,arm,'Head')
+  nostril=ellipsoid('Nostril',(side*.12,heady-.09,headz+.71),(.026,.015,.012),black);bind(nostril,arm,'Head')
+  brow=tube('Brow',[(side*.12,heady+.19,headz+.15),(side*.25,heady+.19,headz+.21),(side*.34,heady+.13,headz+.12)],[.025,.04,.018],skinmat);bind(brow,arm,'Head')
+  mouth=tube('JawSeam',[(side*.04,heady-.23,headz+.66),(side*.2,heady-.23,headz+.48),(side*.28,heady-.17,headz+.24)],[.009,.012,.005],black,8);bind(mouth,arm,'Head')
+  hornobj=tube('SweptHorn',[(side*.2,heady+.16,headz-.1),(side*.34,heady+.46,headz-.28),(side*.38,heady+.68,headz-.5)],[.08,.055,.004],horn);bind(hornobj,arm,'Head')
+  for i in range(4 if adult else 2):
+   fin=tube('CheekSpine',[(side*.27,heady+.08-i*.065,headz-.1-i*.08),(side*(.45+i*.02),heady+.13-i*.05,headz-.37-i*.1)],[.06,.003],horn);bind(fin,arm,'Head')
+  for rear in [False,True]:
+   label=('L' if side<0 else 'R')+('Hind' if rear else 'Fore');z=-.62 if rear else .46
+   for i in [-1,0,1]:
+    nail=tube('Claw',[(side*.53+i*.105,.11,z+.49),(side*.53+i*.105,.06,z+.64)],[.035,.002],claw,8);bind(nail,arm,label+'Lower')
+  label='LeftWing' if side<0 else 'RightWing';reach=1.2 if adult else .9
+  # A curved membrane with scalloped trailing edges, triangulated into an actual wing skin.
+  wingpoints=[(side*.42,1.3 if adult else .95,-.1),(side*1.12*reach,2.22 if adult else 1.8,-.15),(side*2.65*reach,1.56,-.45),(side*1.83*reach,1.15,-.73),(side*1.15*reach,.83,-.95),(side*.46,.83,-.64)]
+  boundary=[wingpoints[0],wingpoints[1],wingpoints[2]]
+  for a,b in zip(wingpoints[2:],wingpoints[3:]):
+   for step in range(1,9):
+    t=step/8;mid=tuple(a[k]*(1-t)+b[k]*t for k in range(3));inset=math.sin(t*math.pi)*.16
+    boundary.append((mid[0]*(1-inset),mid[1]+inset*.4,mid[2]+inset*.5))
+  center=(side*.9*reach,1.35,-.38);verts=[tuple(v(center))]+[tuple(v(p)) for p in boundary];faces=[(0,i+1,(i+1)%len(boundary)+1) for i in range(len(boundary))]
+  me=bpy.data.meshes.new('WingMembrane');me.from_pydata(verts,[],faces);me.update();o=bpy.data.objects.new(label+'Membrane',me);bpy.context.collection.objects.link(o);finish(o,o.name,wingmat);m=o.modifiers.new('Membrane thickness','SOLIDIFY');m.thickness=.012;bpy.context.view_layer.objects.active=o;bpy.ops.object.modifier_apply(modifier=m.name);skin(o,arm,[(n,h,t)for n,h,t,p in bones if n in [label,label+'Tip']])
+  for j in [2,3,4]:
+   finger=tube('WingFinger',[wingpoints[0],wingpoints[1],wingpoints[j]],[.055,.035,.006],skinmat);skin(finger,arm,[(n,h,t)for n,h,t,p in bones if n in [label,label+'Tip']])
+ for i in range(10):
+  z=.2-i*.21;y=sy+.51-max(0,i-3)*.028;spine=tube('DorsalSpine',[(0,y,z),(0,y+.23,z-.12)],[.075,.002],horn,8);bind(spine,arm,'Spine' if i<5 else 'Tail0')
+ saddle=ellipsoid('DragonSaddle',(0,1.65 if adult else 1.32,-.1),(.31,.07,.33),leather);bind(saddle,arm,'Spine')
+ export('dragon-adult' if adult else 'dragon-baby')
+
+def keeper():
+ clear();skinmat=material('KeeperSkin','#bd9071',.74);cloth=material('KeeperCloth','#71855d',.92);pants=material('KeeperTrousers','#394853',.94);hair=material('KeeperHair','#483027',.86);leather=material('KeeperLeather','#533e2d',.8);linen=material('KeeperLinen','#d6cdb8',.9);dark=material('KeeperPupil','#20322f',.2);eyes=material('KeeperEyeWhite','#eee4d4',.5);iris=material('KeeperIris','#5e6550',.28);metal=material('KeeperMetal','#b49c68',.45,.55)
+ bones=[('Root',(0,0,0),(0,.25,0),None),('Hips',(0,.96,0),(0,1.12,0),'Root'),('Spine',(0,1.12,0),(0,1.57,0),'Hips'),('Head',(0,1.64,0),(0,1.97,0),'Spine')]
+ for side in [-1,1]:
+  name='Left' if side<0 else 'Right';bones += [(name+'Arm',(side*.26,1.51,0),(side*.3,1.18,0),'Spine'),(name+'Forearm',(side*.3,1.18,0),(side*.31,.86,.025),name+'Arm'),(name+'Thigh',(side*.12,1.0,0),(side*.13,.55,0),'Hips'),(name+'Shin',(side*.13,.55,0),(side*.13,.08,.04),name+'Thigh')]
+ arm=rig('KeeperRig',bones);segments=[(n,h,t) for n,h,t,p in bones if n!='Root']
+ torso=loft('KeeperTailoredTunic',[(1.01,.235,.15,0),(1.12,.21,.14,0),(1.26,.205,.145,0),(1.43,.25,.16,0),(1.54,.265,.14,0),(1.6,.16,.115,0)],cloth);skin(torso,arm,segments,lambda n,p:n in ['Hips','Spine'])
+ belt=cube('LeatherBelt',(0,1.13,0),(.435,.05,.3),leather,.015);bind(belt,arm,'Spine');buckle=cube('BeltBuckle',(0,1.13,.161),(.065,.06,.015),metal,.008);bind(buckle,arm,'Spine')
+ for side in [-1,1]:
+  collar=tube('TunicCollar',[(side*.03,1.64,.08),(side*.11,1.56,.13),(side*.16,1.6,.08)],[.025,.03,.018],linen);bind(collar,arm,'Spine')
+  seam=tube('JacketSeam',[(side*.13,1.16,.13),(side*.12,1.38,.16),(side*.1,1.51,.135)],[.006]*3,linen,6);bind(seam,arm,'Spine')
+ legparts=[ellipsoid('PantsWaist',(0,1.02,0),(.2,.14,.14))]
+ for side in [-1,1]:legparts.append(tube('TrouserLeg',[(side*.12,.99,0),(side*.13,.73,0),(side*.13,.53,.005),(side*.13,.28,.01)],[.1,.088,.076,.065],None,16))
+ trousers=fuse('KeeperTrousers',legparts,pants,.025);skin(trousers,arm,segments,lambda n,p:n=='Hips' or ('Thigh' in n or 'Shin' in n) and ((p.x<0)==n.startswith('Left')))
+ for side in [-1,1]:
+  name='Left' if side<0 else 'Right'
+  sleeve=tube(name+'Sleeve',[(side*.235,1.51,0),(side*.29,1.37,0),(side*.3,1.24,0)],[.098,.083,.076],cloth,16);skin(sleeve,arm,segments,lambda n,p:n in [name+'Arm',name+'Forearm'])
+  parts=[tube('Forearm',[(side*.3,1.24,0),(side*.31,1.04,.01),(side*.31,.9,.02)],[.063,.054,.043],None),ellipsoid('Palm',(side*.31,.86,.025),(.045,.075,.025))]
+  for i in range(4):parts.append(tube('Finger',[(side*.31+(i-1.5)*.02,.81,.026),(side*.31+(i-1.5)*.02,.75+(i%3)*.009,.04)],[.011,.007],None,8))
+  parts.append(tube('Thumb',[(side*.31-side*.035,.88,.04),(side*.31-side*.059,.82,.048)],[.016,.01],None,8));hand=fuse(name+'Hand',parts,skinmat,.012);bind(hand,arm,name+'Forearm')
+  boot=fuse(name+'Boot',[tube('BootShaft',[(side*.13,.34,.01),(side*.13,.1,.03)],[.078,.071],None),ellipsoid('BootToe',(side*.13,.07,.105),(.087,.065,.17))],leather,.018);bind(boot,arm,name+'Shin')
+  sole=cube('BootSole',(side*.13,.025,.1),(.175,.035,.3),leather,.025);bind(sole,arm,name+'Shin')
+ head=fuse('KeeperFace',[ellipsoid('Skull',(0,1.84,0),(.145,.188,.13)),ellipsoid('Jaw',(0,1.735,.025),(.106,.08,.098)),ellipsoid('Nose',(0,1.82,.137),(.024,.04,.033)),ellipsoid('EarL',(-.145,1.83,0),(.025,.04,.025)),ellipsoid('EarR',(.145,1.83,0),(.025,.04,.025)),tube('Neck',[(0,1.58,0),(0,1.74,0)],[.065,.062],None)],skinmat,.012);bind(head,arm,'Head')
+ for side in [-1,1]:
+  eye=ellipsoid('KeeperEye',(side*.054,1.866,.119),(.034,.018,.012),eyes);bind(eye,arm,'Head');eye=ellipsoid('KeeperIris',(side*.054,1.866,.132),(.012,.014,.004),iris);bind(eye,arm,'Head');eye=ellipsoid('KeeperPupil',(side*.054,1.866,.136),(.006,.01,.002),dark);bind(eye,arm,'Head');brow=tube('KeeperBrow',[(side*.025,1.901,.117),(side*.054,1.907,.124),(side*.085,1.899,.108)],[.006,.008,.004],hair,8);bind(brow,arm,'Head')
+ lip=tube('KeeperSmile',[(-.034,1.767,.11),(0,1.759,.119),(.034,1.767,.11)],[.003,.004,.003],material('KeeperLips','#9c6654',.8),8);bind(lip,arm,'Head')
+ for style in ['Short','Long','Curly']:
+  parts=[ellipsoid('HairBase',(0,1.93,-.018),(.15,.116,.135))]
+  for i in range(6):parts.append(ellipsoid('SweptLock',(-.11+i*.043,1.976+math.sin(i*.5)*.03,.067),(.06,.046,.079)))
+  if style=='Long':parts += [ellipsoid('HairBack',(0,1.79,-.09),(.15,.23,.075)),ellipsoid('HairSideL',(-.135,1.81,-.015),(.044,.18,.065)),ellipsoid('HairSideR',(.135,1.81,-.015),(.044,.18,.065))]
+  if style=='Curly':
+   for i in range(24):
+    a=i*2.399;parts.append(ellipsoid('Curl',(math.sin(a)*.12,1.965+(i%3)*.018,math.cos(a)*.1),(.046,.046,.046)))
+  h=fuse('KeeperHair'+style,parts,hair,.015);bind(h,arm,'Head')
+ # Thin metal frames follow the head bone and can be hidden in the customizer.
+ parts=[]
+ for side in [-1,1]:
+  pts=[(side*.055+math.cos(i*math.tau/20)*.043,1.867+math.sin(i*math.tau/20)*.029,.147) for i in range(21)];parts.append(tube('LensRim',pts,[.004]*len(pts),metal,6))
+ parts.append(tube('Bridge',[(-.015,1.872,.147),(0,1.879,.151),(.015,1.872,.147)],[.003]*3,metal,6));bpy.ops.object.select_all(action='DESELECT')
+ for o in parts:o.select_set(True)
+ bpy.context.view_layer.objects.active=parts[0];bpy.ops.object.join();g=bpy.context.object;g.name='KeeperGlasses';bind(g,arm,'Head')
+ export('keeper')
+
+def cottage():
+ clear();plaster=material('LimePlaster','#d3c4a8',.93);wood=material('CottageOak','#76513a',.85);stone=material('CottageStone','#8a8c7b',.93);roof=material('CottageSlate','#455461',.84);glass=material('CottageGlass','#729a9c',.2,.1);gold=material('Brass','#bca470',.4,.6)
+ cube('CottageBody',(0,1.8,-7),(8,3.6,6),plaster,.06)
+ for side in [-1,1]:
+  for i in range(16):
+   for j in range(9):
+    x=side*(j*.47+.18);y=5.65-abs(x)*.5;z=-10.35+i*.44;o=cube('HandLaidRoofTile',(x,y,z),(.53,.07,.51),roof,.018);o.rotation_euler[1]=0;o.rotation_euler[2]=0;o.rotation_euler[0]=0
+    # Pitch across the game x/height plane (Blender X/Z).
+    o.rotation_euler[1]=side*.465
+  beam=tube('RoofBargeboard',[(side*4.35,3.5,-10.5),(0,5.7,-10.5)],[.11,.11],wood);beam=tube('RoofBargeboard',[(side*4.35,3.5,-3.5),(0,5.7,-3.5)],[.11,.11],wood)
+  cube('CornerTimber',(side*3.94,1.85,-3.95),(.16,3.7,.17),wood,.018)
+ # Front and back gables are plaster geometry rather than an open triangle.
+ for z in [-3.98,-10.02]:
+  me=bpy.data.meshes.new('Gable');me.from_pydata([tuple(v(p)) for p in [(-4,3.6,z),(4,3.6,z),(0,5.65,z)]],[],[(0,1,2)]);me.update();o=bpy.data.objects.new('PlasterGable',me);bpy.context.collection.objects.link(o);finish(o,o.name,plaster)
+ for x in range(-7,8):
+  for row in range(2):
+   xx=x*.53+(row%2)*.25
+   if abs(xx)<.8:continue
+   cube('FoundationStone',(xx,.16+row*.26,-3.99),(.5,.24,.17),stone,.035)
+ for side in [-1,1]:
+  x=side*2.5;cube('WindowRecess',(x,2.0,-3.99),(1.52,1.6,.12),wood,.025);cube('GlazedWindow',(x,2.0,-3.9),(1.3,1.36,.05),glass,.01)
+  for dx in [-.72,0,.72]:cube('WindowMullion',(x+dx,2,-3.85),(.055,1.62,.09),wood,.009)
+  for y in [1.2,2,2.8]:cube('WindowCrossbar',(x,y,-3.85),(1.5,.055,.09),wood,.009)
+  cube('FlowerBox',(x,1.16,-3.65),(1.6,.22,.55),wood,.025)
+  for i in range(9):
+   p=(x+(i-4)*.16,1.39+random.random()*.11,-3.65+random.uniform(-.1,.1));o=ellipsoid('CottagePlant',p,(.15,.16,.12),material('Plant'+str(side)+str(i),'#61764c' if i%2 else '#78915b'))
+ for x in [-.83,.83]:cube('DoorJamb',(x,1.36,-3.82),(.14,2.72,.2),wood,.025)
+ cube('DoorLintel',(0,2.73,-3.82),(1.82,.17,.23),wood,.025)
+ for i in range(7):cube('DoorPlank',((i-3)*.205,1.27,-3.86),(.196,2.5,.12),wood,.009)
+ cube('DoorBrace',(0,.52,-3.76),(1.4,.12,.075),wood,.012);o=ellipsoid('DoorHandle',(.49,1.3,-3.66),(.055,.055,.04),gold)
+ for y in [4.9,5.24,5.58,5.92]:
+  for i in [-1,0,1]:cube('ChimneyStone',(2.5+i*.28,y,-8),(.27,.3,.85),stone,.025)
+ cube('ChimneyCap',(2.5,6.1,-8),(1.05,.16,1.03),stone,.04)
+ bathmat=material('GardenMarble','#d9d3bf',.4);watermat=material('GardenWater','#6fabb0',.14,.1)
+ bath=cube('CarvedDragonBath',(7,.42,-1),(2.7,.84,1.9),bathmat,.12)
+ cutter=cube('BathOpening',(7,.67,-1),(2.35,.9,1.55),bathmat,.16);bpy.context.view_layer.objects.active=bath;cut=bath.modifiers.new('Hollow stone bath','BOOLEAN');cut.operation='DIFFERENCE';cut.object=cutter;bpy.ops.object.modifier_apply(modifier=cut.name);bpy.data.objects.remove(cutter,do_unlink=True)
+ cube('BathWater',(7,.53,-1),(2.32,.02,1.51),watermat,.02)
+ tube('GardenFaucet',[(8,.78,-1.7),(8,1.48,-1.7),(7.7,1.57,-1.7)],[.036,.036,.036],gold)
+ cube('GardenTableTop',(6,.72,3),(1.8,.12,1.5),wood,.045)
+ for side in [-1,1]:
+  for z in [2.47,3.53]:cube('GardenTableLeg',(6+side*.67,.34,z),(.13,.68,.13),wood,.012)
+ export('cottage')
+
+def room():
+ clear();oak=material('RoomOak','#a7835d',.89);linen=material('RoomLinen','#ddd4bf',.95);plaster=material('RoomPlaster','#e1d9c8',.94);marble=material('RoomMarble','#e6e1d6',.35);brass=material('RoomBrass','#b39b68',.35,.6);steel=material('RoomSteel','#a5b5b2',.28,.45);glass=material('RoomGlass','#9ab7bb',.18,.3)
+ for i in range(22):cube('Floorboard',(-5.75+i*.55,-.035,0),(.535,.07,10),oak,.008)
+ cube('BackWall',(0,1.7,-5),(12,3.4,.16),plaster,.035);cube('SideWall',(-6,1.7,0),(.16,3.4,10),plaster,.035);cube('BathroomWall',(6,1.7,-2),(.16,3.4,6),marble,.025)
+ cube('BedFrame',(-3,.47,-2),(2.7,.7,4.2),oak,.07);cube('UpholsteredHeadboard',(-3,1.4,-4.1),(2.9,1.85,.22),linen,.1);cube('Mattress',(-3,.94,-2),(2.65,.3,4.15),linen,.13)
+ # A continuous draped quilt with stitched, softly wrinkled fabric and hanging sides.
+ verts=[];faces=[];nx,nz=35,42
+ for i in range(nx):
+  x=-4.42+i*2.84/(nx-1)
+  for j in range(nz):
+   z=-3.1+j*3.35/(nz-1);edge=max(0,abs(x+3)-1.15);y=1.14-edge*1.8+math.sin(i*.62+j*.48)*.018+math.sin(j*.7)*.012;verts.append(tuple(v((x,y,z))))
+ for i in range(nx-1):
+  for j in range(nz-1):a=i*nz+j;faces.append((a,a+nz,a+nz+1,a+1))
+ me=bpy.data.meshes.new('DrapedQuilt');me.from_pydata(verts,[],faces);me.update();o=bpy.data.objects.new('DrapedQuilt',me);bpy.context.collection.objects.link(o);finish(o,o.name,linen)
+ for x in [-3.65,-2.35]:o=ellipsoid('LinenPillow',(x,1.19,-3.5),(.58,.15,.38),linen)
+ for x in [-4.9,-1.0]:
+  cube('BedsideCabinet',(x,.6,-3.35),(.8,1.15,.85),oak,.045);cube('DrawerFront',(x,.86,-2.9),(.7,.32,.05),oak,.012);cube('DrawerPull',(x,.86,-2.85),(.18,.025,.035),brass,.006);tube('LampStem',[(x,1.2,-3.35),(x,1.75,-3.35)],[.028,.028],brass)
+  shade=loft('LinenLampshade',[(1.64,.28,.28,-3.35),(2.02,.17,.17,-3.35)],linen)
+  # Loft profiles are x-centered; translate to the cabinet.
+  shade.location.x=x
+ cube('Window',(0,2,-4.87),(2.65,2.2,.05),glass,.015)
+ for side in [-1,1]:
+  verts=[];faces=[]
+  for i in range(18):
+   for j in range(24):verts.append(tuple(v((side*1.6+(i/17-.5)*.58,3.2-j/23*3.0,-4.63+math.sin(i*math.pi/2)*.04))))
+  for i in range(17):
+   for j in range(23):a=i*24+j;faces.append((a,a+24,a+25,a+1))
+  me=bpy.data.meshes.new('Curtain');me.from_pydata(verts,[],faces);me.update();o=bpy.data.objects.new('WovenCurtain',me);bpy.context.collection.objects.link(o);finish(o,o.name,linen)
+ cube('Vanity',(4,.63,-3.55),(2.8,1.25,1.0),oak,.045);counter=cube('StoneCounter',(4,1.31,-3.55),(2.94,.14,1.12),marble,.04)
+ hole=ellipsoid('BasinCutout',(4,1.39,-3.4),(.58,.3,.3));bpy.context.view_layer.objects.active=counter;cut=counter.modifiers.new('Recessed basin opening','BOOLEAN');cut.operation='DIFFERENCE';cut.object=hole;bpy.ops.object.modifier_apply(modifier=cut.name);bpy.data.objects.remove(hole,do_unlink=True)
+ # Recessed washbasin: visible inner bowl rather than a flattened sphere laid on a cube.
+ verts=[];faces=[]
+ for ring,(rx,rz,y) in enumerate([(.67,.37,1.4),(.57,.29,1.38),(.35,.16,1.2),(.08,.05,1.17)]):
+  for i in range(40):a=i*math.tau/40;verts.append(tuple(v((4+math.cos(a)*rx,y,-3.4+math.sin(a)*rz))))
+ for ring in range(3):
+  for i in range(40):a=ring*40+i;b=ring*40+(i+1)%40;faces.append((a,b,b+40,a+40))
+ me=bpy.data.meshes.new('Basin');me.from_pydata(verts,[],faces);me.update();o=bpy.data.objects.new('InsetWashbasin',me);bpy.context.collection.objects.link(o);finish(o,o.name,marble)
+ tube('BrassFaucet',[(4.75,1.39,-3.9),(4.75,1.72,-3.9),(4.5,1.75,-3.9)],[.028,.028,.028],brass)
+ tube('MirrorFrame',[(4+math.cos(i*math.tau/64)*.81,2.38+math.sin(i*math.tau/64)*.81,-4.83)for i in range(65)],[.025]*65,brass,8);cube('Mirror',(4,2.38,-4.87),(1.48,1.5,.03),steel,.15)
+ cube('FridgeBody',(4.6,1.28,1.1),(1.6,2.56,1.35),linen,.085)
+ for y,h in [(2.02,.92),(.85,1.34)]:cube('FridgeDoor',(4.6,y,1.81),(1.54,h,.1),steel,.045);cube('FridgeHandle',(5.12,y,1.94),(.04,h*.42,.08),brass,.013)
+ export('house-room')
+
+def tree():
+ clear();bark=material('ForestBark','#685442',.94);green=material('PineNeedles','#426447',.94);brown=material('PineTips','#638056',.94)
+ tube('TaperedTrunk',[(0,0,0),(0,2.2,0),(.08,4.6,0)],[.21,.13,.015],bark,12)
+ verts=[];faces=[]
+ for ring in range(9):
+  y=1.0+ring*.37;reach=1.7-ring*.15
+  for branch in range(7):
+   a=branch*math.tau/7+ring*.7;end=(math.cos(a)*reach,y+.13,math.sin(a)*reach);tube('Bough',[(0,y,0),end],[.04,.009],bark,7)
+   for i in range(50):
+    t=(i+.5)/50;cx=math.cos(a)*reach*t;cz=math.sin(a)*reach*t;cy=y+.13*t;spread=(1-t)*.35+.08;side=random.uniform(-1,1)*spread;length=random.uniform(.25,.6);p=(cx+math.cos(a+math.pi/2)*side,cy,cz+math.sin(a+math.pi/2)*side);idx=len(verts);verts += [tuple(v((p[0]-.065,p[1],p[2]))),tuple(v((p[0]+.065,p[1],p[2]))),tuple(v((p[0]+math.cos(a+side)*length,p[1]+random.uniform(.08,.22),p[2]+math.sin(a+side)*length)))];faces.append((idx,idx+1,idx+2))
+ me=bpy.data.meshes.new('NeedleBranches');me.from_pydata(verts,[],faces);me.update();o=bpy.data.objects.new('NeedleBranches',me);bpy.context.collection.objects.link(o);finish(o,o.name,green)
+ # Backface culling stays off for the small foliage blades.
+ green.use_backface_culling=False
+ export('forest-tree')
+
+for job in [keeper,lambda:dragon(False),lambda:dragon(True),cottage,room,tree]:job()
+print('All original Dragon Adventures art assets rebuilt.',flush=True)

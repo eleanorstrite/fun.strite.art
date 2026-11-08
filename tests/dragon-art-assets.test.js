@@ -1,0 +1,6 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {GLTFLoader} from '../src/vendor/three/addons/loaders/GLTFLoader.js';
+import {Box3} from '../src/vendor/three/three.module.min.js';
+test('all sanctuary models load offline with embedded buffers, finite geometry and usable UVs',async()=>{for(const name of ['keeper','dragon-baby','dragon-adult','cottage','house-room','forest-tree']){const b=readFileSync(new URL('../assets/dragon-adventures/models/'+name+'.glb',import.meta.url));assert.equal(b.toString('ascii',0,4),'glTF');const json=JSON.parse(b.toString('utf8',20,20+b.readUInt32LE(12)).trim());assert.ok(json.buffers.every(buffer=>!buffer.uri));assert.ok(!json.images?.length);const {scene}=await new GLTFLoader().parseAsync(b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength),'');let vertices=0;scene.traverse(o=>{if(!o.isMesh)return;const {position,normal,uv}=o.geometry.attributes;assert.equal(position.count,normal.count);assert.equal(position.count,uv.count);for(const a of [position,normal,uv])assert.ok(a.array.every(Number.isFinite));vertices+=position.count;});assert.ok(vertices>100);const bounds=new Box3().setFromObject(scene);assert.ok([...bounds.min.toArray(),...bounds.max.toArray()].every(Number.isFinite));}});
