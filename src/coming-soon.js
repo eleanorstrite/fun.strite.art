@@ -1,0 +1,12 @@
+// A browser-only preview gate for this static site. Unlocks last until reload.
+export const publicGames=games=>games.filter(game=>!game.comingSoon);
+export const previewGames=games=>games.filter(game=>game.comingSoon);
+export function createPreviewAccess(){let unlocked=false;return {get unlocked(){return unlocked;},unlock(password){unlocked=password==='080315';return unlocked;},lock(){unlocked=false;},canPlay(game){return !game.comingSoon||unlocked;}};}
+export function setupComingSoon({root,games,drawPreview,onPlay}){
+ const access=createPreviewAccess(),form=root.querySelector('form'),input=root.querySelector('input'),status=root.querySelector('[data-preview-status]'),lock=root.querySelector('[data-preview-lock]'),grid=root.querySelector('.game-grid');
+ function sync(){form.hidden=access.unlocked;lock.hidden=!access.unlocked;for(const button of grid.querySelectorAll('button'))button.textContent=access.unlocked?'Play preview ↗':'Unlock preview';}
+ for(const game of previewGames(games)){const card=document.createElement('article');card.className='game-card';card.innerHTML=`<div class="game-art ${game.tone}"><canvas width="960" height="540" aria-hidden="true"></canvas><span class="game-tag">COMING SOON</span></div><div class="card-content"><div class="card-title"><h3>${game.name}</h3><span class="genre">IN DEVELOPMENT</span></div><p>${game.description}</p><div class="card-bottom"><span class="reward">Password required to play</span><button class="button outline" type="button">Unlock preview</button></div></div>`;card.querySelector('button').onclick=()=>{if(access.canPlay(game))onPlay(game);else{input.focus();status.textContent='Enter the preview password to play '+game.name+'.';}};grid.append(card);drawPreview(card.querySelector('canvas'),game);}
+ form.addEventListener('submit',event=>{event.preventDefault();const correct=access.unlock(input.value);input.value='';input.setAttribute('aria-invalid',String(!correct));status.textContent=correct?'Previews unlocked. Choose a game below.':'Incorrect password. Try again.';sync();if(correct)grid.querySelector('button')?.focus();else input.focus();});
+ lock.onclick=()=>{access.lock();status.textContent='Previews locked.';sync();input.focus();};sync();
+ return {canPlay:game=>access.canPlay(game),requestUnlock(){root.scrollIntoView({behavior:'smooth',block:'start'});input.focus({preventScroll:true});status.textContent='Enter the preview password to play games in development.';}};
+}
