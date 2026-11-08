@@ -1,3 +1,4 @@
+import {TAG_PLAY_STRUCTURES,tagPlayFeatureAt,tagClimbAt,drawTagPlayStructure} from './tag-playground.js';
 import {actorHead,drawActorAccessories} from './actor-accessories.js';
 import {drawPlayBackdrop,drawPlaySprite} from './play-art.js';
 import { bindTagSwipes } from './touch-controls.js';
@@ -5,7 +6,7 @@ import { createMazeAudio } from './maze-audio.js';
 
 export const TAG_ROUND_SECONDS=60;
 export const TAG_LAYOUTS={
-  park:{name:'Adventure playground',width:2700,platforms:[0,900,1800].flatMap(offset=>[[100,430,180],[620,430,180],[330,335,240],[65,240,190],[645,240,190]].map(([x,y,w])=>[x+offset,y,w])),trampolines:[360,540,1160,1420,2020,2500],structures:[330,1230,2130].map(x=>({x,y:335,w:240})),slides:[520,1420,2320].map(x=>({x,y:335,end:x+240}))},
+  park:{name:'Adventure playground',width:2700,platforms:[...[0,900,1800].flatMap(offset=>[[100,430,180],[620,430,180],[330,335,240],[65,240,190],[645,240,190]].map(([x,y,w])=>[x+offset,y,w])),[85,465,170],[1770,350,230]],trampolines:[360,540,1160,1420,2020,2500],structures:TAG_PLAY_STRUCTURES,slides:[520,1420,2320].map((x,i)=>({x,y:335,end:x+240,speed:i===2?330:220,color:['#edb052','#80b2cc','#5ca5c2'][i]}))},
   towers:{name:'Twin towers',platforms:[[85,440,160],[655,440,160],[180,345,170],[550,345,170],[340,245,220],[30,155,180],[690,155,180]],trampolines:[80,820]},
   steps:{name:'Sky steps',platforms:[[60,445,160],[265,365,160],[475,285,160],[680,365,160],[690,175,170],[160,185,190]],trampolines:[450,785]},
 };
@@ -60,22 +61,24 @@ export function tickTag(s,seconds,inputs=[{},{}],emit=()=>{}){
       if(p.aiThink===0){p.aiInput=tagComputerInput(s);p.aiThink=.25;}
     }
     const input=computer?p.aiInput:inputs[i]||{};
-    p.aiWait=Math.max(0,p.aiWait-dt);
-    if(p.slide&&!input.jump){p.x=Math.min(p.slide.end,p.x+220*dt);p.y=tagSlideY(p.slide,p.x);p.vx=220;p.vy=0;p.grounded=true;if(p.x>=p.slide.end){p.slide=null;p.y=540;}continue;}if(input.jump)p.slide=null;
-    const ladder=(layout.structures||[]).find(t=>Math.abs(p.x-(t.x+26))<20&&p.y>t.y&&p.y<=540);
-    if(ladder&&input.jump&&!input.left&&!input.right){p.y=Math.max(ladder.y,p.y-180*dt);p.vx=0;p.vy=0;p.grounded=p.y===ladder.y;p.jumpHeld=true;continue;}
+    p.aiWait=Math.max(0,p.aiWait-dt);p.featureTime=Math.max(0,(p.featureTime||0)-dt);
+    if(p.slide&&!input.jump){p.x=Math.min(p.slide.end,p.x+(p.slide.speed||220)*dt);p.y=tagSlideY(p.slide,p.x);p.vx=p.slide.speed||220;p.vy=0;p.grounded=true;if(p.x>=p.slide.end){p.slide=null;p.y=540;}continue;}if(input.jump)p.slide=null;
+    const ladder=tagClimbAt(layout,p);
+    if(ladder&&input.jump&&!input.left&&!input.right){p.y=Math.max(ladder.y,p.y-(ladder.id==='net'?145:ladder.id==='wall'?165:180)*dt);p.vx=0;p.vy=0;p.grounded=p.y===ladder.y;p.jumpHeld=true;continue;}
 
+    const feature=tagPlayFeatureAt(layout,p),dash=feature?.id==='rainbow'&&p.grounded?1.22:1;if(dash>1&& (input.left||input.right)){p.featureCue='Rainbow dash!';p.featureTime=.3;}
     const direction=Number(Boolean(input.right))-Number(Boolean(input.left));
     // Slow the whole airborne motion, preserving jump height and trampoline reach.
     const gentle=Boolean(input.touchAssist)&&!computer,airborne=!p.grounded||input.jump;
     const motionDt=dt*(gentle&&airborne?.78:1);
-    p.vx+=(direction*(computer?230:gentle&&airborne?220:270)-p.vx)*Math.min(1,motionDt*(computer?(p.grounded?10:6):(p.grounded?15:8)));if(direction)p.facing=direction;
-    if(input.jump&&!p.jumpHeld&&p.grounded){p.vy=-540;p.grounded=false;p.aiWait=.35;emit('bounce');}p.jumpHeld=Boolean(input.jump);
-    const oldY=p.y;p.vy+=1200*motionDt;p.x=tagClamp(p.x+p.vx*motionDt,24,(layout.width||900)-24);p.y+=p.vy*motionDt;p.grounded=false;
+    p.vx+=(direction*(computer?230:gentle&&airborne?220:270)*dash-p.vx)*Math.min(1,motionDt*(computer?(p.grounded?10:6):(p.grounded?15:8)));if(direction)p.facing=direction;
+    if(input.jump&&!p.jumpHeld&&p.grounded){p.vy=feature?.id==='rocket'?-740:-540;if(feature?.id==='rocket'){p.featureCue='Moonshot!';p.featureTime=.8;}p.grounded=false;p.aiWait=.35;emit('bounce');}p.jumpHeld=Boolean(input.jump);
+    const oldY=p.y,wasGrounded=p.grounded;p.vy+=1200*motionDt;p.x=tagClamp(p.x+p.vx*motionDt,24,(layout.width||900)-24);p.y+=p.vy*motionDt;p.grounded=false;
     const surfaces=[...layout.platforms,[0,540,layout.width||900]].sort((a,b)=>a[1]-b[1]);
     if(p.vy>=0)for(const [x,y,w] of surfaces){
       if(oldY<=y+.01&&p.y>=y&&p.x+15>x&&p.x-15<x+w){
         p.y=y;p.vy=0;p.grounded=true;
+        if(!wasGrounded&&tagPlayFeatureAt(layout,p)?.id==='music'&&p.featureTime===0){p.featureCue='♪ Chime!';p.featureTime=.65;emit('gem');}
         if(y===540&&layout.trampolines.some(tx=>Math.abs(tx-p.x)<38)){p.vy=-860;p.grounded=false;emit('bounce');}
         break;
       }
@@ -195,19 +198,10 @@ export function drawTagCharacter(c,p,look,time=0){
 }
 export function tagSlideY(slide,x){const t=tagClamp((x-slide.x)/(slide.end-slide.x),0,1);return slide.y+(540-slide.y)*(t*t*(3-2*t));}
 export function tagCameraViews(s){const width=TAG_LAYOUTS[s.settings.layout].width||900,[a,b]=s.players,clampCamera=(x,viewWidth)=>tagClamp(x-viewWidth/2,0,Math.max(0,width-viewWidth));if(s.settings.mode==='local'&&Math.abs(a.x-b.x)>700)return [{x:0,width:450,camera:clampCamera(a.x,450)},{x:450,width:450,camera:clampCamera(b.x,450)}];return [{x:0,width:900,camera:clampCamera(s.settings.mode==='local'?(a.x+b.x)/2:a.x,900)}];}
-function drawTagStructure(c,t,theme){
- const wood=tagGradient(c,t.y-100,t.y+200,['#d2ac75','#7e543b']),metal=tagGradient(c,t.y-100,t.y+200,['#d7e7e6','#5a7b89']);
- for(const x of [t.x+8,t.x+t.w-18])tagRound(c,x,t.y-70,12,540-t.y+70,4,wood);
- tagShape(c,[[t.x-22,t.y-72],[t.x+t.w/2,t.y-150],[t.x+t.w+22,t.y-72]],tagGradient(c,t.y-150,t.y-65,['#f8bb59','#bc6549']));
- c.strokeStyle='#ffde8c';c.lineWidth=4;c.beginPath();c.moveTo(t.x-22,t.y-72);c.lineTo(t.x+t.w/2,t.y-150);c.lineTo(t.x+t.w+22,t.y-72);c.stroke();
- for(let x=t.x+10;x<t.x+t.w;x+=24)tagRound(c,x,t.y-65,6,63,2,wood);tagRound(c,t.x,t.y-69,t.w,7,3,wood);
- for(const x of [t.x+8,t.x+44])tagRound(c,x,t.y,5,540-t.y,2,metal);for(let y=t.y+14;y<538;y+=24)tagRound(c,t.x+8,y,42,5,2,wood);
- tagRound(c,t.x+64,t.y-100,113,26,7,'#3d776d');c.fillStyle='#fff0cb';c.font='700 12px system-ui';c.textAlign='center';c.fillText('ADVENTURE CLUB',t.x+120,t.y-82);
-}
 function drawTagWorld(c,s,theme,reduced){const layout=TAG_LAYOUTS[s.settings.layout];
- for(const t of layout.structures||[])drawTagStructure(c,t,theme);
- for(const slide of layout.slides||[]){c.lineCap='round';for(const[width,color]of [[36,'#8b4a2d'],[29,'#f4ad45'],[20,'#ffd17a']]){c.strokeStyle=color;c.lineWidth=width;c.beginPath();for(let x=slide.x;x<=slide.end;x+=6){const y=tagSlideY(slide,x);x===slide.x?c.moveTo(x,y):c.lineTo(x,y);}c.stroke();}}
-  for(const [x,y,w] of layout.platforms)drawTagPlatform(c,x,y,w,theme);
+ for(const t of layout.structures||[])drawTagPlayStructure(c,t,reduced?0:s.time);
+ for(const slide of layout.slides||[]){c.lineCap='round';for(const[width,color]of [[36,'#536b75'],[29,slide.color||'#f4ad45'],[20,'#fff1c566']]){c.strokeStyle=color;c.lineWidth=width;c.beginPath();for(let x=slide.x;x<=slide.end;x+=6){const y=tagSlideY(slide,x);x===slide.x?c.moveTo(x,y):c.lineTo(x,y);}c.stroke();}}
+  for(const [x,y,w] of layout.platforms){drawTagPlatform(c,x,y,w,theme);const f=(layout.structures||[]).find(t=>t.x===x&&t.y===y);if(f){c.fillStyle=f.color;c.fillRect(x,y,w,7);if(f.id==='rainbow')for(let i=0;i<6;i++){c.fillStyle=['#e86b70','#efa35e','#e7cf67','#83b67b','#69b8c8','#9b80c2'][i];c.fillRect(x+i*w/6,y,w/6,8);}}}
   c.fillStyle=tagGradient(c,540,600,theme==='snow'?['#eaf5f9','#a6c8d9']:theme==='city'?['#536577','#344352']:['#bbab86','#8d8066']);c.fillRect(0,540,layout.width||900,60);
   c.fillStyle=theme==='snow'?'#ffffff':theme==='city'?'#b1d3db':'#a8c884';c.fillRect(0,540,layout.width||900,7);
   for(let i=0;i<Math.ceil((layout.width||900)/20);i++){const x=(i*83)%(layout.width||900),y=554+(i*17)%43;tagOval(c,x,y,3+i%4,1,theme==='snow'?'#ffffff66':'#e9ddbb33');}
@@ -221,6 +215,7 @@ function drawTagWorld(c,s,theme,reduced){const layout=TAG_LAYOUTS[s.settings.lay
   for(let i=0;i<2;i++){
     const p=s.players[i];
     if(i===s.tagger&&s.grace>0){c.strokeStyle='#fff3a9bb';c.lineWidth=3;c.beginPath();c.ellipse(p.x,p.y-35,30,46,0,0,Math.PI*2);c.stroke();}
+    if(p.featureTime>0){tagRound(c,p.x-55,p.y-150,110,22,7,'#fff0c9');c.textAlign='center';c.fillStyle='#456078';c.font='bold 12px system-ui';c.fillText(p.featureCue,p.x,p.y-135);}
     tagOval(c,p.x,p.y+2,22,5,'#253f5022');drawTagCharacter(c,p,s.settings.players[i],reduced?0:s.time);
     c.textAlign='center';c.font='bold 12px sans-serif';c.fillStyle='#283e50';c.fillText(i===1&&s.settings.mode==='computer'?'CPU':'P'+(i+1),p.x,p.y-86);
     if(i===s.tagger){tagRound(c,p.x-25,p.y-123,50,26,10,'#e65f72');c.fillStyle='#fff';c.font='bold 16px sans-serif';c.fillText('Tag',p.x,p.y-105);}
@@ -265,7 +260,7 @@ export function createTagGame({canvas,onHud,onFinish,controls=document.querySele
     for(const [field,label,options] of [['animal','Character',TAG_ANIMALS],['outfit','Outfit',TAG_OUTFITS],['hat','Hat',TAG_HATS],['accessory','Accessory',TAG_ACCESSORIES]])select(group,label,options,settings.players[i][field],value=>settings.players[i][field]=value);
     select(group,'Color',{},settings.players[i].color,value=>settings.players[i].color=value,'color');form.append(group);
   }
-  const tip=document.createElement('p');tip.textContent='Phone: swipe left/right to keep running. Swipe up diagonally to jump and run, or swipe up to jump. Tap the game to stop. In multiplayer, P1 uses the left half and P2 the right half. Touch jumps are gentler. P1: A / D to run, W to jump. P2: ← / → to run, ↑ to jump. Against the computer you can use either set. Keep moving in midair; pink trampolines launch you high! Whoever is tagged at 60 seconds loses. There is a short shield after each tag. Finish a round for 5 shared coins.';
+  const tip=document.createElement('p');tip.textContent='Phone: swipe left/right to keep running. Swipe up diagonally to jump and run, or swipe up to jump. Tap the game to stop. In multiplayer, P1 uses the left half and P2 the right half. Touch jumps are gentler. P1: A / D to run, W to jump. P2: ← / → to run, ↑ to jump. Against the computer you can use either set. Hold Jump without running to climb ladders, rope nets and climbing holds. Run across the rainbow deck for a dash; jump from the rocket tower for a sky boost. Pirate slides are faster, and Melody Steps chime when you land. Keep moving in midair; pink trampolines launch you high! Whoever is tagged at 60 seconds loses. There is a short shield after each tag. Finish a round for 5 shared coins.';
   const pads=document.createElement('div');pads.className='tag-pads';const padGroups=[];
   for(let i=0;i<2;i++){
     const group=document.createElement('div');group.setAttribute('aria-label','Player '+(i+1)+' touch controls');const label=document.createElement('strong');label.textContent='P'+(i+1);group.append(label);padGroups.push(group);
@@ -278,7 +273,7 @@ export function createTagGame({canvas,onHud,onFinish,controls=document.querySele
     }
     pads.append(group);
   }
-  controls.replaceChildren(tip,pads,form);
+  const guide=document.createElement('details'),summary=document.createElement('summary');summary.textContent='Explore nine unique play structures';guide.append(summary);for(const t of TAG_PLAY_STRUCTURES){const p=document.createElement('p');p.textContent=t.name+' · '+t.meaning;guide.append(p);}controls.replaceChildren(tip,pads,form,guide);
   function sync(){form.disabled=active;for(const [id,b] of modeButtons){b.disabled=active;b.setAttribute('aria-pressed',String(settings.mode===id));}padGroups[1].hidden=settings.mode!=='local';}
   const allowed=['KeyA','KeyD','KeyW','ArrowLeft','ArrowRight','ArrowUp'];
   canvas.addEventListener('keydown',e=>{if(allowed.includes(e.code)){e.preventDefault();if(active&&!paused){keys.add(e.code);const player=settings.mode==='computer'||e.code.startsWith('Key')?0:1;gestures.stop(player);touchAssist[player]=false;}}},events);
