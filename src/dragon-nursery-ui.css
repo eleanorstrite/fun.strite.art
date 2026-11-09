@@ -11,3 +11,7 @@
 @media(max-width:600px){.dragon-adventure-dialog .nursery-daily-hud:not(.route-picked) [data-tasks]{grid-template-columns:repeat(2,minmax(0,1fr));gap:3px}.dragon-adventure-dialog .nursery-daily-hud .nursery-task{padding:4px 3px;line-height:1.2}.nursery-daily-hud:not(.route-picked) [data-route-status]{font-size:8px;margin:5px 0 0}}
 
 .nursery-daily-hud.manual-collapsed .nursery-morning>:not(:first-child){display:none!important}
+
+.nursery-guide{position:fixed;inset:0;z-index:30;display:grid;place-items:center;background:#1b302a99;padding:18px}.nursery-guide[hidden]{display:none}.nursery-guide-card{width:min(680px,100%);max-height:88dvh;overflow:auto;padding:28px;border:1px solid #c8ac6e;border-radius:22px;background:#fff9e9;color:#2d483b;box-shadow:0 18px 70px #142e2966}.nursery-guide-card h3{font:32px/1.2 Georgia;margin:0 0 12px}.nursery-guide-card h4{font:600 19px Georgia;margin:20px 0 7px}.nursery-guide-card p{font-size:14px;line-height:1.6;margin:0 0 10px}.nursery-guide-card button{margin-top:14px}@media(max-width:600px){.nursery-guide{padding:12px}.nursery-guide-card{padding:20px;max-height:90dvh}.nursery-guide-card h3{font-size:25px}.nursery-guide-card p{font-size:13px}}
+
+.nursery-guide-card .nursery-guide-close{position:sticky;top:0;float:right;width:38px;height:38px;margin:0 0 8px 12px;padding:0;border:1px solid #c8ac6e;border-radius:50%;background:#fff9e9;color:#2d483b;font-size:25px;cursor:pointer}
