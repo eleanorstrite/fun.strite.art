@@ -12,6 +12,10 @@ export const BACKGROUNDS = [
   { id: 'dragon', name: 'Dragon sky' },
   { id: 'cow', name: 'Meadow cow' },
   { id: 'jungle', name: 'Jungle friends' },
+  { id: 'sunny-forest', name: 'Sunny forest', thumbnail: './assets/backgrounds/sunny-forest-thumb.jpg' },
+  { id: 'pastel-clouds', name: 'Pastel clouds', thumbnail: './assets/backgrounds/pastel-clouds-thumb.jpg' },
+  { id: 'rose-garden', name: 'Rose garden', thumbnail: './assets/backgrounds/rose-garden-thumb.jpg' },
+  { id: 'jungle-animals', name: 'Jungle animals', thumbnail: './assets/backgrounds/jungle-animals-thumb.jpg' },
   { id: 'classic', name: 'Classic' },
 ];
 export function loadBackground(storage,owned=[]) {
@@ -30,7 +34,7 @@ export function initBackgroundPicker(storage,system) {
   for(const scene of BACKGROUNDS){
     const button=document.createElement('button');button.type='button';button.className='background-choice';button.dataset.background=scene.id;
     const preview=document.createElement('span');preview.className='background-thumbnail';preview.setAttribute('aria-hidden','true');
-    if(scene.id!=='classic')preview.style.backgroundImage=`url('./assets/backgrounds/${scene.id}-realistic-thumb.jpg')`;
+    if(scene.id!=='classic')preview.style.backgroundImage=`url('${scene.thumbnail||`./assets/backgrounds/${scene.id}-realistic-thumb.jpg`}')`;
     const label=document.createElement('span');label.textContent=scene.name;button.append(preview,label);
     button.onclick=()=>{if(scene.upgrade&&!system.snapshot().upgrades.includes(scene.upgrade))return;apply(scene.id);const saved=saveBackground(storage,scene.id,system.snapshot().upgrades);status.textContent=saved?`${scene.name} background saved.`:`${scene.name} selected for this visit. Browser saving is unavailable.`;};
     options.append(button);

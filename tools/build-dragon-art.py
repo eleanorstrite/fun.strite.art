@@ -219,38 +219,98 @@ def keeper():
  export('keeper')
 
 def cottage():
- clear();plaster=material('LimePlaster','#d3c4a8',.93);wood=material('CottageOak','#76513a',.85);stone=material('CottageStone','#8a8c7b',.93);roof=material('CottageSlate','#455461',.84);glass=material('CottageGlass','#729a9c',.2,.1);gold=material('Brass','#bca470',.4,.6)
- cube('CottageBody',(0,1.8,-7),(8,3.6,6),plaster,.06)
+ clear();plaster=material('LimePlaster','#e0cfad',.93);wood=material('CottageOak','#69462d',.86);stone=material('CottageStone','#a69b85',.94);roof=material('CottageSlate','#9db5cf',.84);gold=material('Brass','#b7934d',.35,.6);green=material('CottageLeaves','#4d733a',.9);purple=material('WisteriaFlowers','#9c70c3',.88);pink=material('GardenPink','#d18b9b',.9);cream=material('FlowerCenters','#f3dca0',.9)
+ glow=material('CottageWindowGlow','#ffb342',.4);shader=glow.node_tree.nodes.get('Principled BSDF');shader.inputs['Emission Color'].default_value=glow.diffuse_color;shader.inputs['Emission Strength'].default_value=.8
+ cube('CottageBody',(0,1.8,-7),(8,3.6,6),plaster,.08)
+ # A broad front-facing slate roof and projecting left gable reproduce the cover silhouette.
  for side in [-1,1]:
-  for i in range(16):
-   for j in range(9):
-    x=side*(j*.47+.18);y=5.65-abs(x)*.5;z=-10.35+i*.44;o=cube('HandLaidRoofTile',(x,y,z),(.53,.07,.51),roof,.018);o.rotation_euler[1]=0;o.rotation_euler[2]=0;o.rotation_euler[0]=0
-    # Pitch across the game x/height plane (Blender X/Z).
-    o.rotation_euler[1]=side*.465
-  beam=tube('RoofBargeboard',[(side*4.35,3.5,-10.5),(0,5.7,-10.5)],[.11,.11],wood);beam=tube('RoofBargeboard',[(side*4.35,3.5,-3.5),(0,5.7,-3.5)],[.11,.11],wood)
+  for row in range(9):
+   for col in range(19):
+    x=-4.3+col*.48;z=-7+side*(.14+row*.42);y=6.35-abs(z+7)*.75;o=cube('MainRoofSlate',(x,y,z),(.55,.075,.49),roof,.019);o.rotation_euler[0]=side*math.atan(.75)
+  tube('MainRoofEave',[(-4.6,3.65,-7+side*3.6),(4.6,3.65,-7+side*3.6)],[.095,.095],wood)
+ for x in [-4.02,4.02]:
+  me=bpy.data.meshes.new('SideGable');me.from_pydata([tuple(v(q)) for q in [(x,3.6,-10.0),(x,3.6,-4),(x,6.35,-7)]],[],[(0,1,2)]);me.update();o=bpy.data.objects.new('SideGable',me);bpy.context.collection.objects.link(o);finish(o,o.name,plaster)
+ for side in [-1,1]:
+  for row in range(10):
+   for j in range(5):
+    x=-2+side*(j*.34+.12);z=-7.5+row*.45;y=6.45-abs(x+2)*1.35;o=cube('FrontGableSlate',(x,y,z),(.4,.07,.53),roof,.018);o.rotation_euler[1]=side*math.atan(1.35)
+  tube('FrontGableBargeboard',[(-2+side*1.8,3.95,-3.27),(-2,6.55,-3.27)],[.085,.085],wood)
   cube('CornerTimber',(side*3.94,1.85,-3.95),(.16,3.7,.17),wood,.018)
- # Front and back gables are plaster geometry rather than an open triangle.
- for z in [-3.98,-10.02]:
-  me=bpy.data.meshes.new('Gable');me.from_pydata([tuple(v(p)) for p in [(-4,3.6,z),(4,3.6,z),(0,5.65,z)]],[],[(0,1,2)]);me.update();o=bpy.data.objects.new('PlasterGable',me);bpy.context.collection.objects.link(o);finish(o,o.name,plaster)
+ me=bpy.data.meshes.new('FrontGable');me.from_pydata([tuple(v(q)) for q in [(-3.7,3.6,-3.4),(-.3,3.6,-3.4),(-2,6.45,-3.4)]],[],[(0,1,2)]);me.update();o=bpy.data.objects.new('FrontGable',me);bpy.context.collection.objects.link(o);finish(o,o.name,plaster)
+ # The small second gable echoes the cottage on the illustrated game cover.
+ cube('DormerBody',(2,4.45,-4.0),(1.8,1.7,.5),plaster,.035)
+ me=bpy.data.meshes.new('DormerGable');me.from_pydata([tuple(v(q)) for q in [(1.05,5.2,-3.7),(2.95,5.2,-3.7),(2,6.0,-3.7)]],[],[(0,1,2)]);me.update();o=bpy.data.objects.new('DormerGable',me);bpy.context.collection.objects.link(o);finish(o,o.name,plaster)
+ for side in [-1,1]:
+  for row in range(5):
+   for j in range(3):
+    x=2+side*(j*.35+.08);o=cube('DormerSlate',(x,6.0-abs(x-2)*.85,-4.45+row*.2),(.4,.06,.27),roof,.014);o.rotation_euler[1]=side*.70
+  tube('DormerFrame',[(2+side*1.08,5.08,-3.62),(2,6.08,-3.62)],[.065,.065],wood)
  for x in range(-7,8):
   for row in range(2):
    xx=x*.53+(row%2)*.25
-   if abs(xx)<.8:continue
-   cube('FoundationStone',(xx,.16+row*.26,-3.99),(.5,.24,.17),stone,.035)
+   if abs(xx)<.86:continue
+   cube('FoundationStone',(xx,.16+row*.26,-3.99),(.5,.24,.18),stone,.035)
+ def arch(name,x,bottom,z,w,h,mat):
+  r=w/2;points=[(x-r,bottom,z),(x+r,bottom,z)]+[(x+math.cos(i*math.pi/24)*r,bottom+h-r+math.sin(i*math.pi/24)*r,z) for i in range(25)]
+  me=bpy.data.meshes.new(name);me.from_pydata([tuple(v(q)) for q in points],[],[tuple(range(len(points)))]);me.update();o=bpy.data.objects.new(name,me);bpy.context.collection.objects.link(o);finish(o,name,mat);return points
+ def window(name,x,bottom,z,w,h):
+  arch(name+'Recess',x,bottom-.07,z-.025,w+.18,h+.17,wood);outline=arch(name+'WarmGlass',x,bottom,z,w,h,glow);tube(name+'ArchFrame',outline+[outline[0]],[.046]*(len(outline)+1),wood,8)
+  r=w/2
+  for direction in [-1,1]:
+   for line in range(-5,8):
+    points=[]
+    for i in range(50):
+     xx=-r+.04+i*(w-.08)/49;yy=bottom+.12+line*.26+direction*xx*1.2;top=bottom+h-r+math.sqrt(max(0,r*r-xx*xx))
+     if bottom+.03<yy<top-.035:points.append((x+xx,yy,z+.025))
+    if len(points)>1:tube(name+'DiamondLead',[points[0],points[-1]],[.012,.012],wood,6)
+ window('LeftArchedWindow',-2.55,.98,-3.87,1.7,1.94);window('RightArchedWindow',2.55,.98,-3.87,1.7,1.94)
+ window('UpperGableWindow',-2,4.35,-3.3,.85,1.28);window('DormerArchedWindow',2,4.0,-3.65,.83,1.3)
+ # Arched plank door with a small lit window and a brass handle.
+ door=arch('ArchedDoor',0,.035,-3.84,1.56,2.7,wood);tube('ArchedDoorFrame',door+[door[0]],[.085]*(len(door)+1),wood)
+ for j in range(7):
+  x=(j-3)*.205;top=2.7-.78+math.sqrt(max(0,.78*.78-x*x));cube('DoorPlank',(x,top/2,-3.8),(.193,top,.065),wood,.009)
+ window('DoorGlass',0,1.65,-3.74,.65,.82);ellipsoid('BrassDoorHandle',(.52,1.15,-3.69),(.055,.055,.04),gold)
+ # Low stone steps and a tiled entrance canopy keep the existing doorway clear.
+ for i in range(3):cube('EntranceStep',(0,.035+i*.035,-2.72-i*.34),(2.2-i*.12,.09+i*.025,.7),stone,.025)
  for side in [-1,1]:
-  x=side*2.5;cube('WindowRecess',(x,2.0,-3.99),(1.52,1.6,.12),wood,.025);cube('GlazedWindow',(x,2.0,-3.9),(1.3,1.36,.05),glass,.01)
-  for dx in [-.72,0,.72]:cube('WindowMullion',(x+dx,2,-3.85),(.055,1.62,.09),wood,.009)
-  for y in [1.2,2,2.8]:cube('WindowCrossbar',(x,y,-3.85),(1.5,.055,.09),wood,.009)
-  cube('FlowerBox',(x,1.16,-3.65),(1.6,.22,.55),wood,.025)
-  for i in range(9):
-   p=(x+(i-4)*.16,1.39+random.random()*.11,-3.65+random.uniform(-.1,.1));o=ellipsoid('CottagePlant',p,(.15,.16,.12),material('Plant'+str(side)+str(i),'#61764c' if i%2 else '#78915b'))
- for x in [-.83,.83]:cube('DoorJamb',(x,1.36,-3.82),(.14,2.72,.2),wood,.025)
- cube('DoorLintel',(0,2.73,-3.82),(1.82,.17,.23),wood,.025)
- for i in range(7):cube('DoorPlank',((i-3)*.205,1.27,-3.86),(.196,2.5,.12),wood,.009)
- cube('DoorBrace',(0,.52,-3.76),(1.4,.12,.075),wood,.012);o=ellipsoid('DoorHandle',(.49,1.3,-3.66),(.055,.055,.04),gold)
- for y in [4.9,5.24,5.58,5.92]:
-  for i in [-1,0,1]:cube('ChimneyStone',(2.5+i*.28,y,-8),(.27,.3,.85),stone,.025)
- cube('ChimneyCap',(2.5,6.1,-8),(1.05,.16,1.03),stone,.04)
+  cube('PorchPost',(side*1.3,1.45,-2.92),(.13,2.9,.13),wood,.018)
+  for row in range(5):
+   for j in range(4):
+    x=side*(j*.36+.12);o=cube('PorchSlate',(x,3.54-abs(x)*.36,-3.97+row*.27),(.41,.065,.34),roof,.016);o.rotation_euler[1]=side*.345
+  tube('PorchBargeboard',[(side*1.55,2.97,-2.75),(0,3.57,-2.75)],[.07,.07],wood)
+  x=side*1.03;cube('LanternGlow',(x,2.15,-3.5),(.22,.36,.2),glow,.025)
+  for dx in [-.13,.13]:cube('LanternFrame',(x+dx,2.15,-3.5),(.024,.4,.25),gold,.006)
+  for y in [1.93,2.36]:cube('LanternCap',(x,y,-3.5),(.3,.055,.29),gold,.012)
+  tube('LanternHook',[(x,2.48,-3.85),(x,2.52,-3.5),(x,2.37,-3.5)],[.025,.025,.02],gold)
+ # Climbing ivy and hanging purple wisteria are lightweight joined surface meshes.
+ leaves=[];leaf_faces=[];flowers={};flower_faces={}
+ def leaf(x,y,z,r=.14):
+  start=len(leaves);a=random.random()*math.tau
+  for xx,yy,zz in [(0,r,0),(r*.6,0,0),(0,-r,0),(-r*.6,0,0),(0,0,.035)]:leaves.append(tuple(v((x+xx*math.cos(a)-yy*math.sin(a),y+xx*math.sin(a)+yy*math.cos(a),z+zz))))
+  leaf_faces.extend([(start+4,start+j,start+(j+1)%4)for j in range(4)])
+ def blossom(key,x,y,z,r):
+  verts=flowers.setdefault(key,[]);faces=flower_faces.setdefault(key,[]);start=len(verts);verts.append(tuple(v((x,y,z+.025))))
+  for j in range(10):
+   a=j*math.tau/10;rad=r if j%2==0 else r*.47;verts.append(tuple(v((x+math.cos(a)*rad,y+math.sin(a)*rad,z))))
+  faces.extend([(start,start+1+j,start+1+(j+1)%10)for j in range(10)])
+ for side in [-1,1]:
+  for i in range(70):
+   y=.3+i*.06;x=side*3.82+math.sin(y*3)*.14;leaf(x,y,-3.72,.13+random.random()*.07)
+  for j in range(12):
+   x=side*(1.4+j*.21);length=.45+random.random()*1.0;y=3.55+math.sin(j)*.12
+   tube('WisteriaStem',[(x,y,-3.58),(x+.06,y-length,-3.55)],[.016,.005],green,6)
+   for i in range(12):
+    yy=y-i/12*length;leaf(x+math.sin(i*2.4)*.12,yy,-3.5,.09)
+    if i>2:blossom('purple',x+math.sin(i*2.4)*.10,yy,-3.42,.105*(1-i/18))
+  for j in range(32):
+   x=side*2.6+random.uniform(-.9,.9);z=random.uniform(-3.7,-3.1);y=.28+random.random()*.6;tube('GardenFlowerStem',[(x,.12,z),(x,y,z)],[.012,.008],green,5);leaf(x,y*.65,z,.11);blossom('pink' if j%3 else 'cream',x,y,z,.09)
+ for j in range(55):
+  x=-3.8+j*.14;y=3.44+math.sin(j*.7)*.12;leaf(x,y,-3.48,.18)
+ for key,verts,faces,mat in [('ClimbingIvy',leaves,leaf_faces,green)]+[(key,flowers[key],flower_faces[key],{'purple':purple,'pink':pink,'cream':cream}[key])for key in flowers]:
+  me=bpy.data.meshes.new(key);me.from_pydata(verts,[],faces);me.update();o=bpy.data.objects.new(key,me);bpy.context.collection.objects.link(o);finish(o,key,mat)
+ for row in range(9):
+  for i in range(3):cube('TallStoneChimney',(-.6+(i-1)*.28,4.5+row*.31,-8.2),(.27,.29,.85),stone,.025)
+ cube('ChimneyCap',(-.6,7.2,-8.2),(1.05,.17,1.03),stone,.04)
  bathmat=material('GardenMarble','#d9d3bf',.4);watermat=material('GardenWater','#6fabb0',.14,.1)
  bath=cube('CarvedDragonBath',(7,.42,-1),(2.7,.84,1.9),bathmat,.12)
  cutter=cube('BathOpening',(7,.67,-1),(2.35,.9,1.55),bathmat,.16);bpy.context.view_layer.objects.active=bath;cut=bath.modifiers.new('Hollow stone bath','BOOLEAN');cut.operation='DIFFERENCE';cut.object=cutter;bpy.ops.object.modifier_apply(modifier=cut.name);bpy.data.objects.remove(cutter,do_unlink=True)
@@ -319,5 +379,6 @@ def tree():
  green.use_backface_culling=False
  export('forest-tree')
 
-for job in [keeper,lambda:dragon(False),lambda:dragon(True),cottage,room,tree]:job()
+jobs=[cottage] if '--only-cottage' in sys.argv else [keeper,lambda:dragon(False),lambda:dragon(True),cottage,room,tree]
+for job in jobs:job()
 print('All original Dragon Adventures art assets rebuilt.',flush=True)

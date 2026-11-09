@@ -1,0 +1,7 @@
+html[data-background="sunny-forest"]{--home-scene:url('../assets/backgrounds/sunny-forest.jpg');--home-sky:#c5dc8e}
+html[data-background="pastel-clouds"]{--home-scene:url('../assets/backgrounds/pastel-clouds.jpg');--home-sky:#e5d6ea}
+html[data-background="rose-garden"]{--home-scene:url('../assets/backgrounds/rose-garden.jpg');--home-sky:#a9cedd}
+html[data-background="rose-garden"]:not([data-background="classic"]) body:before{background-position:center bottom}
+html[data-background="jungle-animals"]{--home-scene:url('../assets/backgrounds/jungle-animals.jpg');--home-sky:#77ae2a}
+html[data-background="jungle-animals"]:not([data-background="classic"]) body:before{background-size:contain}
+@media(orientation:portrait){html[data-background="jungle-animals"]{--home-scene:url('../assets/backgrounds/jungle-animals-portrait.jpg')}}
