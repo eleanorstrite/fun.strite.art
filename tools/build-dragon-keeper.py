@@ -126,7 +126,7 @@ def build_keeper():
   return parts
  def braid(x,y,z,length,side=0):
   return [lock([(x+math.sin(j*.8+k*math.tau/3)*.025+side*j/22*.04,y-j/22*length,z+math.cos(j*.8+k*math.tau/3)*.02) for j in range(23)],.015,.013,False) for k in range(3)]
- styles=['short','long','curly','wavy','side-braid','twin-braids','bob','lob','pixie','side-swept','curtain','spiky','quiff','undercut','ponytail','high-ponytail','bun','double-buns','afro','locs','half-up','long-bangs','braided-crown','wavy-bob']
+ styles=['short','long','curly','wavy','side-braid','twin-braids','bob','lob','pixie','side-swept','curtain','spiky','quiff','undercut','ponytail','high-ponytail','bun','double-buns','afro','locs','half-up','long-bangs','braided-crown','wavy-bob','feathered-crop','messy-shag','layered-waves','loose-side-braid','soft-bob','flipped-lob','long-side-part','blunt-bob','wispy-bangs','side-flick','wavy-curtain','tousled-quiff']
  for style in styles:
   parts=[cap(style in ['pixie','undercut'])]
   if style in ['short','long','wavy','side-braid','twin-braids','bob','lob','side-swept','ponytail','high-ponytail','bun','double-buns','half-up','wavy-bob','braided-crown']:parts+=fringe()
@@ -165,6 +165,36 @@ def build_keeper():
    for i in range(16):
     a=math.pi+i*math.pi/15;x=math.cos(a)*.15;z=math.sin(a)*.14-.015;parts.append(lock([(x,1.99,z),(x*1.15,1.78,z-.025),(x*1.25+.009*math.sin(i),1.50,z-.035),(x*1.3,1.30+(i%3)*.03,z-.025)],.015,.014,False))
    parts+=fringe('curtain')
+  if style in ['feathered-crop','messy-shag','side-flick','tousled-quiff']:
+   for row in range(3):
+    for j in range(7):
+     x=-.12+j*.038;z=-.12+row*.095;lift=.035+((j*3+row)%4)*.009
+     endy=1.875+abs(x)*.25 if style=='messy-shag' else 1.93+abs(x)*.25
+     if style=='tousled-quiff':points=[(x,1.95,z+.06),(x-.025,2.08+lift,z+.055),(x+.055,2.07,z-.08)]
+     elif style=='side-flick':points=[(x,2.0,z),(x+.035,2.04+lift,z+.055),(x+.09,1.95,z+.09)]
+     else:points=[(x,2.01,z),(x+math.sin(j)*.015,2.04+lift,z+.06),(x+math.sin(j*1.7)*.03,endy,z+.12)]
+     parts.append(lock(points,.031 if style=='messy-shag' else .024,.012))
+   if style in ['feathered-crop','messy-shag']:
+    for side in [-1,1]:
+     for j in range(4):parts.append(lock([(side*.12,1.98,-.06+j*.035),(side*.16,1.86,-.025+j*.035),(side*(.17+j*.008),1.79+j*.012,.01)],.023,.012))
+  if style in ['layered-waves','long-side-part','wispy-bangs','flipped-lob','soft-bob','blunt-bob','wavy-curtain']:
+   length={'flipped-lob':.43,'soft-bob':.30,'blunt-bob':.31,'wavy-curtain':.22}.get(style,.70)
+   parts+=flowing(length,.026 if style in ['layered-waves','flipped-lob','wavy-curtain'] else .004)
+   if style in ['wispy-bangs','blunt-bob']:parts+=fringe('bangs')
+   elif style=='wavy-curtain':parts+=fringe('curtain')
+   else:
+    for j in range(7):
+     x=-.12+j*.026;parts.append(lock([(x,2.025,-.035),(x+.045,2.055,.045),(.09+j*.01,1.91-j*.012,.13),(.16,1.78+j*.01,.035)],.027,.010))
+   if style=='flipped-lob':
+    for side in [-1,1]:
+     for j in range(5):parts.append(lock([(side*.14,1.75,-.10+j*.04),(side*.18,1.55,-.08+j*.04),(side*.235,1.54,-.07+j*.04)],.025,.014))
+   if style=='layered-waves':
+    for side in [-1,1]:
+     for j in range(3):parts.append(lock([(side*.14,1.94,.075),(side*.18,1.67,.12),(side*.14,1.43,.07),(side*.20,1.20,.035+j*.022)],.028,.016))
+  if style=='loose-side-braid':
+   parts+=fringe('curtain');parts+=flowing(.22,.013);parts+=braid(.18,1.79,.09,.68,1)
+   for j in range(3):parts.append(lock([(-.08+j*.08,2.015,.035),(-.13+j*.08,1.88,.15),(-.15+j*.10,1.72,.10)],.018,.008))
+   parts.append(tube('BraidRibbon',[(.22,1.11,.09),(.22,1.14,.09)],[.029,.029],accent,12))
   node='KeeperHair'+''.join(p.title() for p in style.split('-'));o=merge(node,parts);attach(o,'Head');print('HAIR',style,flush=True)
  # Skinning is kept on every wardrobe part before joining so shoulders, elbows and knees stay separate.
  def piece(o,bone=None):
@@ -172,12 +202,12 @@ def build_keeper():
  def top(name,mat=cloth,bottom=1.01,wide=.235):
   o=loft(name,[(bottom,wide,.153,0),(bottom+.018,wide,.153,0),(1.12,.211,.145,0),(1.30,.212,.149,0),(1.47,.248,.153,0),(1.55,.25,.131,0),(1.595,.12,.095,0)],mat,32)
   return piece(o)
- def sleeves(mat=cloth,puff=False,long=True):
+ def sleeves(mat=cloth,puff=False,long=True,loose=False):
   out=[]
   for side in [-1,1]:
    name='Left' if side<0 else 'Right';pts=[(side*.233,1.51,0),(side*.275,1.40,0),(side*.297,1.25,0)]
-   radii=[.092,.115 if puff else .084,.075]
-   if long:pts += [(side*.306,1.05,.012),(side*.31,.935,.02)];radii += [.066,.052]
+   radii=[.10 if loose else .092,.125 if puff else .112 if loose else .084,.095 if loose else .075]
+   if long:pts += [(side*.306,1.05,.012),(side*.31,.935,.02)];radii += [.098 if loose else .066,.069 if loose else .052]
    o=tube(name+'Sleeve',pts,radii,mat,20);skin(o,arm,segments,lambda n,p:n in [name+'Arm',name+'Forearm']);out.append(o)
    out.append(piece(tube('SleeveCuff',[(side*.31,.93 if long else 1.235,.02 if long else 0),(side*.31,.96 if long else 1.27,.02 if long else 0)],[.054 if long else .078]*2,accent,16),name+'Forearm' if long else name+'Arm'))
   return out
@@ -209,7 +239,7 @@ def build_keeper():
    parts.append(piece(tube('SkirtPleat',pts,[.0025]*5,accent,6)))
   if tier:parts += [piece(loft('LayeredHem',[(hem-.025,flared*.94,.24,0),(hem+.10,flared*1.03,.26,0)],linen,40)),trim(hem+.12,flared*.96,.252)]
   return parts
- def embroidered(skirt_mesh,hem=.53,width=.35):
+ def embroidered(skirt_mesh,hem=.53,width=.35,size=1):
   from mathutils.bvhtree import BVHTree
   tree=BVHTree.FromPolygons([vert.co for vert in skirt_mesh.data.vertices],[list(face.vertices) for face in skirt_mesh.data.polygons]);parts=[]
   for row in range(2):
@@ -219,14 +249,43 @@ def build_keeper():
     horizontal=normal.cross(Vector((0,0,1))).normalized();vertical=normal.cross(horizontal).normalized();center=hit+normal*.002;verts=[];faces=[]
     for petal in range(5):
      angle=petal*math.tau/5;direction=horizontal*math.cos(angle)+vertical*math.sin(angle);across=normal.cross(direction);start=len(verts)
-     verts += [tuple(center),tuple(center+direction*.012+across*.006),tuple(center+direction*.024),tuple(center+direction*.012-across*.006)];faces.append((start,start+1,start+2,start+3))
+     verts += [tuple(center),tuple(center+direction*.012*size+across*.006*size),tuple(center+direction*.024*size),tuple(center+direction*.012*size-across*.006*size)];faces.append((start,start+1,start+2,start+3))
     me=bpy.data.meshes.new('GoldThreadFlower');me.from_pydata(verts,[],faces);me.update();o=bpy.data.objects.new('GoldThreadFlower',me);bpy.context.collection.objects.link(o);finish(o,o.name,gold);parts.append(piece(o))
   return parts
- outfits=['ranger','hoodie','denim','cargo','scholar','starlight','violet','raincoat','puffer','adventurer','knit','coat','sport','festival']
+ def ruffle(y,rx=.36,rz=.25,mat=linen):
+  verts=[];faces=[];count=80
+  for row in range(4):
+   u=row/3
+   for j in range(count):
+    a=j*math.tau/count;wave=math.sin(a*20);verts.append(tuple(v((math.cos(a)*(rx+wave*.012*u),y-u*.052+math.sin(a*20)*.007*u,math.sin(a)*(rz+wave*.011*u)))))
+  for row in range(3):
+   for j in range(count):faces.append((row*count+j,row*count+(j+1)%count,(row+1)*count+(j+1)%count,(row+1)*count+j))
+  me=bpy.data.meshes.new('GatheredRuffle');me.from_pydata(verts,[],faces);me.update();o=bpy.data.objects.new('GatheredRuffle',me);bpy.context.collection.objects.link(o);finish(o,o.name,mat);return piece(o)
+ def ribbon(y,width=.12,z=.205,mat=accent):
+  parts=[]
+  for side in [-1,1]:
+   parts.append(piece(lock([(0,y,z),(side*width*.7,y+.05,z+.012),(side*width,y+.005,z),(side*width*.65,y-.035,z+.01),(0,y,z)],.021,.008,False,mat)))
+   parts.append(piece(lock([(side*.01,y,z+.01),(side*.025,y-.08,z+.012),(side*width*.55,y-.18,z+.005)],.017,.006,True,mat)))
+  parts.append(piece(ellipsoid('RibbonKnot',(0,y,z+.02),(.022,.018,.012),mat)));return parts
+ def star(cx,y,z,r=.025,mat=accent):
+  verts=[tuple(v((cx,y,z)))]+[tuple(v((cx+math.sin(i*math.pi/5)*(r if i%2==0 else r*.43),y+math.cos(i*math.pi/5)*(r if i%2==0 else r*.43),z))) for i in range(10)]
+  me=bpy.data.meshes.new('EmbroideredStar');me.from_pydata(verts,[],[(0,i+1,(i+1)%10+1)for i in range(10)]);me.update();o=bpy.data.objects.new('EmbroideredStar',me);bpy.context.collection.objects.link(o);finish(o,o.name,mat);return piece(o)
+ def undershirt():return piece(loft('WhiteTee',[(.95,.20,.012,.159),(.97,.20,.012,.159),(1.13,.105,.013,.172),(1.42,.10,.012,.170),(1.56,.069,.012,.119)],linen,28))
+ def cargo_pockets():
+  parts=[]
+  for side in [-1,1]:
+   name='Left' if side<0 else 'Right'
+   for y in [.72,.50]:
+    parts.append(piece(cube('UtilityPocket',(side*.18,y,.085),(.13,.15,.035),pants,.012),name+'Thigh' if y>.6 else name+'Shin'))
+    parts.append(piece(cube('PocketFlap',(side*.18,y+.06,.108),(.14,.045,.012),cloth,.006),name+'Thigh' if y>.6 else name+'Shin'))
+  return parts
+ def coat_lapels():
+  return [piece(tube('TurnedLapel',[(side*.065,1.59,.11),(side*.145,1.43,.178),(side*.085,1.17,.18)],[.024,.032,.013],cloth,12)) for side in [-1,1]]
+ outfits=['ranger','hoodie','denim','cargo','scholar','starlight','violet','raincoat','puffer','adventurer','knit','coat','sport','festival','utility-cargo','slouch-hoodie','blue-jacket','olive-knit','mono-ruffle','mooncoat','rose-dress','cosmic-dress','anemone','nouveau']
  for style in outfits:
-  dress=style in ['scholar','starlight','violet','festival'];parts=[]
-  parts.append(trousers(style in ['cargo','hoodie']));parts+=shoes(style in ['hoodie','denim','cargo','sport'])
-  parts.append(top('KeeperTailoredTop',bottom=1.04 if dress else 1.0,wide=.22 if dress else .235));parts+=sleeves(puff=style in ['starlight','violet','festival'],long=style not in ['ranger','adventurer','festival'])
+  dress=style in ['scholar','starlight','violet','festival','mono-ruffle','mooncoat','rose-dress','cosmic-dress','anemone','nouveau'];parts=[]
+  parts.append(trousers(style in ['cargo','hoodie','utility-cargo','slouch-hoodie','olive-knit']));parts+=shoes(style in ['hoodie','denim','cargo','sport','utility-cargo','slouch-hoodie','blue-jacket','olive-knit'])
+  parts.append(top('KeeperTailoredTop',bottom=1.04 if dress else 1.0,wide=.22 if dress else .235));parts+=sleeves(puff=style in ['starlight','violet','festival','mono-ruffle','rose-dress','cosmic-dress','anemone'],long=style not in ['ranger','adventurer','festival','mono-ruffle','cosmic-dress'],loose=style in ['slouch-hoodie','olive-knit','nouveau','anemone'])
   shell=[o for o in parts if o.name.startswith('KeeperTailoredTop') or o.name.endswith('Sleeve')]
   for o in shell:
    for mod in list(o.modifiers):o.modifiers.remove(mod)
@@ -239,7 +298,7 @@ def build_keeper():
    return n in ['Spine','Hips']
   skin(fabric,arm,segments,fabric_region);parts=[o for o in parts if o not in shell]+[fabric]
   if dress:
-   length=.83 if style in ['scholar','starlight'] else .59;dress_parts=skirt(length,.39 if style!='violet' else .35,style in ['festival','violet']);parts+=dress_parts;parts+=bow();parts+=belt(1.17)
+   length=.83 if style in ['scholar','starlight','nouveau'] else .59;dress_parts=skirt(length,.39 if style!='violet' else .35,style in ['festival','violet','mono-ruffle','rose-dress','cosmic-dress','anemone']);parts+=dress_parts;parts+=bow();parts+=belt(1.17)
    if style in ['scholar','starlight']:parts+=embroidered(dress_parts[0],1.15-length,.39)
    if style=='scholar':parts.append(piece(loft('CreamCapelet',[(1.32,.34,.20,-.015),(1.40,.33,.20,-.01),(1.55,.275,.16,0),(1.635,.09,.075,0)],linen,40)));parts.append(trim(1.33,.34,.19));parts.append(piece(ellipsoid('SunBrooch',(0,1.46,.202),(.024,.024,.008),gold)))
    if style=='violet':parts.append(piece(loft('Corset',[(1.115,.233,.174,0),(1.135,.233,.174,0),(1.23,.22,.171,0),(1.415,.24,.18,0),(1.43,.24,.18,0)],pants,32)));parts += [piece(tube('CorsetLacing',[(-.035,1.16+i*.038,.182),(.035,1.195+i*.038,.182)],[.003]*2,accent,6)) for i in range(5)]
@@ -273,7 +332,63 @@ def build_keeper():
     parts.append(piece(loft('SoftScarf',[(1.49,.14,.12,.01),(1.60,.12,.10,.01)],accent,24)));parts.append(piece(tube('ScarfTail',[(.07,1.52,.16),(.08,1.22,.18)],[.035,.03],accent,12)))
    if style=='sport':
     for side in [-1,1]:parts.append(piece(tube('VarsityStripe',[(side*.22,1.53,.085),(side*.29,1.38,.074)],[.013]*2,linen,10)))
-  parts.append(trim(1.01 if not dress else 1.17));node='KeeperOutfit'+style.title();merge(node,parts);print('OUTFIT',style,flush=True)
+  if style=='utility-cargo':
+   parts+=hood();parts+=cargo_pockets();parts+=belt(1.10)
+   white=tube('CreamUtilitySleeve',[(-.235,1.51,0),(-.29,1.32,0),(-.31,1.04,.012),(-.31,.95,.02)],[.10,.091,.074,.059],linen,20);skin(white,arm,segments,lambda n,p:n in ['LeftArm','LeftForearm']);parts.append(white)
+   parts.append(piece(cube('AsymmetricJacketPanel',(-.125,1.39,.156),(.17,.31,.016),linen,.008)))
+   for side in [-1,1]:
+    parts.append(piece(tube('HarnessStrap',[(side*.18,1.58,.09),(side*.18,1.34,.178),(side*.16,1.06,.17)],[.016]*3,leather,8)))
+    parts.append(piece(cube('HarnessBuckle',(side*.18,1.33,.193),(.055,.05,.015),gold,.006)))
+    parts.append(piece(tube('HangingStrap',[(side*.21,1.10,.11),(side*.23,.81,.12)],[.014,.012],leather,8),'Hips'))
+   parts.append(piece(cube('UtilityChestPocket',(.12,1.44,.171),(.15,.12,.027),pants,.010)))
+  if style=='slouch-hoodie':
+   parts+=hood();parts+=cargo_pockets();parts.append(piece(loft('LayeredTeeHem',[(.94,.225,.15,0),(.96,.225,.15,0),(1.06,.217,.15,0)],linen,32)))
+   parts.append(piece(loft('WideKangarooPocket',[(1.035,.15,.014,.155),(1.07,.18,.025,.164),(1.22,.14,.02,.163),(1.24,.14,.016,.16)],cloth,28)))
+   for side in [-1,1]:parts.append(piece(tube('LooseDrawstring',[(side*.075,1.58,.13),(side*.066,1.44,.18),(side*.06,1.36,.18)],[.0035]*3,accent,6)))
+  if style=='blue-jacket':
+   parts.append(undershirt());parts+=coat_lapels()
+   for side in [-1,1]:parts.append(piece(tube('AngledZipPocket',[(side*.16,1.39,.17),(side*.105,1.24,.178)],[.006]*2,accent,8)))
+   parts.append(piece(tube('JacketSideTie',[(-.22,1.03,.04),(-.30,.78,.09)],[.017,.012],cloth,8),'Hips'))
+   parts.append(piece(tube('WatchBand',[(-.31,.95,.02),(-.31,.98,.02)],[.057,.057],leather,16),'LeftForearm'));parts.append(piece(ellipsoid('WatchFace',(-.31,.966,.079),(.028,.028,.007),gold),'LeftForearm'))
+  if style=='olive-knit':
+   parts.append(piece(loft('RibbedHighNeck',[(1.55,.115,.088,0),(1.58,.115,.088,0),(1.68,.092,.071,0),(1.69,.092,.071,0)],cloth,32)))
+   for side in [-1,1]:
+    for j in range(6):parts.append(piece(tube('CollarRib',[(side*(.01+j*.014),1.585,.09),(side*(.008+j*.013),1.675,.075)],[.002]*2,accent,6)))
+   parts.append(piece(tube('BagShoulderStrap',[(.20,1.54,.10),(.14,1.26,.18),(-.27,.94,.11)],[.018]*3,leather,10)));parts.append(piece(cube('SoftShoulderBag',(-.31,.91,.06),(.22,.29,.14),leather,.055),'Hips'))
+  if style in ['mono-ruffle','rose-dress']:
+   parts.append(piece(loft('WhiteDressBib',[(1.19,.125,.012,.177),(1.22,.135,.012,.177),(1.49,.13,.015,.161),(1.56,.075,.012,.12)],linen,28)))
+   parts+=ribbon(1.47,.13,.21,linen if style=='mono-ruffle' else accent)
+   hem=1.15-length;parts.append(ruffle(hem,.36,.25,linen));parts.append(ruffle(hem+.13,.35,.25,linen))
+   for side in [-1,1]:parts+= [piece(tube('TallBoot',[(side*.13,.49,.01),(side*.13,.14,.03)],[.078,.071],leather,20),('Left' if side<0 else 'Right')+'Shin')]
+   if style=='mono-ruffle':
+    for side in [-1,1]:parts.append(piece(cube('SkirtBuckle',(side*.25,hem+.17,.20),(.065,.05,.012),gold,.008)))
+   else:
+    parts.append(piece(loft('WhiteApron',[(hem+.01,.25,.012,.245),(hem+.03,.25,.012,.245),(1.04,.17,.012,.17),(1.16,.12,.012,.162)],linen,32)))
+    parts+=ribbon(1.16,.085,.19,cloth)
+    heartverts=[tuple(v((.016*math.sin(a)**3,1.54+.001*(13*math.cos(a)-5*math.cos(2*a)-2*math.cos(3*a)-math.cos(4*a)),.226))) for a in [j*math.tau/40 for j in range(40)]]
+    me=bpy.data.meshes.new('HeartBrooch');me.from_pydata(heartverts,[],[tuple(reversed(range(40)))]);me.update();o=bpy.data.objects.new('HeartBrooch',me);bpy.context.collection.objects.link(o);finish(o,o.name,material('KeeperRoseJewel','#9b4d68',.32));parts.append(piece(o))
+  if style=='mooncoat':
+   parts.append(undershirt());parts+=coat_lapels();parts+=belt(1.20)
+   for side in [-1,1]:
+    points=[(side*.06,1.13,-.16),(side*.20,.89,-.19),(side*.22,.56,-.20),(side*.28,.34,-.19)]
+    parts.append(piece(lock(points,.095,.014,True,cloth)));parts.append(piece(tube('LongBoot',[(side*.13,.55,.01),(side*.13,.14,.03)],[.077,.073],leather,20),('Left' if side<0 else 'Right')+'Shin'))
+    for j in range(6):parts.append(piece(tube('BootCrossLace',[(side*.13-.035,.48-j*.045,.082),(side*.13+.035,.45-j*.045,.082)],[.0025]*2,accent,6),('Left' if side<0 else 'Right')+'Shin'))
+  if style=='cosmic-dress':
+   parts+=ribbon(1.48,.14,.21);hem=1.15-length;parts.append(ruffle(hem,.37,.25,accent));parts.append(ruffle(hem+.11,.36,.25,cloth))
+   for x,y,r in [(-.15,.89,.025),(.13,.96,.022),(-.22,.75,.02),(.22,.73,.025),(0,1.03,.018)]:parts.append(star(x,y,.248,r))
+   parts.append(piece(ellipsoid('EmbroideredPlanet',(0,.78,.253),(.047,.047,.003),accent)))
+   parts.append(piece(tube('PlanetOrbit',[(math.cos(a)*.077,.78+math.sin(a)*.025,.258) for a in [j*math.tau/32 for j in range(33)]],[.003]*33,accent,6)))
+   for side in [-1,1]:parts+=ribbon(hem+.13,.055,.22,accent) if side==1 else []
+  if style=='anemone':
+   hem=1.15-length;parts.append(piece(loft('GreenLacedBodice',[(1.115,.233,.174,0),(1.135,.233,.174,0),(1.23,.22,.171,0),(1.415,.24,.18,0),(1.43,.24,.18,0)],pants,32)))
+   for j in range(5):parts.append(piece(tube('BodiceCrossLace',[(-.035,1.17+j*.04,.184),(.035,1.205+j*.04,.184)],[.003]*2,accent,6)))
+   for x in [-.22,-.11,0,.11,.22]:parts.append(piece(lock([(x*.55,1.16,.18),(x*.85,.98,.233),(x,.78,.25),(x*.8,.68,.235)],.083,.012,True,pants)))
+   parts.append(ruffle(hem,.36,.25,accent));parts.append(piece(tube('ShoulderWrap',[(-.22,1.53,.10),(0,1.45,.18),(.22,1.53,.10)],[.045,.045,.045],cloth,14)));parts+=ribbon(1.42,.065,.205,accent)
+  if style=='nouveau':
+   parts.append(piece(loft('GoldEdgedCapelet',[(1.28,.35,.21,-.015),(1.30,.35,.21,-.015),(1.45,.32,.20,-.01),(1.60,.18,.13,0),(1.63,.085,.07,0)],cloth,40)))
+   parts.append(trim(1.30,.35,.21,accent));parts+=ribbon(1.49,.15,.225,accent);parts+=embroidered(dress_parts[0],1.15-length,.39,1.4)
+   parts.append(ruffle(1.15-length,.39,.25,accent))
+  parts.append(trim(1.01 if not dress else 1.17));node='KeeperOutfit'+''.join(p.title() for p in style.split('-'));merge(node,parts);print('OUTFIT',style,flush=True)
  # Thin metal glasses follow the head and never add body parts.
  parts=[]
  for side in [-1,1]:parts.append(tube('LensRim',[(side*.057+math.cos(j*math.tau/28)*.041,1.869+math.sin(j*math.tau/28)*.027,.156) for j in range(29)],[.0027]*29,gold,6))

@@ -1,6 +1,7 @@
 import {createKeeperCustomizerPreview} from './dragon-keeper-preview.js';
 import {DEFAULT_LOOK,sanitizeKeeperLook} from './dragon-nursery-training.js';
 import {KEEPER_HAIRSTYLES,KEEPER_OUTFITS,KEEPER_SKIN_TONES,KEEPER_OUTFIT_PALETTES} from './dragon-keeper-looks.js';
+document.querySelector('[data-style-counts]').textContent=KEEPER_HAIRSTYLES.length+' hairstyles and '+KEEPER_OUTFITS.length+' outfits';
 const form=document.querySelector('#looks'),canvas=document.querySelector('#keeper');let look=sanitizeKeeperLook({...DEFAULT_LOOK,...KEEPER_OUTFIT_PALETTES.ranger,hairStyle:'curtain'}),walking=true;
 for(const [name,items]of [['hairStyle',KEEPER_HAIRSTYLES],['outfit',KEEPER_OUTFITS],['skin',KEEPER_SKIN_TONES.map(([id,name])=>({id,name}))]])form.elements[name].replaceChildren(...items.map(item=>new Option(item.name,item.id)));
 const view=createKeeperCustomizerPreview(canvas,look);function update(value={}){look=sanitizeKeeperLook({...look,...(value.outfit?KEEPER_OUTFIT_PALETTES[value.outfit]:{}),...value});for(const input of form.elements){if(!input.name)continue;if(input.type==='checkbox')input.checked=look[input.name];else input.value=look[input.name];}for(const b of document.querySelectorAll('[data-outfit]'))b.setAttribute('aria-pressed',String(b.dataset.outfit===look.outfit));document.querySelector('#outfit-description').textContent=KEEPER_OUTFITS.find(o=>o.id===look.outfit).description;view.update(look);}
