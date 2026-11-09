@@ -176,47 +176,8 @@ def dragon(adult):
  export('dragon-adult' if adult else 'dragon-baby')
 
 def keeper():
- clear();skinmat=material('KeeperSkin','#bd9071',.74);cloth=material('KeeperCloth','#71855d',.92);pants=material('KeeperTrousers','#394853',.94);hair=material('KeeperHair','#483027',.86);leather=material('KeeperLeather','#533e2d',.8);linen=material('KeeperLinen','#d6cdb8',.9);dark=material('KeeperPupil','#20322f',.2);eyes=material('KeeperEyeWhite','#eee4d4',.5);iris=material('KeeperIris','#5e6550',.28);metal=material('KeeperMetal','#b49c68',.45,.55)
- bones=[('Root',(0,0,0),(0,.25,0),None),('Hips',(0,.96,0),(0,1.12,0),'Root'),('Spine',(0,1.12,0),(0,1.57,0),'Hips'),('Head',(0,1.64,0),(0,1.97,0),'Spine')]
- for side in [-1,1]:
-  name='Left' if side<0 else 'Right';bones += [(name+'Arm',(side*.26,1.51,0),(side*.3,1.18,0),'Spine'),(name+'Forearm',(side*.3,1.18,0),(side*.31,.86,.025),name+'Arm'),(name+'Thigh',(side*.12,1.0,0),(side*.13,.55,0),'Hips'),(name+'Shin',(side*.13,.55,0),(side*.13,.08,.04),name+'Thigh')]
- arm=rig('KeeperRig',bones);segments=[(n,h,t) for n,h,t,p in bones if n!='Root']
- torso=loft('KeeperTailoredTunic',[(1.01,.235,.15,0),(1.12,.21,.14,0),(1.26,.205,.145,0),(1.43,.25,.16,0),(1.54,.265,.14,0),(1.6,.16,.115,0)],cloth);skin(torso,arm,segments,lambda n,p:n in ['Hips','Spine'])
- belt=cube('LeatherBelt',(0,1.13,0),(.435,.05,.3),leather,.015);bind(belt,arm,'Spine');buckle=cube('BeltBuckle',(0,1.13,.161),(.065,.06,.015),metal,.008);bind(buckle,arm,'Spine')
- for side in [-1,1]:
-  collar=tube('TunicCollar',[(side*.03,1.64,.08),(side*.11,1.56,.13),(side*.16,1.6,.08)],[.025,.03,.018],linen);bind(collar,arm,'Spine')
-  seam=tube('JacketSeam',[(side*.13,1.16,.13),(side*.12,1.38,.16),(side*.1,1.51,.135)],[.006]*3,linen,6);bind(seam,arm,'Spine')
- legparts=[ellipsoid('PantsWaist',(0,1.02,0),(.2,.14,.14))]
- for side in [-1,1]:legparts.append(tube('TrouserLeg',[(side*.12,.99,0),(side*.13,.73,0),(side*.13,.53,.005),(side*.13,.28,.01)],[.1,.088,.076,.065],None,16))
- trousers=fuse('KeeperTrousers',legparts,pants,.025);skin(trousers,arm,segments,lambda n,p:n=='Hips' or ('Thigh' in n or 'Shin' in n) and ((p.x<0)==n.startswith('Left')))
- for side in [-1,1]:
-  name='Left' if side<0 else 'Right'
-  sleeve=tube(name+'Sleeve',[(side*.235,1.51,0),(side*.29,1.37,0),(side*.3,1.24,0)],[.098,.083,.076],cloth,16);skin(sleeve,arm,segments,lambda n,p:n in [name+'Arm',name+'Forearm'])
-  parts=[tube('Forearm',[(side*.3,1.24,0),(side*.31,1.04,.01),(side*.31,.9,.02)],[.063,.054,.043],None),ellipsoid('Palm',(side*.31,.86,.025),(.045,.075,.025))]
-  for i in range(4):parts.append(tube('Finger',[(side*.31+(i-1.5)*.02,.81,.026),(side*.31+(i-1.5)*.02,.75+(i%3)*.009,.04)],[.011,.007],None,8))
-  parts.append(tube('Thumb',[(side*.31-side*.035,.88,.04),(side*.31-side*.059,.82,.048)],[.016,.01],None,8));hand=fuse(name+'Hand',parts,skinmat,.012);bind(hand,arm,name+'Forearm')
-  boot=fuse(name+'Boot',[tube('BootShaft',[(side*.13,.34,.01),(side*.13,.1,.03)],[.078,.071],None),ellipsoid('BootToe',(side*.13,.07,.105),(.087,.065,.17))],leather,.018);bind(boot,arm,name+'Shin')
-  sole=cube('BootSole',(side*.13,.025,.1),(.175,.035,.3),leather,.025);bind(sole,arm,name+'Shin')
- head=fuse('KeeperFace',[ellipsoid('Skull',(0,1.84,0),(.145,.188,.13)),ellipsoid('Jaw',(0,1.735,.025),(.106,.08,.098)),ellipsoid('Nose',(0,1.82,.137),(.024,.04,.033)),ellipsoid('EarL',(-.145,1.83,0),(.025,.04,.025)),ellipsoid('EarR',(.145,1.83,0),(.025,.04,.025)),tube('Neck',[(0,1.58,0),(0,1.74,0)],[.065,.062],None)],skinmat,.012);bind(head,arm,'Head')
- for side in [-1,1]:
-  eye=ellipsoid('KeeperEye',(side*.054,1.866,.119),(.034,.018,.012),eyes);bind(eye,arm,'Head');eye=ellipsoid('KeeperIris',(side*.054,1.866,.132),(.012,.014,.004),iris);bind(eye,arm,'Head');eye=ellipsoid('KeeperPupil',(side*.054,1.866,.136),(.006,.01,.002),dark);bind(eye,arm,'Head');brow=tube('KeeperBrow',[(side*.025,1.901,.117),(side*.054,1.907,.124),(side*.085,1.899,.108)],[.006,.008,.004],hair,8);bind(brow,arm,'Head')
- lip=tube('KeeperSmile',[(-.034,1.767,.11),(0,1.759,.119),(.034,1.767,.11)],[.003,.004,.003],material('KeeperLips','#9c6654',.8),8);bind(lip,arm,'Head')
- for style in ['Short','Long','Curly']:
-  parts=[ellipsoid('HairBase',(0,1.93,-.018),(.15,.116,.135))]
-  for i in range(6):parts.append(ellipsoid('SweptLock',(-.11+i*.043,1.976+math.sin(i*.5)*.03,.067),(.06,.046,.079)))
-  if style=='Long':parts += [ellipsoid('HairBack',(0,1.79,-.09),(.15,.23,.075)),ellipsoid('HairSideL',(-.135,1.81,-.015),(.044,.18,.065)),ellipsoid('HairSideR',(.135,1.81,-.015),(.044,.18,.065))]
-  if style=='Curly':
-   for i in range(24):
-    a=i*2.399;parts.append(ellipsoid('Curl',(math.sin(a)*.12,1.965+(i%3)*.018,math.cos(a)*.1),(.046,.046,.046)))
-  h=fuse('KeeperHair'+style,parts,hair,.015);bind(h,arm,'Head')
- # Thin metal frames follow the head bone and can be hidden in the customizer.
- parts=[]
- for side in [-1,1]:
-  pts=[(side*.055+math.cos(i*math.tau/20)*.043,1.867+math.sin(i*math.tau/20)*.029,.147) for i in range(21)];parts.append(tube('LensRim',pts,[.004]*len(pts),metal,6))
- parts.append(tube('Bridge',[(-.015,1.872,.147),(0,1.879,.151),(.015,1.872,.147)],[.003]*3,metal,6));bpy.ops.object.select_all(action='DESELECT')
- for o in parts:o.select_set(True)
- bpy.context.view_layer.objects.active=parts[0];bpy.ops.object.join();g=bpy.context.object;g.name='KeeperGlasses';bind(g,arm,'Head')
- export('keeper')
+ import runpy
+ runpy.run_path(os.path.join(os.path.dirname(__file__),'build-dragon-keeper.py'),init_globals=globals())['build_keeper']()
 
 def cottage():
  clear();plaster=material('LimePlaster','#e0cfad',.93);wood=material('CottageOak','#69462d',.86);stone=material('CottageStone','#a69b85',.94);roof=material('CottageSlate','#9db5cf',.84);gold=material('Brass','#b7934d',.35,.6);green=material('CottageLeaves','#4d733a',.9);purple=material('WisteriaFlowers','#9c70c3',.88);pink=material('GardenPink','#d18b9b',.9);cream=material('FlowerCenters','#f3dca0',.9)
@@ -379,6 +340,6 @@ def tree():
  green.use_backface_culling=False
  export('forest-tree')
 
-jobs=[cottage] if '--only-cottage' in sys.argv else [keeper,lambda:dragon(False),lambda:dragon(True),cottage,room,tree]
+jobs=[keeper] if '--only-keeper' in sys.argv else [cottage] if '--only-cottage' in sys.argv else [keeper,lambda:dragon(False),lambda:dragon(True),cottage,room,tree]
 for job in jobs:job()
 print('All original Dragon Adventures art assets rebuilt.',flush=True)

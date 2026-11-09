@@ -1,3 +1,4 @@
+import {KEEPER_HAIRSTYLES,KEEPER_OUTFITS} from './dragon-keeper-looks.js';
 import {nurseryDragonDay,nurseryMuzzle} from './dragon-nursery-growth.js';
 export const TRAINING_POINT={x:0,z:-35};
 export const TRAINING_STATIONS={target:{x:-3.5,z:-38,label:'Target practice'},flying:{x:0,z:-41,label:'Flying'},speed:{x:3.5,z:-38,label:'Speed'}};
@@ -7,8 +8,8 @@ export const FLIGHT_RINGS=Array.from({length:14},(_,i)=>({x:[0,-3,2,5,-2,-5,1][i
 export const SPEED_TRACK=Array.from({length:13},(_,i)=>({x:18+Math.sin(i*Math.PI/6)*18,z:-77+Math.cos(i*Math.PI/6)*32}));
 export const TARGETS=[{id:'wood',name:'Dartboard 1',x:-5,y:2,z:-47},{id:'shield',name:'Dartboard 2',x:0,y:3,z:-49},{id:'crystal',name:'Dartboard 3',x:5,y:2.5,z:-47},{id:'balloon',name:'Dartboard 4',x:-7,y:3.5,z:-51,moving:true},{id:'bell',name:'Dartboard 5',x:6,y:3.5,z:-53,moving:true},{id:'rings',name:'Dartboard 6',x:1,y:4,z:-56}];
 export function nurseryTargetPosition(target,time){return {...target,x:target.x+(target.moving?Math.sin(time*1.1+target.x)*1.3:0),y:target.y+(target.moving?Math.cos(time+target.x)*.3:0)};}
-export const DEFAULT_LOOK={age:'adult',skin:'#c89b7f',hair:'#493024',shirt:'#b88045',trousers:'#344859',hairStyle:'short',glasses:false};
-export function sanitizeKeeperLook(value={}){const out={...DEFAULT_LOOK};for(const key of ['skin','hair','shirt','trousers'])if(/^#[0-9a-f]{6}$/i.test(value?.[key]||''))out[key]=value[key];if(['short','long','curly'].includes(value?.hairStyle))out.hairStyle=value.hairStyle;out.age=value?.age==='kid'?'kid':'adult';out.glasses=value?.glasses===true;return out;}
+export const DEFAULT_LOOK={age:'adult',skin:'#c89b7f',hair:'#493024',shirt:'#b88045',trousers:'#344859',hairStyle:'short',outfit:'ranger',accent:'#d9bd7d',eyes:'#6d8262',glasses:false};
+export function sanitizeKeeperLook(value={}){const out={...DEFAULT_LOOK};for(const key of ['skin','hair','shirt','trousers','accent','eyes'])if(/^#[0-9a-f]{6}$/i.test(value?.[key]||''))out[key]=value[key];if(KEEPER_HAIRSTYLES.some(h=>h.id===value?.hairStyle))out.hairStyle=value.hairStyle;if(KEEPER_OUTFITS.some(o=>o.id===value?.outfit))out.outfit=value.outfit;out.age=value?.age==='kid'?'kid':'adult';out.glasses=value?.glasses===true;return out;}
 export function nurseryMorningTasks(s){if(!s.egg)return [];return s.hatched?[{id:'wash',label:'Bathe dragon'},{id:'feed',label:'Feed dragon'},{id:'walk',label:'Walk dragon'},{id:'pet',label:'Play with dragon'},{id:'teeth',label:'Brush dragon teeth'},{id:'training',label:'Dragon training'}].map(t=>({...t,done:t.id==='training'?s.care.some(c=>c.startsWith('training:')):s.care.includes(t.id)})):[{id:'warm',label:'Warm the egg',done:s.care.includes('warm')},{id:'turn',label:'Turn the egg',done:s.care.includes('turn')},{id:'sing',label:'Sing to the egg',done:s.care.includes('sing')}];}
 export function nurseryFlightRings(s){return nurseryDragonDay(s)<7?FLIGHT_RINGS.slice(0,5).map((p,i)=>({...p,y:.85+(i%2)*.25,z:-43-i*5,x:[0,-1,1,-1,0][i]})):FLIGHT_RINGS;}
 export function nurseryTrainingSpeed(s,kind,input=0){const baby=nurseryDragonDay(s)<7;return kind==='flying'?(baby?3:11):input>0?(baby?6:15):input<0?(baby?2:6):(baby?4:11);}
