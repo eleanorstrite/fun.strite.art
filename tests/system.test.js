@@ -53,10 +53,10 @@ test('premium looks require purchases and remain selectable after exporting and 
   const copy=createSystem(memory());copy.importSave(system.exportSave());assert.deepEqual(copy.snapshot(),system.snapshot());assert.throws(()=>copy.buy('ice-dragons'));assert.equal(copy.snapshot().coins,1050);
 });
 
-test('speed and magnet cost five hundred coins and eliminator costs one thousand',()=>{
+test('speed and magnet cost five hundred coins and eliminator costs six hundred',()=>{
   assert.equal(UPGRADES.find(item=>item.id==='boots').cost,500);
   assert.equal(UPGRADES.find(item=>item.id==='magnet').cost,500);
-  assert.equal(UPGRADES.find(item=>item.id==='eliminator').cost,1000);
+  assert.equal(UPGRADES.find(item=>item.id==='eliminator').cost,600);
 });
 test('robot outfits and mixed accessories survive reload and export without changing knight settings',()=>{
   const storage=memory(),system=createSystem(storage),before=system.snapshot().character;
@@ -69,9 +69,9 @@ test('old saves get a classic robot and invalid wardrobe data cannot overwrite a
   const system=createSystem(memory()),before=system.snapshot();for(const robot of [null,[],{outfit:'unknown'},{hat:'unknown'},{color:'red'},{glasses:'yes'}])assert.throws(()=>system.setCharacter({...before.character,robot}));assert.deepEqual(system.snapshot(),before);
 });
 
-test('dragon eliminators cost a thousand coins, share the bag, and persist until consumed',()=>{
+test('dragon eliminators cost six hundred coins, share the bag, and persist until consumed',()=>{
  const storage=memory(),system=createSystem(storage);system.beginSession('test').finish(4000);
- system.buy('eliminator');assert.equal(system.snapshot().coins,3000);
+ system.buy('eliminator');assert.equal(system.snapshot().coins,3400);
  system.buy('boots');system.buy('magnet');assert.throws(()=>system.buy('eliminator'));
  assert.equal(createSystem(storage).snapshot().boosts.eliminator,1);
  const restored=createSystem(memory());restored.importSave(system.exportSave());
@@ -91,11 +91,11 @@ test('current maze level persists and older saves start at the first level',()=>
  assert.equal(system.snapshot().mazeLevel,2);
 });
 
-test('Snack Attack costs 1000 per use, saves separately from the knight bag, and never becomes owned',()=>{
+test('Snack Attack costs 600 per use, saves separately from the knight bag, and never becomes owned',()=>{
  const data=new Map(),storage={getItem:k=>data.get(k),setItem:(k,v)=>data.set(k,v)};
  const system=createSystem(storage);system.beginSession('test').finish(5000);
  system.buy('boots');system.buy('boots');system.buy('boots');
- system.buy('snack');system.buy('snack');assert.equal(system.snapshot().coins,1500);
+ system.buy('snack');system.buy('snack');assert.equal(system.snapshot().coins,2300);
  assert.equal(system.snapshot().boosts.snack,2);assert.equal(system.snapshot().upgrades.includes('snack'),false);
  const restored=createSystem(storage);assert.equal(restored.consumeBoost('snack'),true);assert.equal(restored.snapshot().boosts.snack,1);
  restored.buy('snack');assert.equal(restored.snapshot().boosts.snack,2);
@@ -150,11 +150,11 @@ test('stacking high scores persist independently from capped coin rewards',()=>{
 });
 
 test('entering the wallet password again disables unlimited coins and restores normal spending',async()=>{
- const storage=memory(),system=createSystem(storage);system.beginSession('test').finish(1200);
- await system.unlockWallet('TestFirst','TestSecond');system.buy('snack');assert.equal(system.snapshot().coins,1200);
+ const storage=memory(),system=createSystem(storage);system.beginSession('test').finish(800);
+ await system.unlockWallet('TestFirst','TestSecond');system.buy('snack');assert.equal(system.snapshot().coins,800);
  assert.equal(await system.unlockWallet('wrong'),false);assert.equal(system.snapshot().unlimitedCoins,true);
  assert.equal(await system.unlockWallet('TestFirst','TestSecond'),true);assert.equal(system.snapshot().unlimitedCoins,false);
- const restored=createSystem(storage);assert.equal(restored.snapshot().unlimitedCoins,false);assert.equal(restored.snapshot().coins,1200);
+ const restored=createSystem(storage);assert.equal(restored.snapshot().unlimitedCoins,false);assert.equal(restored.snapshot().coins,800);
  restored.buy('snack');assert.equal(restored.snapshot().coins,200);assert.throws(()=>restored.buy('snack'));
  await restored.unlockWallet('TestFirst','TestSecond');assert.equal(restored.snapshot().unlimitedCoins,true);restored.buy('snack');assert.equal(restored.snapshot().coins,200);
 });
