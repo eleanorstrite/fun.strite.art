@@ -1,4 +1,7 @@
-export function nurseryHouseContact(s){if(s.sleep||s.training||s.riding||s.activity)return null;const {x,z}=s.player;if(!s.inside)return Math.abs(x)<.9&&z< -2.72&&z> -4.4?'house':null;if(z>3.85&&Math.abs(x)<1.05)return 'exit';if(x< -1.52&&x> -4.5&&z<-.2&&z> -4.1)return 'sleep';if(x>2.75&&x<5.5&&z< -1.9&&z> -4.3)return 'teeth';if(x>3.5&&x<5.6&&z>.25&&z<2.85)return 'food';return null;}
+export const NURSERY_DRESSER={x:-3.7,z:2};
+export function nurseryHouseContact(s){if(s.sleep||s.training||s.riding||s.activity)return null;const {x,z}=s.player;if(!s.inside)return Math.abs(x)<.9&&z< -2.72&&z> -4.4?'house':null;if(z>3.85&&Math.abs(x)<1.05)return 'exit';if(x< -3.1&&x> -5.5&&z>.8&&z<3.4)return 'dresser';if(x< -1.52&&x> -4.5&&z<-.2&&z> -4.1)return 'sleep';if(x>2.75&&x<5.5&&z< -1.9&&z> -4.3)return 'teeth';if(x>3.5&&x<5.6&&z>.25&&z<2.85)return 'food';return null;}
 // Keep a contact latched until the person has clearly stepped away from its edge.
-export function hasLeftNurseryContact(s,id){const {x,z}=s.player;if(id==='teeth')return !s.inside||x<2.35||z> -1.65;if(id==='food')return !s.inside||x<3.05||z<-.15||z>3.25;if(id==='sleep')return !s.inside||x> -1.1||z>.2||z< -4.4;return true;}
+export function hasLeftNurseryContact(s,id){const {x,z}=s.player;if(id==='dresser')return !s.inside||x> -2.65||z<.35||z>3.8;if(id==='teeth')return !s.inside||x<2.35||z> -1.65;if(id==='food')return !s.inside||x<3.05||z<-.15||z>3.25;if(id==='sleep')return !s.inside||x> -1.1||z>.2||z< -4.4;return true;}
 export function nurseryHouseApproach(player){const door={x:0,z:-2.6,action:'house'};if(player.z>=-3)return [door];const side=player.x<0?-12:12;return [{x:side,z:-12},{x:side,z:0},door];}
+
+export function nurseryDresserApproach(player){return [...(player.z<.8?[{x:0,z:1.2}]:[]),{...NURSERY_DRESSER,action:'dresser'}];}

@@ -1,3 +1,4 @@
+import {createNurseryDresser} from './dragon-nursery-dresser.js';
 import {NURSERY_MENTOR} from './dragon-nursery-guide.js';
 import {createNurseryDailyScene} from './dragon-nursery-daily-scene.js';
 import {mergeGeometries} from './vendor/three/addons/utils/BufferGeometryUtils.js';
@@ -41,6 +42,7 @@ export function createNurseryScene(original){
  target(box(room,0,1,4.8,1.7,2,.12,invisible),'exit',0,3.5);
  target(box(room,4,1.4,-3.2,1.35,.07,.8,invisible),'teeth',4,-2.2);
  target(box(room,4.6,1.28,1.8,1.55,2.48,.1,invisible),'food',4.4,2.7);
+ createNurseryDresser(room,kit);target(box(room,-4.85,1.35,2,1.1,2.7,2.2,invisible),'dresser',-3.7,2);
  const runningWater=mesh(room,geo('sink-water',()=>new T.CylinderGeometry(.023,.04,.35,12)),new T.MeshStandardMaterial({color:'#85c9df',transparent:true,opacity:.7,roughness:.15}),4.5,1.57,-3.9);
  const trainingGround=createNurseryTrainingGround(world,kit);targets.push(...trainingGround.stations);
  const keeper=nurseryKeeper(scene,kit),mentor=nurseryKeeper(world,kit,{shirt:'#72846c',hair:'#342a24',skin:'#a4775b',glasses:true},{fixed:true});mentor.group.position.set(NURSERY_MENTOR.x,0,NURSERY_MENTOR.z);mentor.group.rotation.y=.9;const dragon=nurseryDragon(scene,kit);
