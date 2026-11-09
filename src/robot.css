@@ -41,3 +41,9 @@
 @keyframes robot-dance-arm-right{0%,100%{transform:rotate(-12deg)}25%{transform:rotate(-20deg)}55%{transform:rotate(-75deg)}80%{transform:rotate(-30deg)}}
 @keyframes robot-blink{0%,43%,47%,94%,98%,100%{transform:translateY(-1px) scaleY(1)}45%,96%{transform:translateY(-1px) scaleY(.12)}}
 @media(prefers-reduced-motion:reduce){.hero-avatar,.hero-avatar .robot-arm,.avatar .head i{animation:none}.hero-avatar{transform:rotate(-4deg) scale(1.2)}}
+
+/* The floating hero coins are a repeatable wallet bonus. */
+.hero-art button.floating-coin{z-index:3;width:48px;height:48px;padding:0;touch-action:manipulation;transition:filter .15s,box-shadow .15s}
+.hero-art button.floating-coin.c2{transform:rotate(15deg)}
+.hero-art button.floating-coin:hover{filter:brightness(1.12);box-shadow:4px 2px #c99b3c,0 0 18px #f5cf77}
+.hero-art button.floating-coin:active{filter:brightness(1.25)}

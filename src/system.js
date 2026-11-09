@@ -148,6 +148,7 @@ export function createSystem(storage, onStorageError = () => {}, checkWalletPass
   }
   return {
     snapshot,
+    claimHeroCoins() { state.coins=Math.min(1000000000,state.coins+100);persist(); },
     async unlockWallet(password,secondPassword,isCurrent=()=>true) {
       const valid=await checkWalletPassword(password,1)&&await checkWalletPassword(secondPassword,2);
       if(!valid||!isCurrent())return false;

@@ -27,6 +27,7 @@ const sourceSystem=sharedSystem||createSystem(storage,()=>notify('Browser saving
 const pageSubscriptions=new Set();
 const system={...sourceSystem,subscribe(listener){const off=sourceSystem.subscribe(listener);pageSubscriptions.add(off);return ()=>{off();pageSubscriptions.delete(off);};}};
 window.__sidequestSystem=sourceSystem;
+for(const coin of document.querySelectorAll('[data-hero-coin]'))coin.addEventListener('click',()=>{system.claimHeroCoins();notify('+100 coins!');});
 let selectedColor=system.snapshot().character.color,filter='all',engine=null,session=null,currentGame=null,running=false,paused=false;
 const dialog=$('#game-dialog');
 let mazeView='2d';

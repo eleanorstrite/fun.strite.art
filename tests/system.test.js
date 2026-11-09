@@ -238,3 +238,11 @@ test('butterfly outfits cost 50 shared coins and persist as separate unlocks',()
  assert.equal(system.snapshot().coins,0);
  assert.ok(items.every(item=>createSystem(storage).snapshot().upgrades.includes(item.id)));
 });
+
+test('hero coin taps add 100 each, persist, and can be spent without creating game results',()=>{
+ const storage=memory(),system=createSystem(storage);let updates=0;system.subscribe(()=>updates++);
+ for(let i=1;i<=6;i++){system.claimHeroCoins();assert.equal(system.snapshot().coins,i*100);}
+ assert.equal(updates,6);const restored=createSystem(storage);assert.equal(restored.snapshot().coins,600);assert.deepEqual(restored.snapshot().stats,{});
+ restored.buy('dragon-race');assert.equal(restored.snapshot().coins,0);assert.equal(restored.snapshot().sideQuests.dragonRace,1);
+ restored.importSave(JSON.stringify({...freshSave(),coins:999999950}));restored.claimHeroCoins();restored.claimHeroCoins();assert.equal(restored.snapshot().coins,1000000000);assert.equal(createSystem(storage).snapshot().coins,1000000000);
+});
