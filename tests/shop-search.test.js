@@ -26,5 +26,7 @@ test('search supports partial game names, aliases, and combined game and item wo
  assert.deepEqual(ids('Galaxy milkshake'),['city-galaxy-shake']);assert.ok(ids('background').includes('air-aurora'));assert.ok(ids('background').includes('forest-background'));
 });
 test('games without shop items and unmatched text return an empty result safely',()=>{
- for(const query of ['Dragon Adventures','Dragon Memory','Tag','Stack the Hamburger','unknown game','<script>alert(1)</script>'])assert.deepEqual(ids(query),[],query);
+ for(const query of ['Dragon Memory','Tag','Stack the Hamburger','unknown game','<script>alert(1)</script>'])assert.deepEqual(ids(query),[],query);
 });
+
+test('Dragon Adventures search finds its sky-race side quest without unrelated dragon items',()=>{assert.deepEqual(ids('Dragon Adventures'),['dragon-race']);assert.deepEqual(ids('sky race'),['dragon-race']);});

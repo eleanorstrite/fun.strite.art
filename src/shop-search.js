@@ -21,6 +21,7 @@ const KNIGHT_ITEMS=new Set(['boots','magnet','eliminator','ward','frost','emeral
 export function shopItemGame(item){
  if(KNIGHT_ITEMS.has(item.id))return 'knights-and-dragons';
  for(const [prefix,game]of [['jump-','platform-jump'],['wizard-','wizard-tetris'],['sports-','animal-sports'],['ice-','ice-cream'],['city-','city-builder'],['air-','hoop-flight'],['flight-','flappy-animals']])if(item.id.startsWith(prefix))return game;
+ if(item.id==='dragon-race')return 'dragon-adventures';
  if(item.id==='snack')return 'the-raven';
  if(['aurora-background','forest-background'].includes(item.id))return 'website';
  return null;

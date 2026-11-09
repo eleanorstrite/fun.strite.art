@@ -56,6 +56,7 @@ export const UPGRADES = [
   {id:'frost',name:'Frost spell',group:'gameplay',category:'KNIGHTS AND DRAGONS ONLY',icon:'❄️',cost:700,description:'One use: slow every dragon to half speed for 15 seconds. Activate above the maze. Uses one slot in your three-boost bag.'},
   ...['sapphire','sunset'].map(id=>({id:ARMORS[id].upgrade,name:ARMORS[id].name+' armor',group:'appearance',category:'KNIGHTS AND DRAGONS ARMOR',icon:'♜',cost:250,description:'Permanently unlock this armor color in the knight customizer. Appearance only; works in 2D and 3D.'})),
   ...['forest','neon'].map(id=>({id:DRAGON_STYLES[id].upgrade,name:DRAGON_STYLES[id].name,group:'appearance',category:'KNIGHTS AND DRAGONS LOOK',icon:'🐲',cost:200,description:'Permanently unlock this dragon color collection in the knight customizer. Appearance only; works in 2D and 3D.'})),
+  {id:'dragon-race',name:'Dragon Sky Race Pass',group:'gameplay',sideQuest:true,category:'DRAGON ADVENTURES SIDE QUEST',icon:'🐉',cost:1000,description:'One sky race against four computer riders. Big energy hoops, a golden trail, two elemental attacks and a winners’ podium. Use your pass from Gameplay in Dragon Adventures. Buy again for another race.'},
   {id:'snack',name:'Snack Attack',group:'gameplay',category:'THE RAVEN ONLY',icon:'🍿',cost:1000,description:'One use in The Raven: the youngest girl throws sandwiches and candy from the window, clearing obstacles for 5 seconds. Activate the snack button above the course. Buy again for another use.'},
   ...ICE_SHOP_ITEMS,
   ...CITY_FOOD_UNLOCKS,
@@ -82,7 +83,7 @@ export async function verifyWalletPassword(password,step=1) {
   const key=Array.from(new Uint8Array(digest),byte=>byte.toString(16).padStart(2,'0')).join('');
   return key===["cd0299854a830cfdbcfb7d6887ddb636c09496099c873f6ce5496aec9c3f044a","b5259d596f2cfb78e33b1d8851b575151635d7cb14f68b265ca80e027ab8f542"][step-1];
 }
-export function freshSave() { return { version: 1, mazeLevel:0, ravenLevel:'easy', coins: 0, unlimitedCoins: false, character: { name: 'Pip', color: COLORS[0], style: 'antenna', ...KNIGHT_DEFAULTS, robot:{...ROBOT_DEFAULTS}, flight:{...FLIGHT_DEFAULTS},plane:{...PLANE_DEFAULTS} }, upgrades: [], boosts: {boots:0,magnet:0,eliminator:0,ward:0,frost:0,snack:0}, stats: {} }; }
+export function freshSave() { return { version: 1, mazeLevel:0, ravenLevel:'easy', coins: 0, unlimitedCoins: false, character: { name: 'Pip', color: COLORS[0], style: 'antenna', ...KNIGHT_DEFAULTS, robot:{...ROBOT_DEFAULTS}, flight:{...FLIGHT_DEFAULTS},plane:{...PLANE_DEFAULTS} }, upgrades: [], sideQuests:{dragonRace:0}, boosts: {boots:0,magnet:0,eliminator:0,ward:0,frost:0,snack:0}, stats: {} }; }
 export function validateSave(data) {
   if(data?.unlimitedCoins!==undefined&&typeof data.unlimitedCoins!=='boolean')throw Error('Invalid wallet setting.');
   const ravenLevel=data?.ravenLevel??'easy';
@@ -112,6 +113,7 @@ export function validateSave(data) {
   const flight=validateFlightSettings(data.character.flight);
   const flightUpgrade=FLIGHT_BACKGROUNDS[flight.background].upgrade;
   if(flightUpgrade&&!data.upgrades.includes(flightUpgrade))throw new Error('Buy this Flappy Animals background in the shop first.');
+  const sideQuests=data.sideQuests??{dragonRace:0};if(!sideQuests||Array.isArray(sideQuests)||!validInt(sideQuests.dragonRace))throw Error('Invalid Dragon Sky Race inventory.');
   const boosts = data.boosts === undefined
     ? {boots:Number(data.upgrades.includes('boots')),magnet:Number(data.upgrades.includes('magnet'))}
     : data.boosts;
@@ -128,7 +130,7 @@ export function validateSave(data) {
     if(stat.bestTimeMs!==undefined&&(!validInt(stat.bestTimeMs)||stat.bestTimeMs===0))throw Error('Invalid best race time.');
     Object.defineProperty(stats, id, { value: { plays: stat.plays, best: stat.best,...(stat.bestScore===undefined?{}:{bestScore:stat.bestScore}),...(stat.bestTimeMs===undefined?{}:{bestTimeMs:stat.bestTimeMs}) }, enumerable: true, writable: true, configurable: true });
   }
-  return { version: 1, mazeLevel, ravenLevel, unlimitedCoins: data.unlimitedCoins===true, coins: Math.min(1000000000,data.coins+(data.upgrades.includes('garden')?60:0)+(data.upgrades.includes('flight-sunset')?200:0)), character: { name: data.character.name.trim(), color: data.character.color, style: data.character.style, ...look, flight, plane:{color:plane.color,style:plane.style,difficulty:planeDifficulty,background:planeBackground,hat,scarf,accessoryColor}, robot:{outfit:robot.outfit,hat:robot.hat,color:robot.color,glasses:robot.glasses,headphones:robot.headphones,backpack:robot.backpack} }, upgrades: [...new Set(data.upgrades.filter(id=>!['garden','flight-sunset',...MAZE_BOOST_IDS,'snack'].includes(id)))], boosts:{boots:boosts.boots,magnet:boosts.magnet,eliminator,ward,frost,snack}, stats };
+  return { version: 1, mazeLevel, ravenLevel, unlimitedCoins: data.unlimitedCoins===true, coins: Math.min(1000000000,data.coins+(data.upgrades.includes('garden')?60:0)+(data.upgrades.includes('flight-sunset')?200:0)), character: { name: data.character.name.trim(), color: data.character.color, style: data.character.style, ...look, flight, plane:{color:plane.color,style:plane.style,difficulty:planeDifficulty,background:planeBackground,hat,scarf,accessoryColor}, robot:{outfit:robot.outfit,hat:robot.hat,color:robot.color,glasses:robot.glasses,headphones:robot.headphones,backpack:robot.backpack} }, upgrades: [...new Set(data.upgrades.filter(id=>!['garden','flight-sunset',...MAZE_BOOST_IDS,'snack'].includes(id)))], sideQuests:{dragonRace:sideQuests.dragonRace}, boosts:{boots:boosts.boots,magnet:boosts.magnet,eliminator,ward,frost,snack}, stats };
 }
 export function createSystem(storage, onStorageError = () => {}, checkWalletPassword = verifyWalletPassword) {
   let state = freshSave();
@@ -159,10 +161,10 @@ export function createSystem(storage, onStorageError = () => {}, checkWalletPass
     buy(id) {
       const item = UPGRADES.find(u => u.id === id);
       if (!item || state.upgrades.includes(id)) throw new Error('This upgrade is already yours.');
-      if(item.group==='gameplay' && id!=='snack' && mazeBagCount(state.boosts)>=3)throw new Error('Boost bag full! Use a boost before buying more.');
+      if(item.group==='gameplay' && id!=='snack' && id!=='dragon-race' && mazeBagCount(state.boosts)>=3)throw new Error('Boost bag full! Use a boost before buying more.');
       if (!state.unlimitedCoins && state.coins < item.cost) throw new Error('Play an adventure to earn more coins.');
       if(!state.unlimitedCoins)state.coins -= item.cost;
-      if(item.group==='gameplay')state.boosts[id]++;else state.upgrades.push(id);
+      if(id==='dragon-race')state.sideQuests.dragonRace++;else if(item.group==='gameplay')state.boosts[id]++;else state.upgrades.push(id);
       persist();
     },
     buyCityFood(kind) {
@@ -173,6 +175,7 @@ export function createSystem(storage, onStorageError = () => {}, checkWalletPass
       if(!state.unlimitedCoins)state.coins-=food.price;
       persist();return {kind,price:food.price};
     },
+    consumeDragonRacePass(){if(state.sideQuests.dragonRace<1)return false;state.sideQuests.dragonRace--;persist();return true;},
     consumeBoost(id) {
       if(![...MAZE_BOOST_IDS,'snack'].includes(id) || state.boosts[id]<1)return false;
       state.boosts[id]--;persist();return true;
