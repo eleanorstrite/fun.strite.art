@@ -17,3 +17,14 @@ test('expanded keeper choices persist, old appearances migrate, and unknown styl
 test('fixed-look race riders retain only their chosen wardrobe without changing their appearance or skeleton',async()=>{const person=nurseryKeeper(new T.Scene(),{loadModel},{outfit:'starlight',hairStyle:'wavy'},{fixed:true});await person.ready;assert.ok(person.group.getObjectByName(keeperOutfitNode('starlight')));assert.ok(person.group.getObjectByName(keeperHairNode('wavy')));assert.equal(KEEPER_OUTFITS.filter(o=>person.group.getObjectByName(keeperOutfitNode(o.id))).length,1);assert.equal(KEEPER_HAIRSTYLES.filter(h=>person.group.getObjectByName(keeperHairNode(h.id))).length,1);person.animate(0,true,true);person.dispose();});
 
 test('a tired keeper has visible half-closed eyelids and wakes up without keeping the sleepy pose',async()=>{const person=nurseryKeeper(new T.Scene(),{loadModel},{});await person.ready;person.animate(1,false,false,{sleepy:true});for(const side of ['Left','Right']){const lid=person.group.getObjectByName('KeeperBlink'+side);assert.equal(lid.visible,true);assert.equal(lid.morphTargetInfluences[0],1);assert.ok(lid.geometry.morphAttributes.position[0]);}person.animate(1.1,false,false,{sleepy:false});for(const side of ['Left','Right'])assert.equal(person.group.getObjectByName('KeeperBlink'+side).visible,false);person.dispose();});
+
+test('the keeper face has outward-facing geometry and clothes, hair and eyes retain distinct physical surfaces',async()=>{
+ const person=nurseryKeeper(new T.Scene(),{loadModel},{});await person.ready;
+ const face=person.group.getObjectByName('KeeperFace');assert.ok(face?.isSkinnedMesh);
+ const positions=face.geometry.attributes.position,index=face.geometry.index;let volume=0;
+ for(let i=0;i<(index?.count??positions.count);i+=3){const vertex=n=>new T.Vector3().fromBufferAttribute(positions,index?index.getX(n):n);volume+=vertex(i).dot(vertex(i+1).cross(vertex(i+2)))/6;}
+ assert.ok(volume>0,'the closed facial surface faces outward, so cheeks and jaw receive light');
+ const surfaces=new Map();person.group.traverse(o=>{for(const m of o.material?Array.isArray(o.material)?o.material:[o.material]:[])surfaces.set(m.name,m);});
+ assert.ok(surfaces.get('KeeperCloth').sheen>0);assert.ok(surfaces.get('KeeperHair').anisotropy>0);assert.ok(surfaces.get('KeeperIris').clearcoat>0);assert.ok(surfaces.get('KeeperLeather').roughness>surfaces.get('KeeperIris').roughness);
+ person.updateAppearance({shirt:'#265478',hair:'#372219'});assert.equal(surfaces.get('KeeperCloth').color.getHexString(),'265478');assert.equal(surfaces.get('KeeperHair').color.getHexString(),'372219');person.dispose();
+});

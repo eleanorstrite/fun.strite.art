@@ -36,7 +36,7 @@ def build_keeper():
     t=j/steps;out.append(tuple(.5*((2*b)+(-a+c)*t+(2*a-5*b+4*c-d)*t*t+(-a+3*b-3*c+d)*t*t*t)))
   return out+[points[-1]]
  def lock(points,width=.04,depth=.018,taper=True,mat=hair):
-  pts=smooth_path(points,3 if len(points)<6 else 1);verts=[];faces=[];count=len(pts);sides=10
+  pts=smooth_path(points,4 if len(points)<6 else 1);verts=[];faces=[];count=len(pts);sides=12;depth=min(depth,.014) if mat==hair else depth
   for i,p in enumerate(pts):
    q=v(p);tangent=(v(pts[min(i+1,count-1)])-v(pts[max(0,i-1)])).normalized();axis=Vector((1,0,0))-tangent*tangent.x
    if axis.length<.05:axis=Vector((0,1,0))-tangent*tangent.y
@@ -60,15 +60,15 @@ def build_keeper():
  for i in range(len(levels)-1):
   for j in range(sides):faces.append((i*sides+j,i*sides+(j+1)%sides,(i+1)*sides+(j+1)%sides,(i+1)*sides+j))
  faces += [tuple(reversed(range(sides))),tuple((len(levels)-1)*sides+j for j in range(sides))]
- me=bpy.data.meshes.new('SculptedFace');me.from_pydata(verts,[],faces);me.update();head=bpy.data.objects.new('KeeperFace',me);bpy.context.collection.objects.link(head);finish(head,head.name,facemat)
- sub=head.modifiers.new('Soft facial contours','SUBSURF');sub.levels=1;bpy.context.view_layer.objects.active=head;bpy.ops.object.modifier_apply(modifier=sub.name);
+ me=bpy.data.meshes.new('SculptedFace');me.from_pydata(verts,[],[tuple(reversed(f)) for f in faces]);me.update();head=bpy.data.objects.new('KeeperFace',me);bpy.context.collection.objects.link(head);finish(head,head.name,facemat)
+ sub=head.modifiers.new('Soft facial contours','SUBSURF');sub.levels=2;bpy.context.view_layer.objects.active=head;bpy.ops.object.modifier_apply(modifier=sub.name);
  uv=head.data.uv_layers.new(name='FaceUV')
  for poly in head.data.polygons:
   for li in poly.loop_indices:
    co=head.data.vertices[head.data.loops[li].vertex_index].co;uv.data[li].uv=((math.atan2(-co.y,co.x)/math.tau)%1,(co.z-1.68)/.345)
  attach(head,'Head')
  attach(tube('KeeperNeck',[(0,1.57,-.005),(0,1.70,.005)],[.057,.056],skinmat,24),'Head')
- nose=fuse('KeeperNose',[ellipsoid('NoseBridge',(0,1.84,.118),(.014,.042,.018)),ellipsoid('NoseTip',(0,1.803,.135),(.019,.013,.018)),ellipsoid('NoseWingL',(-.017,1.798,.131),(.012,.009,.013)),ellipsoid('NoseWingR',(.017,1.798,.131),(.012,.009,.013))],skinmat,.005);attach(nose,'Head')
+ nose=fuse('KeeperNose',[ellipsoid('NoseBridge',(0,1.84,.118),(.012,.037,.016)),ellipsoid('NoseTip',(0,1.803,.135),(.016,.012,.015)),ellipsoid('NoseWingL',(-.017,1.798,.131),(.010,.008,.011)),ellipsoid('NoseWingR',(.017,1.798,.131),(.010,.008,.011))],skinmat,.005);attach(nose,'Head')
  for side in [-1,1]:
   attach(ellipsoid('KeeperNostril',(side*.015,1.793,.142),(.003,.002,.003),inner),'Head')
   ear=ellipsoid('KeeperEar',(side*.137,1.841,-.007),(.025,.044,.022),skinmat);attach(ear,'Head')
@@ -193,7 +193,7 @@ def build_keeper():
      for j in range(3):parts.append(lock([(side*.14,1.94,.075),(side*.18,1.67,.12),(side*.14,1.43,.07),(side*.20,1.20,.035+j*.022)],.028,.016))
   if style=='loose-side-braid':
    parts+=fringe('curtain');parts+=flowing(.22,.013);parts+=braid(.18,1.79,.09,.68,1)
-   for j in range(3):parts.append(lock([(-.08+j*.08,2.015,.035),(-.13+j*.08,1.88,.15),(-.15+j*.10,1.72,.10)],.018,.008))
+   for side in [-1,1]:parts.append(lock([(side*.10,2.015,.035),(side*.145,1.88,.11),(side*.17,1.72,.065)],.018,.008))
    parts.append(tube('BraidRibbon',[(.22,1.11,.09),(.22,1.14,.09)],[.029,.029],accent,12))
   node='KeeperHair'+''.join(p.title() for p in style.split('-'));o=merge(node,parts);attach(o,'Head');print('HAIR',style,flush=True)
  # Skinning is kept on every wardrobe part before joining so shoulders, elbows and knees stay separate.
@@ -221,7 +221,7 @@ def build_keeper():
    name='Left' if side<0 else 'Right';mat=linen if sneaker else leather
    out.append(piece(tube('AnkleSock',[(side*.13,.39,.005),(side*.13,.12,.03)],[.059,.054],pants,20),name+'Shin'))
    out.append(piece(tube('BootShaft',[(side*.13,.32 if not sneaker else .18,.01),(side*.13,.10,.03)],[.077,.071],mat,20),name+'Shin'))
-   out.append(piece(ellipsoid('ShapedToe',(side*.13,.075,.10),(.085,.061,.157),mat),name+'Shin'));out.append(piece(cube('ShoeSole',(side*.13,.025,.09),(.17,.03,.29),sole,.019),name+'Shin'))
+   out.append(piece(ellipsoid('ShapedToe',(side*.13,.075,.10),(.078,.055,.137),mat),name+'Shin'));out.append(piece(cube('ShoeSole',(side*.13,.025,.09),(.16,.027,.26),sole,.019),name+'Shin'))
    for j in range(3):out.append(piece(tube('BootLace',[(side*.13-.035,.12-j*.009,.10+j*.027),(side*.13+.035,.12-j*.009,.10+j*.027)],[.002]*2,linen,6),name+'Shin'))
   return out
  def trim(y,width=.23,z=.155,mat=accent):return piece(tube('HemTrim',[(-width,y,z*.5),(-width*.7,y,z),(0,y,z+.007),(width*.7,y,z),(width,y,z*.5)],[.006]*5,mat,8))
@@ -232,11 +232,11 @@ def build_keeper():
   return [piece(lock([(-.09,y+.04,.17),(-.06,y+.06,.18),(0,y,.18)],.028,.012,False,accent)),piece(lock([(.09,y+.04,.17),(.06,y+.06,.18),(0,y,.18)],.028,.012,False,accent)),piece(tube('RibbonTail',[(-.006,y,.18),(-.045,y-.13,.17)],[.015,.008],accent,8)),piece(tube('RibbonTail',[(.006,y,.18),(.035,y-.13,.17)],[.015,.008],accent,8))]
  def skirt(length=.65,flared=.35,tier=False):
   hem=1.15-length;parts=[piece(loft('TailoredSkirt',[(hem,flared,.25,0),(hem+.045,flared*.98,.247,0),(1.02,.245,.165,0),(1.17,.207,.143,0)],cloth,40)),trim(hem,flared,.25)]
-  for i in range(12):
-   a=i*math.tau/12;pts=[]
-   for j in range(5):
-    u=j/4;radius=.21+(flared-.21)*u;pts.append((math.cos(a)*radius,1.12-u*(1.12-hem),math.sin(a)*(.15+(.25-.15)*u)))
-   parts.append(piece(tube('SkirtPleat',pts,[.0025]*5,accent,6)))
+  # The pleats are sculpted into the fabric, with a soft scalloped hem.
+  for vert in parts[0].data.vertices:
+   p=vert.co;u=max(0,min(1,(1.12-p.z)/(1.12-hem)));angle=math.atan2(-p.y/.25,p.x/flared)
+   fold=math.cos(angle*16)*.012*u*u;p.x*=1+fold/flared;p.y*=1+fold/.25;p.z+=math.sin(angle*16)*.003*u
+  parts[0].data.update()
   if tier:parts += [piece(loft('LayeredHem',[(hem-.025,flared*.94,.24,0),(hem+.10,flared*1.03,.26,0)],linen,40)),trim(hem+.12,flared*.96,.252)]
   return parts
  def embroidered(skirt_mesh,hem=.53,width=.35,size=1):
@@ -290,8 +290,17 @@ def build_keeper():
   for o in shell:
    for mod in list(o.modifiers):o.modifiers.remove(mod)
    o.vertex_groups.clear();o.parent=None
-  fabric=fuse('ContinuousTailoredFabric',shell,cloth,.012)
-  dec=fabric.modifiers.new('Game-ready fabric','DECIMATE');dec.ratio=.30;bpy.context.view_layer.objects.active=fabric;bpy.ops.object.modifier_apply(modifier=dec.name)
+  fabric=fuse('ContinuousTailoredFabric',shell,cloth,.009)
+  dec=fabric.modifiers.new('Game-ready fabric','DECIMATE');dec.ratio=.40;bpy.context.view_layer.objects.active=fabric;bpy.ops.object.modifier_apply(modifier=dec.name)
+  # Low-amplitude gathered folds give the cloth a draped silhouette, not a rigid tube.
+  for vert in fabric.data.vertices:
+   p=vert.co;x,y,z=p.x,p.z,-p.y
+   if abs(x)<.23:
+    angle=math.atan2(z,x);amount=.0035*(math.exp(-((y-1.10)/.09)**2)+.65*math.exp(-((y-1.36)/.17)**2))
+    fold=math.sin(angle*9+y*16)*amount;p.x+=math.cos(angle)*fold;p.y-=math.sin(angle)*fold
+   elif y<1.38:
+    fold=math.sin(y*64+x*9)*.0025;p.x+=fold;p.y+=fold*.6
+  fabric.data.update()
   def fabric_region(n,p):
    x,y=p.x,p.z
    if abs(x)>.228 and y<1.55:return n in [('Left' if x<0 else 'Right')+'Arm',('Left' if x<0 else 'Right')+'Forearm']
