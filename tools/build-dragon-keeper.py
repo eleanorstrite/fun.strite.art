@@ -49,13 +49,18 @@ def build_keeper():
   me=bpy.data.meshes.new('SculptedStrand');me.from_pydata(verts,[],faces);me.update();o=bpy.data.objects.new('SculptedStrand',me);bpy.context.collection.objects.link(o);return finish(o,o.name,mat)
  # A continuous cheek, jaw and forehead surface; the eye sockets are recessed into it.
  levels=[(1.68,.043,.049,.028),(1.70,.071,.066,.025),(1.73,.094,.08,.018),(1.77,.111,.10,.009),(1.81,.127,.111,0),(1.85,.134,.117,-.003),(1.89,.137,.118,-.005),(1.93,.139,.116,-.009),(1.97,.121,.105,-.014),(2.005,.083,.077,-.019),(2.025,.006,.006,-.02)]
- verts=[];faces=[];sides=48
+ levels=smooth_path(levels,5)
+ verts=[];faces=[];sides=80
  for y,rx,rz,offset in levels:
   for j in range(sides):
    a=j*math.tau/sides;x=math.cos(a)*rx;z=math.sin(a)*rz+offset
    if math.sin(a)>0:
     socket=sum(math.exp(-((x-s*.058)/.031)**2-((y-1.868)/.025)**2) for s in [-1,1]);z-=socket*.009
-    z+=.008*math.exp(-((y-1.815)/.026)**2)*math.exp(-((abs(x)-.075)/.039)**2)
+    z+=.009*math.exp(-((y-1.815)/.030)**2)*math.exp(-((abs(x)-.075)/.039)**2)
+    # The bridge, tip and wings are part of the facial surface, not attached primitives.
+    z+=.017*math.exp(-(x/.015)**2-((y-1.845)/.045)**2)
+    z+=.030*math.exp(-(x/.022)**2-((y-1.802)/.018)**2)
+    z+=.007*math.exp(-((abs(x)-.021)/.011)**2-((y-1.798)/.011)**2)
    verts.append(tuple(v((x,y,z))))
  for i in range(len(levels)-1):
   for j in range(sides):faces.append((i*sides+j,i*sides+(j+1)%sides,(i+1)*sides+(j+1)%sides,(i+1)*sides+j))
@@ -68,27 +73,26 @@ def build_keeper():
    co=head.data.vertices[head.data.loops[li].vertex_index].co;uv.data[li].uv=((math.atan2(-co.y,co.x)/math.tau)%1,(co.z-1.68)/.345)
  attach(head,'Head')
  attach(tube('KeeperNeck',[(0,1.57,-.005),(0,1.70,.005)],[.057,.056],skinmat,24),'Head')
- nose=fuse('KeeperNose',[ellipsoid('NoseBridge',(0,1.84,.118),(.012,.037,.016)),ellipsoid('NoseTip',(0,1.803,.135),(.016,.012,.015)),ellipsoid('NoseWingL',(-.017,1.798,.131),(.010,.008,.011)),ellipsoid('NoseWingR',(.017,1.798,.131),(.010,.008,.011))],skinmat,.005);attach(nose,'Head')
  for side in [-1,1]:
-  attach(ellipsoid('KeeperNostril',(side*.015,1.793,.142),(.003,.002,.003),inner),'Head')
+  attach(ellipsoid('KeeperNostril',(side*.014,1.794,.146),(.0023,.0013,.0014),inner),'Head')
   ear=ellipsoid('KeeperEar',(side*.137,1.841,-.007),(.025,.044,.022),skinmat);attach(ear,'Head')
   attach(tube('KeeperEarHelix',[(side*.145,1.868,.012),(side*.153,1.847,.017),(side*.146,1.823,.013)],[.005,.006,.004],inner,8),'Head')
   # Convex almond whites, iris rims, pupils, catchlights and fitted upper/lower eyelids.
   cx=side*.057;ey=1.869
   outline=[(-.034,0),(-.022,.012),(0,.015),(.022,.010),(.034,0),(.018,-.009),(0,-.011),(-.02,-.008)]
-  outline=smooth_path([(x,y,0) for x,y in outline+[outline[0]]],3)[:-1];verts=[tuple(v((cx,ey,.139)))];faces=[]
-  for x,y,_ in outline:verts.append(tuple(v((cx+x,ey+y,.121+(.004 if y>0 else 0)))))
+  outline=smooth_path([(x*.80,y*.83,0) for x,y in outline+[outline[0]]],3)[:-1];verts=[tuple(v((cx,ey,.125)))];faces=[]
+  for x,y,_ in outline:verts.append(tuple(v((cx+x,ey+y,.109+(.004 if y>0 else 0)))))
   for j in range(len(outline)):faces.append((0,j+1,(j+1)%len(outline)+1))
   me=bpy.data.meshes.new('AlmondEye');me.from_pydata(verts,[],faces);me.update();o=bpy.data.objects.new('KeeperEye',me);bpy.context.collection.objects.link(o);finish(o,o.name,white);attach(o,'Head')
-  attach(ellipsoid('KeeperIrisRim',(cx,ey,.140),(.013,.013,.003),dark),'Head');attach(ellipsoid('KeeperIris',(cx,ey,.142),(.011,.012,.003),iris),'Head');attach(ellipsoid('KeeperPupil',(cx,ey,.145),(.0045,.008,.0015),dark),'Head');attach(ellipsoid('KeeperCatchlight',(cx-.003,ey+.004,.147),(.0028,.0028,.001),glint),'Head')
+  attach(ellipsoid('KeeperIrisRim',(cx,ey,.126),(.0105,.0105,.002),dark),'Head');attach(ellipsoid('KeeperIris',(cx,ey,.128),(.009,.010,.002),iris),'Head');attach(ellipsoid('KeeperPupil',(cx,ey,.131),(.0038,.0065,.001),dark),'Head');attach(ellipsoid('KeeperCatchlight',(cx-.003,ey+.004,.133),(.002,.002,.0008),glint),'Head')
   blinkverts=[tuple(v((0,0,.007)))]+[tuple(v((x,y,0))) for x,y,_ in outline]
-  me=bpy.data.meshes.new('BlinkLid');me.from_pydata(blinkverts,[],faces);me.update();o=bpy.data.objects.new('KeeperBlink'+('Left' if side<0 else 'Right'),me);bpy.context.collection.objects.link(o);o.location=v((cx,ey,.151));finish(o,o.name,skinmat);attach(o,'Head')
-  attach(tube('KeeperUpperLid',[(cx-.033,ey,.123),(cx-.02,ey+.012,.128),(cx,ey+.015,.129),(cx+.02,ey+.01,.125),(cx+.033,ey,.12)],[.003,.004,.004,.003,.0015],skinmat,8),'Head')
-  attach(tube('KeeperLash',[(cx-.031,ey+.002,.128),(cx-.012,ey+.014,.133),(cx+.012,ey+.014,.13),(cx+.032,ey+.002,.124)],[.0015,.002,.002,.001],hair,6),'Head')
-  attach(tube('KeeperLowerLid',[(cx-.031,ey-.001,.122),(cx-.014,ey-.009,.127),(cx+.011,ey-.01,.126),(cx+.032,ey,.12)],[.002,.0025,.002,.001],skinmat,8),'Head')
-  attach(lock([(side*.026,1.906,.12),(side*.055,1.915,.122),(side*.089,1.904,.11)],.005,.002),'Head')
- attach(tube('KeeperUpperLip',[(-.031,1.762,.113),(-.011,1.764,.121),(0,1.761,.123),(.011,1.764,.121),(.031,1.762,.113)],[.0015,.003,.0025,.003,.0015],lipmat,10),'Head')
- attach(tube('KeeperLowerLip',[(-.028,1.759,.114),(0,1.753,.122),(.028,1.759,.114)],[.0015,.004,.0015],lipmat,10),'Head')
+  me=bpy.data.meshes.new('BlinkLid');me.from_pydata(blinkverts,[],faces);me.update();o=bpy.data.objects.new('KeeperBlink'+('Left' if side<0 else 'Right'),me);bpy.context.collection.objects.link(o);o.location=v((cx,ey,.137));finish(o,o.name,skinmat);attach(o,'Head')
+  attach(tube('KeeperUpperLid',[(cx-.027,ey,.123),(cx-.02,ey+.012,.128),(cx,ey+.015,.129),(cx+.02,ey+.01,.125),(cx+.027,ey,.12)],[.0015,.002,.002,.0015,.001],skinmat,8),'Head')
+  attach(tube('KeeperLash',[(cx-.025,ey+.002,.128),(cx-.012,ey+.014,.133),(cx+.012,ey+.014,.13),(cx+.026,ey+.002,.124)],[.0007,.001,.001,.0005],hair,6),'Head')
+  attach(tube('KeeperLowerLid',[(cx-.025,ey-.001,.122),(cx-.014,ey-.009,.127),(cx+.011,ey-.01,.126),(cx+.026,ey,.12)],[.001,.0015,.0015,.001],skinmat,8),'Head')
+  attach(tube('KeeperBrow',smooth_path([(side*.028,1.905,.112),(side*.056,1.911,.112),(side*.085,1.902,.102)],5),[.0017]*11,hair,8),'Head')
+ attach(tube('KeeperUpperLip',[(-.025,1.762,.113),(-.011,1.764,.121),(0,1.761,.123),(.011,1.764,.121),(.025,1.762,.113)],[.0008,.0018,.0015,.0018,.0008],lipmat,10),'Head')
+ attach(tube('KeeperLowerLip',[(-.028,1.759,.114),(0,1.753,.122),(.028,1.759,.114)],[.0008,.002,.0008],lipmat,10),'Head')
  # Two continuous forearms/hands, with separated fingers and joint creases.
  for side in [-1,1]:
   name='Left' if side<0 else 'Right';parts=[tube('Forearm',[(side*.29,1.30,0),(side*.305,1.08,.005),(side*.31,.91,.02)],[.058,.049,.037],None,20),ellipsoid('Palm',(side*.31,.86,.025),(.039,.063,.023))]
@@ -195,7 +199,11 @@ def build_keeper():
    parts+=fringe('curtain');parts+=flowing(.22,.013);parts+=braid(.18,1.79,.09,.68,1)
    for side in [-1,1]:parts.append(lock([(side*.10,2.015,.035),(side*.145,1.88,.11),(side*.17,1.72,.065)],.018,.008))
    parts.append(tube('BraidRibbon',[(.22,1.11,.09),(.22,1.14,.09)],[.029,.029],accent,12))
-  node='KeeperHair'+''.join(p.title() for p in style.split('-'));o=merge(node,parts);attach(o,'Head');print('HAIR',style,flush=True)
+  hair_parts=[o for o in parts if o.data.materials and o.data.materials[0]==hair]
+  accessories=[o for o in parts if o not in hair_parts]
+  sculpt=fuse('ContinuousHair',hair_parts,hair,.004)
+  dec=sculpt.modifiers.new('Hair detail budget','DECIMATE');dec.ratio=.08;bpy.context.view_layer.objects.active=sculpt;bpy.ops.object.modifier_apply(modifier=dec.name)
+  node='KeeperHair'+''.join(p.title() for p in style.split('-'));o=merge(node,[sculpt]+accessories);attach(o,'Head');print('HAIR',style,flush=True)
  # Skinning is kept on every wardrobe part before joining so shoulders, elbows and knees stay separate.
  def piece(o,bone=None):
   return attach(o,bone) if bone else body_skin(o)
