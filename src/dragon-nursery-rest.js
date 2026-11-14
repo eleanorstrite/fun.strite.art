@@ -7,6 +7,7 @@ export function nurseryKeeperEnergy(s){
  const complete=tasks.filter(t=>t.done).length;let partial=0;
  for(const task of tasks.filter(t=>!t.done)){
   if(s.careEffect?.action===task.id)partial=Math.max(partial,s.careEffect.elapsed/s.careEffect.duration);
+  if(task.id==='swim')partial=Math.max(partial,(s.swimRings||0)/6);
   if(task.id==='walk'&&s.walking)partial=Math.max(partial,(s.walkIndex||0)/WALK_ROUTE.length);
   if(task.id==='teeth'&&s.activity?.kind==='teeth')partial=Math.max(partial,s.activity.dirt.filter(d=>d.clean).length/s.activity.dirt.length);
   if(task.id==='training'&&s.training&&!s.training.intro){const r=s.training;partial=Math.max(partial,r.kind==='target'?r.hits.length/TARGETS.length:r.kind==='flying'?r.ring/nurseryFlightRings(s).length:(r.checkpoint-1)/(SPEED_TRACK.length-1));}

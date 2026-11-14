@@ -17,11 +17,11 @@ test('original cover eyes and smiles are mapped onto curved skinned facial surfa
  for(const element of Object.keys(DRAGON_FACE_RECTS)){dragon.animate(1,false,false,element,7);const root=dragon.group.getObjectByName('adult-dragon');let eyes=0;root.traverse(mesh=>{if(!mesh.isMesh||!/^AdultEye/.test(mesh.name))return;eyes++;const uv=mesh.geometry.attributes.uv,rect=DRAGON_FACE_RECTS[element].eye;for(let i=0;i<uv.count;i++){assert.ok(uv.getX(i)>=rect[0]/1280-.00001&&uv.getX(i)<=(rect[0]+rect[2])/1280+.00001);assert.ok(uv.getY(i)>=1-(rect[1]+rect[3])/720-.00001&&uv.getY(i)<=1-rect[1]/720+.00001);}mesh.geometry.computeBoundingBox();assert.ok(mesh.geometry.boundingBox.getSize(new T.Vector3()).z>.03);assert.ok(mesh.isSkinnedMesh);});assert.equal(eyes,2);}
  dragon.dispose();
 });
-test('skin seams remain coincident through walking, flying, panting and head turns',async()=>{
+test('skin seams remain coincident through walking, swimming, flying, panting and head turns',async()=>{
  const dragon=nurseryDragon(new T.Scene(),kit());await dragon.ready;
  for(const day of [2,7]){dragon.animate(0,false,false,'ember',day);const form=dragon.group.getObjectByName(day<7?'baby-dragon':'adult-dragon'),body=form.getObjectByName(day<7?'BabyDragonBody':'AdultDragonBody'),position=body.geometry.attributes.position,seen=new Map(),pairs=[];
   for(let i=0;i<position.count;i++){const key=[position.getX(i),position.getY(i),position.getZ(i)].map(n=>n.toFixed(6)).join(',');if(seen.has(key))pairs.push([seen.get(key),i]);else seen.set(key,i);}assert.ok(pairs.length>0);
-  for(let i=0;i<20;i++){dragon.animate(i*.08,true,i>10,'ember',day,false,{mood:'pant',lookYaw:.4,speed:2});dragon.group.updateMatrixWorld(true);for(const [a,b]of pairs){const p=new T.Vector3().fromBufferAttribute(position,a),q=new T.Vector3().fromBufferAttribute(position,b);body.applyBoneTransform(a,p);body.applyBoneTransform(b,q);assert.ok(p.distanceTo(q)<.0001);}body.traverse(o=>{if(o.isMesh)assert.ok(o.matrixWorld.elements.every(Number.isFinite));});}
+  for(let i=0;i<20;i++){dragon.animate(i*.08,true,i>10&&i<15,'ember',day,false,{mood:'pant',lookYaw:.4,speed:2,swimming:i>=15});dragon.group.updateMatrixWorld(true);for(const [a,b]of pairs){const p=new T.Vector3().fromBufferAttribute(position,a),q=new T.Vector3().fromBufferAttribute(position,b);body.applyBoneTransform(a,p);body.applyBoneTransform(b,q);assert.ok(p.distanceTo(q)<.0001);}body.traverse(o=>{if(o.isMesh)assert.ok(o.matrixWorld.elements.every(Number.isFinite));});}
  }
  dragon.dispose();
 });

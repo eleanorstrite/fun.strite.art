@@ -1,9 +1,10 @@
+import {inNurseryWater} from './dragon-nursery-swimming.js';
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const wrap=a=>Math.atan2(Math.sin(a),Math.cos(a));
 const smooth=(a,b,rate,dt)=>a+(b-a)*(1-Math.exp(-rate*dt));
 export function petPositionBlocked(x,z,inside=false){
  if(inside)return x< -5||x>5||z< -4.2||z>3.7||x< -1.4&&z< -.1||x>2.8&&z< -1.8||x>3.3&&z>.1||x< -3&&z>.7;
- return x< -30||x>30||z< -255||z>15||Math.abs(x)<10.8&&z< -3.1&&z> -14.6||x>5.3&&x<8.7&&z> -2.2&&z<.25;
+ return inNurseryWater(x,z)||x< -30||x>30||z< -255||z>15||Math.abs(x)<10.8&&z< -3.1&&z> -14.6||x>5.3&&x<8.7&&z> -2.2&&z<.25;
 }
 export function createDragonPetBehavior(){
  let p=null,inside=null,mode='look',clock=0,index=0,anchor=null,speed=0,heading=0,jump=0,vy=0,wasForced=false,attention=0;
@@ -12,7 +13,7 @@ export function createDragonPetBehavior(){
  function reset(point,h=0,room=false){p={x:point.x,z:point.z};inside=room;heading=h;anchor={...p};clock=0;mode='look';speed=0;jump=vy=0;}
  return {reset,attend(seconds=8){attention=seconds;mode='look';clock=0;},update(s,dt,playerMoving=false){
   dt=clamp(dt||0,0,.08);if(!p||inside!==s.inside){reset(nearby(s),s.heading,s.inside);}
-  const forced=!!(s.riding||s.training||s.careEffect||s.activity||s.sleep||s.farewell);
+  const forced=!!(s.swimming||s.riding||s.training||s.careEffect||s.activity||s.sleep||s.farewell);
   if(forced){wasForced=true;speed=0;jump=vy=0;return {position:{...p},heading,moving:false,speed:0,mood:'attentive',jump:0,lookYaw:0};}
   if(wasForced){wasForced=false;reset(nearby(s),s.heading,s.inside);}
   clock+=dt;attention=Math.max(0,attention-dt);const distance=Math.hypot(s.player.x-p.x,s.player.z-p.z),leash=s.inside?1.7:2.8;let target=null,mood=mode;

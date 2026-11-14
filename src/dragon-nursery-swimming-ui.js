@@ -1,0 +1,6 @@
+import {nurserySwimStatus} from './dragon-nursery-swimming.js';
+export function createNurserySwimmingUI(wrap,{onJump,onSlide,onLeave}){
+ const root=document.createElement('section');root.className='nursery-swimming-ui';root.hidden=true;root.setAttribute('aria-label','Swimming controls');root.innerHTML='<p data-swim-status></p><div><button type="button" data-swim-jump>Jump ↑</button><button type="button" data-swim-slide>Slide ↓</button><button type="button" data-swim-leave aria-label="Leave water">Shore</button></div>';wrap.append(root);
+ root.querySelector('[data-swim-jump]').onclick=onJump;root.querySelector('[data-swim-slide]').onclick=onSlide;root.querySelector('[data-swim-leave]').onclick=onLeave;
+ return {sync(s,enabled){root.hidden=!s.swimming||!enabled;if(root.hidden)return;const w=s.swimming,status=root.querySelector('[data-swim-status]');status.textContent=w.mode==='climb'?'Jump up · '+Math.floor(w.height)+'/13.5 m':w.mode==='summit'?'Mountain pool':w.mode==='slide'?'Sliding down…':'Swim · '+(s.swimRings||0)+'/6 hoops';status.setAttribute('aria-label',nurserySwimStatus(s));root.querySelector('[data-swim-jump]').disabled=['slide','summit'].includes(s.swimming.mode);root.querySelector('[data-swim-slide]').disabled=!['summit','climb'].includes(s.swimming.mode)||s.swimming.height<1;},destroy(){root.remove();}};
+}
