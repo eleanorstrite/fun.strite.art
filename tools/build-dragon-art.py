@@ -101,7 +101,7 @@ def export(name):
  print('EXPORTED',name,flush=True)
 
 def dragon(adult):
- clear();prefix='Adult' if adult else 'Baby';skinmat=material('DragonSkin','#9eaa91',.7);cream=material('DragonBelly','#f1dba5',.66);horn=material('DragonHorn','#cfbc90',.55);claw=material('DragonClaw','#c9c0a9',.55);black=material('DragonPupil','#101d22',.12);iris=material('DragonIris','#715431',.26);white=material('DragonEyeGlint','#fff8df',.12);wingmat=material('DragonMembrane','#b99468',.8);leather=material('DragonSaddle','#66442b',.8)
+ clear();prefix='Adult' if adult else 'Baby';skinmat=material('DragonSkin','#9eaa91',.7);cream=material('DragonBelly','#f1dba5',.66);horn=material('DragonHorn','#cfbc90',.55);claw=material('DragonClaw','#c9c0a9',.55);black=material('DragonPupil','#101d22',.12);iris=material('DragonIris','#51412f',.24);white=material('DragonEyeGlint','#fff8df',.12);wingmat=material('DragonMembrane','#b99468',.8);leather=material('DragonSaddle','#66442b',.8)
  mature=adult;adult=False # Both ages keep the cover's rounded hatchling anatomy.
  sy=.7;heady=1.4;headz=.52
  bones=[('Root',(0,0,0),(0,.3,0),None),('Spine',(0,.7,-.3),(0,1.2,.5),'Root'),('Neck',(0,1.2,.45),(0,heady-.15,headz),'Spine'),('Head',(0,heady-.15,headz),(0,heady,headz+.5),'Neck')]
@@ -113,7 +113,7 @@ def dragon(adult):
  arm=rig(prefix+'DragonRig',bones)
  parts=[ellipsoid('torso',(0,sy,0),(.5,.56 if adult else .45,.85 if adult else .63)),ellipsoid('hips',(0,sy-.05,-.55),(.44,.49,.45)),ellipsoid('shoulders',(0,sy+.13,.45),(.46,.48,.4))]
  neck=[(0,sy+.05,.4),(0,sy+.48,.65),(0,heady-.3,.65),(0,heady-.12,headz)];parts.append(tube('neck',neck,[.32,.27,.19,.23] if adult else [.29,.27,.27,.28],None,16))
- parts += [ellipsoid('cranium',(0,heady,headz),(.46,.40,.38)),ellipsoid('cheeks',(0,heady-.11,headz+.18),(.40,.24,.27)),ellipsoid('muzzle',(0,heady-.15,headz+.30),(.34,.18,.25))]
+ parts += [ellipsoid('cranium',(0,heady,headz),(.46,.40,.38)),ellipsoid('cheeks',(0,heady-.11,headz+.18),(.40,.24,.27)),ellipsoid('muzzle',(0,heady-.15,headz+.30),(.30,.18,.23))]
  tailpoints=[(0,.88,-.65),(.1,.76,-1.2),(.32,.54,-1.9),(.48,.34,-2.55),(.65,.39,-3.05)];parts.append(tube('tail',tailpoints,[.29,.23,.16,.09,.012],None,16))
  segments=[(n,h,t) for n,h,t,p in bones if not 'Wing' in n and n!='Root']
  for side in [-1,1]:
@@ -147,16 +147,18 @@ def dragon(adult):
   for j in range(12):a=i*13+j;faces.append((a,a+1,a+14,a+13))
  me=bpy.data.meshes.new('VentralArmor');me.from_pydata(verts,[],faces);me.update();chest=bpy.data.objects.new('DragonBreast',me);bpy.context.collection.objects.link(chest);finish(chest,chest.name,cream);skin(chest,arm,segments,lambda n,p:n in ['Spine','Neck','Head'])
  for side in [-1,1]:
-  eye=ellipsoid(prefix+'Eye',(side*.30,heady+.09,headz+.31),(.135,.157,.045),white);bind(eye,arm,'Head')
-  irisobj=ellipsoid('DragonIris',(side*.30,heady+.09,headz+.348),(.111,.133,.024),iris);bind(irisobj,arm,'Head')
-  pupil=ellipsoid('DragonDarkPupil',(side*.30,heady+.09,headz+.370),(.082,.112,.012),black);bind(pupil,arm,'Head')
-  glint=ellipsoid('EyeHighlight',(side*.278,heady+.14,headz+.385),(.028,.034,.007),white);bind(glint,arm,'Head')
-  glint=ellipsoid('SmallEyeHighlight',(side*.328,heady+.055,headz+.385),(.011,.014,.005),white);bind(glint,arm,'Head')
-  nostril=ellipsoid('Nostril',(side*.115,heady-.09,headz+.548),(.025,.016,.009),black);bind(nostril,arm,'Head')
-  brow=tube('Brow',[(side*.15,heady+.25,headz+.24),(side*.28,heady+.28,headz+.29),(side*.41,heady+.21,headz+.20)],[.018,.026,.012],skinmat);bind(brow,arm,'Head')
-  hornobj=tube('SweptHorn',[(side*.2,heady+.16,headz-.1),(side*.34,heady+.46,headz-.28),(side*.38,heady+.68,headz-.5)],[.08,.055,.004],horn);bind(hornobj,arm,'Head')
-  for i in range(4 if adult else 2):
-   fin=tube('CheekSpine',[(side*.27,heady+.08-i*.065,headz-.1-i*.08),(side*(.45+i*.02),heady+.13-i*.05,headz-.37-i*.1)],[.06,.003],horn);bind(fin,arm,'Head')
+  # Dark, fitted eyes with soft catchlights: no exposed staring white eyeballs.
+  eye=ellipsoid(prefix+'Eye',(side*.265,heady+.09,headz+.322),(.128,.148,.022),black);bind(eye,arm,'Head')
+  irisobj=ellipsoid('DragonIris',(side*.265,heady+.072,headz+.342),(.108,.119,.010),iris);bind(irisobj,arm,'Head')
+  pupil=ellipsoid('DragonDarkPupil',(side*.265,heady+.09,headz+.351),(.099,.125,.009),black);bind(pupil,arm,'Head')
+  glint=ellipsoid('EyeHighlight',(side*.245,heady+.14,headz+.364),(.023,.028,.005),white);bind(glint,arm,'Head')
+  glint=ellipsoid('SmallEyeHighlight',(side*.292,heady+.045,headz+.361),(.009,.011,.004),white);bind(glint,arm,'Head')
+  nostril=ellipsoid('Nostril',(side*.085,heady-.085,headz+.518),(.012,.007,.004),black);bind(nostril,arm,'Head')
+  # Relaxed upper lids follow an even arc rather than forming an angry brow.
+  lid=tube('GentleUpperLid',[(side*.145,heady+.15,headz+.30),(side*.215,heady+.235,headz+.32),(side*.29,heady+.24,headz+.32),(side*.38,heady+.16,headz+.27)],[.009,.014,.014,.009],skinmat,12);bind(lid,arm,'Head')
+  hornobj=tube('SweptHorn',[(side*.2,heady+.16,headz-.1),(side*.29,heady+.36,headz-.22),(side*.31,heady+.48,headz-.35)],[.075,.045,.012],horn,16);bind(hornobj,arm,'Head')
+  for i in range(2):
+   fin=tube('CheekSpine',[(side*.30,heady+.03-i*.07,headz-.08-i*.07),(side*.43,heady+.08-i*.05,headz-.24-i*.08)],[.05,.012],horn,12);bind(fin,arm,'Head')
   for rear in [False,True]:
    label=('L' if side<0 else 'R')+('Hind' if rear else 'Fore');z=-.62 if rear else .46
    for i in [-1,0,1]:
@@ -173,12 +175,9 @@ def dragon(adult):
   me=bpy.data.meshes.new('WingMembrane');me.from_pydata(verts,[],faces);me.update();o=bpy.data.objects.new(label+'Membrane',me);bpy.context.collection.objects.link(o);finish(o,o.name,wingmat);m=o.modifiers.new('Membrane thickness','SOLIDIFY');m.thickness=.012;bpy.context.view_layer.objects.active=o;bpy.ops.object.modifier_apply(modifier=m.name);skin(o,arm,[(n,h,t)for n,h,t,p in bones if n in [label,label+'Tip']])
   for j in [2,3,4]:
    finger=tube('WingFinger',[wingpoints[0],wingpoints[1],wingpoints[j]],[.055,.035,.006],skinmat);skin(finger,arm,[(n,h,t)for n,h,t,p in bones if n in [label,label+'Tip']])
- # A rounded open smile and tongue keep the expression friendly at both ages.
- mouthmat=material('DragonSmile','#532c3b',.64);tonguemat=material('DragonTongue','#e78b91',.55)
- mouth=ellipsoid('HappySmile',(0,heady-.225,headz+.535),(.20,.082,.026),mouthmat);bind(mouth,arm,'Head')
- tongue=ellipsoid('LittleTongue',(0,heady-.265,headz+.560),(.09,.027,.009),tonguemat);bind(tongue,arm,'Head')
- for side in [-1,1]:
-  tooth=tube('LittleTooth',[(side*.13,heady-.18,headz+.555),(side*.12,heady-.225,headz+.563)],[.018,.002],claw,10);bind(tooth,arm,'Head')
+ # A quiet closed smile, like the reference, instead of an open mouth and pointed teeth.
+ mouthmat=material('DragonSmile','#594936',.78)
+ mouth=tube('HappySmile',[(-.14,heady-.185,headz+.493),(-.08,heady-.205,headz+.522),(0,heady-.213,headz+.535),(.08,heady-.205,headz+.522),(.14,heady-.185,headz+.493)],[.0025,.004,.004,.004,.0025],mouthmat,10);bind(mouth,arm,'Head')
  for i in range(10):
   z=.2-i*.21;y=sy+.51-max(0,i-3)*.028;spine=tube('DorsalSpine',[(0,y,z),(0,y+.23,z-.12)],[.075,.002],horn,8);bind(spine,arm,'Spine' if i<5 else 'Tail0')
  saddle=ellipsoid('DragonSaddle',(0,1.65 if adult else 1.32,-.1),(.31,.07,.33),leather);bind(saddle,arm,'Spine')
