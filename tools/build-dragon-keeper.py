@@ -427,7 +427,14 @@ def build_keeper():
    parts.append(piece(loft('GoldEdgedCapelet',[(1.28,.35,.21,-.015),(1.30,.35,.21,-.015),(1.45,.32,.20,-.01),(1.60,.18,.13,0),(1.63,.085,.07,0)],cloth,40)))
    parts.append(trim(1.30,.35,.21,accent));parts+=ribbon(1.49,.15,.225,accent);parts+=embroidered(dress_parts[0],1.15-length,.39,1.4)
    parts.append(ruffle(1.15-length,.39,.25,accent))
-  parts.append(trim(1.01 if not dress else 1.17));node='KeeperOutfit'+''.join(p.title() for p in style.split('-'));merge(node,parts);print('OUTFIT',style,flush=True)
+  parts.append(trim(1.01 if not dress else 1.17));node='KeeperOutfit'+''.join(p.title() for p in style.split('-'));outfit=merge(node,parts)
+  if style in ['scholar','starlight','violet','festival','mono-ruffle','mooncoat','rose-dress','cosmic-dress','anemone','nouveau','coat','raincoat']:
+   outfit.shape_key_add(name='Basis');drape=outfit.shape_key_add(name='RidingDrape');inverse=outfit.matrix_world.inverted();names={g.index:g.name for g in outfit.vertex_groups}
+   for vert in outfit.data.vertices:
+    p=outfit.matrix_world@vert.co;y=p.z;forward=-p.y;torso=sum(g.weight for g in vert.groups if names.get(g.group) in ['Hips','Spine'])
+    if y<1.14 and torso>.95:
+     u=max(0,min(1,(1.14-y)/.70));front=max(0,min(1,forward/.15));p.y-=.30*u*front;p.z+=.22*u*front;p.x+=p.x/math.sqrt(p.x*p.x+.04*.04)*.07*u;drape.data[vert.index].co=inverse@p
+  print('OUTFIT',style,flush=True)
  # Thin metal glasses follow the head and never add body parts.
  parts=[]
  for side in [-1,1]:parts.append(tube('LensRim',[(side*.057+math.cos(j*math.tau/28)*.041,1.869+math.sin(j*math.tau/28)*.027,.156) for j in range(29)],[.0027]*29,gold,6))
