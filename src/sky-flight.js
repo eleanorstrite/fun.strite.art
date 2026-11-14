@@ -1,13 +1,14 @@
 import {createFlightDuel,startFlightDuel,flapFlightDuel,tickFlightDuel,loadFlightDuel,flightDuelSettings,flightDuelPlayerAt,FLIGHT_DUEL_KEY} from './flight-duel.js';
 import {FLIGHT_ANIMALS} from './flight-settings.js';
-import {drawPlayBackdrop,drawPlaySprite} from './play-art.js';
+import {drawPlayBackdrop} from './play-art.js';
+import {drawFlightSprite} from './flight-sprite-color.js';
 import { FLIGHT_LEVELS, FLIGHT_DEFAULTS, validateFlightSettings } from './flight-settings.js';
 import { createMazeAudio } from './maze-audio.js';
 import {FLIGHT_WIDTH,FLIGHT_HEIGHT,FLIGHT_FLOOR,createFlightState,flapFlight,tickFlight} from './flight-rules.js';
 export * from './flight-rules.js';
 function polygon(ctx,points,color){ctx.fillStyle=color;ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();ctx.fill();}
 export function drawFlyer(ctx,x,y,size,settings,time=0,tilt=0){
- const pose=Math.sin(time*10)>0?1:0,extra={hummingbird:0,eagle:1,duck:2,capybara:3,cat:4,dog:5,hotdog:6,pizza:7}[settings.animal],sprite=extra!==undefined?['flyers-detailed',extra]:settings.animal==='bluebird'?['objects',8+pose]:settings.animal==='dragon'?['objects',10+pose]:settings.animal==='taco'?['details',15]:settings.animal==='burger'?['details',5]:null;if(sprite&&drawPlaySprite(ctx,...sprite,x,y,size*1.1,size,{anchor:.5,angle:tilt,tint:settings.color,region:[0,0,1,1]}))return;
+ const pose=Math.sin(time*10)>0?1:0,extra={hummingbird:0,eagle:1,duck:2,capybara:3,cat:4,dog:5,hotdog:6,pizza:7}[settings.animal],sprite=extra!==undefined?['flyers-detailed',extra]:settings.animal==='bluebird'?['objects',8+pose]:settings.animal==='dragon'?['objects',10+pose]:settings.animal==='taco'?['details',15]:settings.animal==='burger'?['details',5]:null;if(sprite&&drawFlightSprite(ctx,...sprite,x,y,size*1.1,size,{anchor:.5,angle:tilt,tint:settings.color,region:[0,0,1,1]}))return;
   ctx.save();ctx.translate(x,y);ctx.rotate(tilt);ctx.scale(size/80,size/80);
   const flap=Math.sin(time*(settings.animal==='hummingbird'?34:10)),color=settings.color;
   // Original animated silhouettes inspired by the supplied animal references.
