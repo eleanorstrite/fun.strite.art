@@ -11,3 +11,5 @@ blender --background --factory-startup --python tools/build-dragon-art.py -- ass
 The keeper has two articulated arms and legs. Both dragon forms have a fused body, four articulated legs, a weighted neck and tail, and two flexible membrane wings. Runtime poses blend in the local Three.js renderer. Buildings and furnishings use bevelled geometry; scenery is instanced and merged after loading.
 
 The cottage exterior follows the Dragon Adventures cover: a front-facing slate roof, projecting gables, glowing arched windows and door, porch lanterns, ivy, wisteria and flower beds. Rebuild just that model with `--only-cottage` after the output directory argument. Its existing doorway and footprint are retained.
+
+Both dragon ages now share the cover-inspired hatchling face and anatomy; runtime growth makes the adult modestly larger. Rebuild only these two models with `--only-dragons`. The keeper's skirts and coat hems are weighted to the hips and torso, sleeves use continuous shoulder weights, and the fused trousers use blended hip and knee weights.

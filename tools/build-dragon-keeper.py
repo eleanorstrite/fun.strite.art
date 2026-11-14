@@ -18,12 +18,19 @@ def build_keeper():
   name='Left' if side<0 else 'Right';bones += [(name+'Arm',(side*.26,1.51,0),(side*.3,1.18,0),'Spine'),(name+'Forearm',(side*.3,1.18,0),(side*.31,.86,.025),name+'Arm'),(name+'Thigh',(side*.12,1.0,0),(side*.13,.55,0),'Hips'),(name+'Shin',(side*.13,.55,0),(side*.13,.08,.04),name+'Thigh')]
  arm=rig('KeeperRig',bones);segments=[(n,h,t) for n,h,t,p in bones if n!='Root']
  def attach(o,bone='Spine'):bind(o,arm,bone);return o
- def body_skin(o):
-  def owner(n,p):
-   x,y,z=p.x,p.z,-p.y
-   if y<1.04:return n=='Hips' or n in [('Left' if x<0 else 'Right')+'Thigh',('Left' if x<0 else 'Right')+'Shin']
-   return n in ['Spine','Hips']
-  skin(o,arm,segments,owner);return o
+ def garment_skin(o,arms=False):
+  # One continuous set of weights across seams. Skirts and coat hems follow the pelvis,
+  # never separate left/right legs; sleeves blend into the shoulders without a hard cut.
+  groups={name:o.vertex_groups.new(name=name) for name in ['Hips','Spine','LeftArm','RightArm','LeftForearm','RightForearm']}
+  def smooth(t):t=max(0,min(1,t));return t*t*(3-2*t)
+  for vert in o.data.vertices:
+   p=o.matrix_world@vert.co;x,y=p.x,p.z;side='Left' if x<0 else 'Right'
+   arm_weight=smooth((abs(x)-.19)/.11)*smooth((1.60-y)/.12) if arms else 0
+   elbow=smooth((1.29-y)/.21);spine=smooth((y-1.07)/.36)
+   values={'Hips':(1-arm_weight)*(1-spine),'Spine':(1-arm_weight)*spine,side+'Arm':arm_weight*(1-elbow),side+'Forearm':arm_weight*elbow}
+   for name,weight in values.items():
+    if weight>0:groups[name].add([vert.index],weight,'REPLACE')
+  mod=o.modifiers.new('Continuous garment deformation','ARMATURE');mod.object=arm;o.parent=arm;return o
  def merge(name,parts):
   bpy.ops.object.select_all(action='DESELECT')
   for o in parts:o.select_set(True)
@@ -56,10 +63,10 @@ def build_keeper():
    a=j*math.tau/sides;x=math.cos(a)*rx;z=math.sin(a)*rz+offset
    if math.sin(a)>0:
     socket=sum(math.exp(-((x-s*.058)/.031)**2-((y-1.868)/.025)**2) for s in [-1,1]);z-=socket*.009
-    z+=.009*math.exp(-((y-1.815)/.030)**2)*math.exp(-((abs(x)-.075)/.039)**2)
+    z+=.012*math.exp(-((y-1.815)/.030)**2)*math.exp(-((abs(x)-.075)/.039)**2)
     # The bridge, tip and wings are part of the facial surface, not attached primitives.
-    z+=.017*math.exp(-(x/.015)**2-((y-1.845)/.045)**2)
-    z+=.030*math.exp(-(x/.022)**2-((y-1.802)/.018)**2)
+    z+=.010*math.exp(-(x/.019)**2-((y-1.845)/.045)**2)
+    z+=.012*math.exp(-(x/.025)**2-((y-1.802)/.023)**2)
     z+=.007*math.exp(-((abs(x)-.021)/.011)**2-((y-1.798)/.011)**2)
    verts.append(tuple(v((x,y,z))))
  for i in range(len(levels)-1):
@@ -74,17 +81,16 @@ def build_keeper():
  attach(head,'Head')
  attach(tube('KeeperNeck',[(0,1.57,-.005),(0,1.70,.005)],[.057,.056],skinmat,24),'Head')
  for side in [-1,1]:
-  attach(ellipsoid('KeeperNostril',(side*.014,1.794,.146),(.0023,.0013,.0014),inner),'Head')
   ear=ellipsoid('KeeperEar',(side*.137,1.841,-.007),(.025,.044,.022),skinmat);attach(ear,'Head')
   attach(tube('KeeperEarHelix',[(side*.145,1.868,.012),(side*.153,1.847,.017),(side*.146,1.823,.013)],[.005,.006,.004],inner,8),'Head')
   # Convex almond whites, iris rims, pupils, catchlights and fitted upper/lower eyelids.
   cx=side*.057;ey=1.869
   outline=[(-.034,0),(-.022,.012),(0,.015),(.022,.010),(.034,0),(.018,-.009),(0,-.011),(-.02,-.008)]
-  outline=smooth_path([(x*.80,y*.83,0) for x,y in outline+[outline[0]]],3)[:-1];verts=[tuple(v((cx,ey,.125)))];faces=[]
+  outline=smooth_path([(x*.90,y*.94,0) for x,y in outline+[outline[0]]],3)[:-1];verts=[tuple(v((cx,ey,.125)))];faces=[]
   for x,y,_ in outline:verts.append(tuple(v((cx+x,ey+y,.109+(.004 if y>0 else 0)))))
   for j in range(len(outline)):faces.append((0,j+1,(j+1)%len(outline)+1))
   me=bpy.data.meshes.new('AlmondEye');me.from_pydata(verts,[],faces);me.update();o=bpy.data.objects.new('KeeperEye',me);bpy.context.collection.objects.link(o);finish(o,o.name,white);attach(o,'Head')
-  attach(ellipsoid('KeeperIrisRim',(cx,ey,.126),(.0105,.0105,.002),dark),'Head');attach(ellipsoid('KeeperIris',(cx,ey,.128),(.009,.010,.002),iris),'Head');attach(ellipsoid('KeeperPupil',(cx,ey,.131),(.0038,.0065,.001),dark),'Head');attach(ellipsoid('KeeperCatchlight',(cx-.003,ey+.004,.133),(.002,.002,.0008),glint),'Head')
+  attach(ellipsoid('KeeperIrisRim',(cx,ey,.126),(.0115,.0115,.002),dark),'Head');attach(ellipsoid('KeeperIris',(cx,ey,.128),(.010,.011,.002),iris),'Head');attach(ellipsoid('KeeperPupil',(cx,ey,.131),(.0038,.0065,.001),dark),'Head');attach(ellipsoid('KeeperCatchlight',(cx-.003,ey+.004,.133),(.002,.002,.0008),glint),'Head')
   blinkverts=[tuple(v((0,0,.007)))]+[tuple(v((x,y,0))) for x,y,_ in outline]
   me=bpy.data.meshes.new('BlinkLid');me.from_pydata(blinkverts,[],faces);me.update();o=bpy.data.objects.new('KeeperBlink'+('Left' if side<0 else 'Right'),me);bpy.context.collection.objects.link(o);o.location=v((cx,ey,.137));finish(o,o.name,skinmat);attach(o,'Head')
   attach(tube('KeeperUpperLid',[(cx-.027,ey,.123),(cx-.02,ey+.012,.128),(cx,ey+.015,.129),(cx+.02,ey+.01,.125),(cx+.027,ey,.12)],[.0015,.002,.002,.0015,.001],skinmat,8),'Head')
@@ -92,7 +98,7 @@ def build_keeper():
   attach(tube('KeeperLowerLid',[(cx-.025,ey-.001,.122),(cx-.014,ey-.009,.127),(cx+.011,ey-.01,.126),(cx+.026,ey,.12)],[.001,.0015,.0015,.001],skinmat,8),'Head')
   attach(tube('KeeperBrow',smooth_path([(side*.028,1.905,.112),(side*.056,1.911,.112),(side*.085,1.902,.102)],5),[.0017]*11,hair,8),'Head')
  attach(tube('KeeperUpperLip',[(-.025,1.762,.113),(-.011,1.764,.121),(0,1.761,.123),(.011,1.764,.121),(.025,1.762,.113)],[.0008,.0018,.0015,.0018,.0008],lipmat,10),'Head')
- attach(tube('KeeperLowerLip',[(-.028,1.759,.114),(0,1.753,.122),(.028,1.759,.114)],[.0008,.002,.0008],lipmat,10),'Head')
+ attach(tube('KeeperLowerLip',[(-.028,1.765,.114),(0,1.753,.122),(.028,1.765,.114)],[.0008,.002,.0008],lipmat,10),'Head')
  # Two continuous forearms/hands, with separated fingers and joint creases.
  for side in [-1,1]:
   name='Left' if side<0 else 'Right';parts=[tube('Forearm',[(side*.29,1.30,0),(side*.305,1.08,.005),(side*.31,.91,.02)],[.058,.049,.037],None,20),ellipsoid('Palm',(side*.31,.86,.025),(.039,.063,.023))]
@@ -206,7 +212,7 @@ def build_keeper():
   node='KeeperHair'+''.join(p.title() for p in style.split('-'));o=merge(node,[sculpt]+accessories);attach(o,'Head');print('HAIR',style,flush=True)
  # Skinning is kept on every wardrobe part before joining so shoulders, elbows and knees stay separate.
  def piece(o,bone=None):
-  return attach(o,bone) if bone else body_skin(o)
+  return attach(o,bone) if bone else garment_skin(o)
  def top(name,mat=cloth,bottom=1.01,wide=.235):
   o=loft(name,[(bottom,wide,.153,0),(bottom+.018,wide,.153,0),(1.12,.211,.145,0),(1.30,.212,.149,0),(1.47,.248,.153,0),(1.55,.25,.131,0),(1.595,.12,.095,0)],mat,32)
   return piece(o)
@@ -221,8 +227,16 @@ def build_keeper():
   return out
  def trousers(baggy=False):
   parts=[ellipsoid('Waist',(0,1.02,0),(.2,.13,.135),pants)]
-  for side in [-1,1]:parts.append(tube('TrouserLeg',[(side*.12,.99,0),(side*.13,.76,0),(side*.13,.54,0),(side*.13,.27,.01)],[.105,.111 if baggy else .085,.099 if baggy else .072,.07],pants,20))
-  return piece(merge('Trousers',parts))
+  for side in [-1,1]:parts.append(tube('TrouserLeg',[(side*.12,.99,0),(side*.13,.76,0),(side*.13,.54,0),(side*.13,.27,.01)],[.105,.111 if baggy else .085,.099 if baggy else .072,.07],pants,24))
+  o=fuse('ContinuousTrousers',parts,pants,.009)
+  dec=o.modifiers.new('Trouser detail budget','DECIMATE');dec.ratio=.30;bpy.context.view_layer.objects.active=o;bpy.ops.object.modifier_apply(modifier=dec.name)
+  groups={n:o.vertex_groups.new(name=n) for n in ['Hips','LeftThigh','RightThigh','LeftShin','RightShin']}
+  for vert in o.data.vertices:
+   p=o.matrix_world@vert.co;x,y=p.x,p.z;u=max(0,min(1,(1.015-y)/.19));u=u*u*(3-2*u);k=max(0,min(1,(.65-y)/.20));k=k*k*(3-2*k);left=max(0,min(1,(.035-x)/.07))
+   values={'Hips':1-u,'LeftThigh':u*left*(1-k),'RightThigh':u*(1-left)*(1-k),'LeftShin':u*left*k,'RightShin':u*(1-left)*k}
+   for name,weight in values.items():
+    if weight>0:groups[name].add([vert.index],weight,'REPLACE')
+  mod=o.modifiers.new('Connected hip and knee weights','ARMATURE');mod.object=arm;o.parent=arm;return o
  def shoes(sneaker=False):
   out=[]
   for side in [-1,1]:
@@ -232,7 +246,7 @@ def build_keeper():
    out.append(piece(ellipsoid('ShapedToe',(side*.13,.075,.10),(.078,.055,.137),mat),name+'Shin'));out.append(piece(cube('ShoeSole',(side*.13,.025,.09),(.16,.027,.26),sole,.019),name+'Shin'))
    for j in range(3):out.append(piece(tube('BootLace',[(side*.13-.035,.12-j*.009,.10+j*.027),(side*.13+.035,.12-j*.009,.10+j*.027)],[.002]*2,linen,6),name+'Shin'))
   return out
- def trim(y,width=.23,z=.155,mat=accent):return piece(tube('HemTrim',[(-width,y,z*.5),(-width*.7,y,z),(0,y,z+.007),(width*.7,y,z),(width,y,z*.5)],[.006]*5,mat,8))
+ def trim(y,width=.23,z=.155,mat=accent):return piece(tube('HemTrim',[(math.cos(j*math.tau/64)*(width+.006),y,math.sin(j*math.tau/64)*(z+.006))for j in range(65)],[.004]*65,mat,8))
  def belt(y=1.13):return [piece(loft('LeatherBelt',[(y-.022,.216,.15,0),(y+.022,.216,.15,0)],leather,28)),piece(cube('BeltBuckle',(0,y,.158),(.055,.048,.015),gold,.006))]
  def buttons():return [piece(ellipsoid('JacketButton',(0,1.48-i*.09,.157),(.009,.009,.005),gold)) for i in range(4)]
  def hood():return [piece(loft('FoldedHood',[(1.48,.16,.08,-.085),(1.57,.18,.10,-.085),(1.64,.12,.07,-.055)],cloth,28)),piece(tube('HoodEdge',[(-.11,1.58,.09),(-.14,1.63,.005),(0,1.67,-.12),(.14,1.63,.005),(.11,1.58,.09)],[.018]*5,accent,12))]
@@ -245,7 +259,7 @@ def build_keeper():
    p=vert.co;u=max(0,min(1,(1.12-p.z)/(1.12-hem)));angle=math.atan2(-p.y/.25,p.x/flared)
    fold=math.cos(angle*16)*.012*u*u;p.x*=1+fold/flared;p.y*=1+fold/.25;p.z+=math.sin(angle*16)*.003*u
   parts[0].data.update()
-  if tier:parts += [piece(loft('LayeredHem',[(hem-.025,flared*.94,.24,0),(hem+.10,flared*1.03,.26,0)],linen,40)),trim(hem+.12,flared*.96,.252)]
+  if tier:parts += [piece(loft('LayeredHem',[(hem-.06,flared*1.035,.268,0),(hem+.04,flared*1.035,.268,0)],linen,40)),trim(hem+.12,flared*.96,.252)]
   return parts
  def embroidered(skirt_mesh,hem=.53,width=.35,size=1):
   from mathutils.bvhtree import BVHTree
@@ -261,6 +275,7 @@ def build_keeper():
     me=bpy.data.meshes.new('GoldThreadFlower');me.from_pydata(verts,[],faces);me.update();o=bpy.data.objects.new('GoldThreadFlower',me);bpy.context.collection.objects.link(o);finish(o,o.name,gold);parts.append(piece(o))
   return parts
  def ruffle(y,rx=.36,rz=.25,mat=linen):
+  rx=max(rx,.415);rz=max(rz,.273) # Keep layers outside the skirt instead of intersecting it.
   verts=[];faces=[];count=80
   for row in range(4):
    u=row/3
@@ -309,11 +324,7 @@ def build_keeper():
    elif y<1.38:
     fold=math.sin(y*64+x*9)*.0025;p.x+=fold;p.y+=fold*.6
   fabric.data.update()
-  def fabric_region(n,p):
-   x,y=p.x,p.z
-   if abs(x)>.228 and y<1.55:return n in [('Left' if x<0 else 'Right')+'Arm',('Left' if x<0 else 'Right')+'Forearm']
-   return n in ['Spine','Hips']
-  skin(fabric,arm,segments,fabric_region);parts=[o for o in parts if o not in shell]+[fabric]
+  garment_skin(fabric,True);parts=[o for o in parts if o not in shell]+[fabric]
   if dress:
    length=.83 if style in ['scholar','starlight','nouveau'] else .59;dress_parts=skirt(length,.39 if style!='violet' else .35,style in ['festival','violet','mono-ruffle','rose-dress','cosmic-dress','anemone']);parts+=dress_parts;parts+=bow();parts+=belt(1.17)
    if style in ['scholar','starlight']:parts+=embroidered(dress_parts[0],1.15-length,.39)
@@ -351,7 +362,7 @@ def build_keeper():
     for side in [-1,1]:parts.append(piece(tube('VarsityStripe',[(side*.22,1.53,.085),(side*.29,1.38,.074)],[.013]*2,linen,10)))
   if style=='utility-cargo':
    parts+=hood();parts+=cargo_pockets();parts+=belt(1.10)
-   white=tube('CreamUtilitySleeve',[(-.235,1.51,0),(-.29,1.32,0),(-.31,1.04,.012),(-.31,.95,.02)],[.10,.091,.074,.059],linen,20);skin(white,arm,segments,lambda n,p:n in ['LeftArm','LeftForearm']);parts.append(white)
+   white=tube('CreamUtilitySleeve',[(-.235,1.51,0),(-.29,1.32,0),(-.31,1.04,.012),(-.31,.95,.02)],[.10,.091,.074,.059],linen,20);garment_skin(white,True);parts.append(white)
    parts.append(piece(cube('AsymmetricJacketPanel',(-.125,1.39,.156),(.17,.31,.016),linen,.008)))
    for side in [-1,1]:
     parts.append(piece(tube('HarnessStrap',[(side*.18,1.58,.09),(side*.18,1.34,.178),(side*.16,1.06,.17)],[.016]*3,leather,8)))
