@@ -1,10 +1,12 @@
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
-export const WATERFALL={x:-20,z:-53,rx:9,rz:11,surface:.24,height:13.5,base:{x:-20,z:-62},crest:{x:-20,z:-73},entry:{x:-11.7,z:-49},shore:{x:-9.5,z:-48}};
+export const WATERFALL={x:-20,z:-55,rx:11.8,rz:13,surface:.24,height:13.5,base:{x:-20,z:-62},crest:{x:-20,z:-73},entry:{x:-11.7,z:-49},shore:{x:-9.5,z:-48}};
 export const SWIM_HOOPS=[{x:-15,z:-49},{x:-18,z:-46},{x:-23,z:-47},{x:-25,z:-53},{x:-23,z:-58},{x:-19,z:-60}];
 export function inNurseryWater(x,z,padding=0){return Math.hypot((x-WATERFALL.x)/(WATERFALL.rx+padding),(z-WATERFALL.z)/(WATERFALL.rz+padding))<=1;}
 export function nurseryWaterCliffBlocked(x,z){return !inNurseryWater(x,z)&&x> -31&&x< -9&&z< -63&&z> -81;}
 export function nurseryWaterClearing(x,z){return inNurseryWater(x,z,2)||x> -32&&x< -8&&z< -62&&z> -81;}
-export function waterfallPoint(height){const t=clamp(height/WATERFALL.height,0,1);return {x:WATERFALL.x,y:WATERFALL.surface+height,z:WATERFALL.base.z-10*t*t};}
+// Shared by the visible cascades and the swimmers: three drops with gentler pool shelves.
+export const WATERFALL_PROFILE=[{height:0,z:-62},{height:3.8,z:-63.2},{height:4.6,z:-66},{height:8.4,z:-67.2},{height:9.2,z:-70},{height:13.5,z:-72}];
+export function waterfallPoint(height){const h=clamp(height,0,WATERFALL.height);for(let i=1;i<WATERFALL_PROFILE.length;i++){const a=WATERFALL_PROFILE[i-1],b=WATERFALL_PROFILE[i];if(h<=b.height){const t=(h-a.height)/(b.height-a.height);return {x:WATERFALL.x,y:WATERFALL.surface+h,z:a.z+(b.z-a.z)*t};}}return {x:WATERFALL.x,y:WATERFALL.surface+WATERFALL.height,z:-72};}
 export function beginNurserySwimming(s){
  if(s.swimming)return true;
  if(!s.hatched||s.inside||s.sleep||s.training||s.riding||s.activity||s.careEffect||s.farewell||!inNurseryWater(s.player.x,s.player.z))return false;
@@ -22,7 +24,7 @@ function segmentDistance(p,a,b){const dx=b.x-a.x,dz=b.z-a.z,t=clamp(((p.x-a.x)*d
 export function tickNurserySwimming(s,dt,input={}){const w=s.swimming;if(!w)return;dt=clamp(dt||0,0,.1);w.seconds+=dt;w.cooldown=Math.max(0,w.cooldown-dt);w.dive=Math.max(0,w.dive-dt);
  if(w.mode==='climb'){
   w.velocity-=6*dt;w.height=clamp(w.height+w.velocity*dt,0,WATERFALL.height);const p=waterfallPoint(w.height);s.player={x:p.x,z:p.z};
-  if(w.height>=WATERFALL.height){w.mode='summit';w.velocity=0;s.heading=0;s.player={...WATERFALL.crest};s.message='You reached the magical mountain pool! Tap the waterfall, press Space, or choose Slide down to ride it back to the bottom.';}
+  if(w.height>=WATERFALL.height){w.mode='summit';w.summitAt=w.seconds;w.velocity=0;s.heading=0;s.player={...WATERFALL.crest};s.message='You reached the magical mountain pool! Tap the waterfall, press Space, or choose Slide down to ride it back to the bottom.';}
   else if(w.height<=0){w.mode='swim';w.velocity=0;s.message='Splash! Back in the pool. Keep tapping faster or press Space repeatedly to reach the top.';}
   return;
  }
