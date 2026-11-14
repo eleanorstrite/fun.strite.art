@@ -107,14 +107,21 @@ def build_keeper():
   parts.append(tube('Thumb',[(side*.31-side*.029,.875,.04),(side*.31-side*.052,.842,.053),(side*.31-side*.054,.817,.049)],[.013,.01,.007],None,10));hand=fuse(name+'Hand',parts,skinmat,.007);skin(hand,arm,segments,lambda n,p:n in [name+'Arm',name+'Forearm'])
  # Every hair option is a single independently selectable skinned mesh.
  def cap(cropped=False):
-  verts=[];faces=[];rings=12;sides=40
+  verts=[];faces=[];rings=24;sides=96
   for i in range(rings+1):
    for j in range(sides):
-    a=j*math.tau/sides;end=.88+abs(math.cos(a))**4*.90 if math.sin(a)>0 else 1.94;theta=.015+(end-.015)*i/rings;rx=.144 if cropped else .151;rz=.126 if cropped else .14
-    verts.append(tuple(v((math.cos(a)*math.sin(theta)*rx,1.887+math.cos(theta)*.155,math.sin(a)*math.sin(theta)*rz-.014))))
+    a=j*math.tau/sides;end=1.18+abs(math.cos(a))**4*.72 if math.sin(a)>0 else 2.10;theta=.008+(end-.008)*i/rings;rx=.153 if cropped else .160;rz=.137 if cropped else .149
+    # Fine, continuous comb lines follow the crown down toward the hairline.
+    ridge=.0008*math.cos(a*64+theta*5)*math.sin(theta)
+    verts.append(tuple(v((math.cos(a)*math.sin(theta)*(rx+ridge),1.887+math.cos(theta)*.166,math.sin(a)*math.sin(theta)*(rz+ridge)-.014))))
   for i in range(rings):
    for j in range(sides):faces.append((i*sides+j,i*sides+(j+1)%sides,(i+1)*sides+(j+1)%sides,(i+1)*sides+j))
-  me=bpy.data.meshes.new('HairScalp');me.from_pydata(verts,[],faces);me.update();o=bpy.data.objects.new('HairScalp',me);bpy.context.collection.objects.link(o);return finish(o,o.name,hair)
+  faces.append(tuple(reversed(range(sides))))
+  me=bpy.data.meshes.new('HairScalp');me.from_pydata(verts,[],faces);me.update();o=bpy.data.objects.new('HairScalp',me);bpy.context.collection.objects.link(o);finish(o,o.name,hair)
+  # Voxel union needs a closed volume. An open, zero-thickness cap gets erased,
+  # leaving bald patches between otherwise intact locks.
+  solid=o.modifiers.new('Solid fitted hair roots','SOLIDIFY');solid.thickness=.016;solid.offset=-1;bpy.context.view_layer.objects.active=o;bpy.ops.object.modifier_apply(modifier=solid.name)
+  return o
  def fringe(kind='swept'):
   parts=[]
   for i in range(9):
@@ -208,7 +215,7 @@ def build_keeper():
   hair_parts=[o for o in parts if o.data.materials and o.data.materials[0]==hair]
   accessories=[o for o in parts if o not in hair_parts]
   sculpt=fuse('ContinuousHair',hair_parts,hair,.004)
-  dec=sculpt.modifiers.new('Hair detail budget','DECIMATE');dec.ratio=.08;bpy.context.view_layer.objects.active=sculpt;bpy.ops.object.modifier_apply(modifier=dec.name)
+  dec=sculpt.modifiers.new('Hair detail budget','DECIMATE');dec.ratio=.18;bpy.context.view_layer.objects.active=sculpt;bpy.ops.object.modifier_apply(modifier=dec.name)
   node='KeeperHair'+''.join(p.title() for p in style.split('-'));o=merge(node,[sculpt]+accessories);attach(o,'Head');print('HAIR',style,flush=True)
  # Skinning is kept on every wardrobe part before joining so shoulders, elbows and knees stay separate.
  def piece(o,bone=None):

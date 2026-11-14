@@ -22,3 +22,9 @@ test('pet movement remains inside room bounds and avoids cottage and bath collis
 test('leaving a sink, fridge or bed activity puts the pet in free room space',()=>{
  for(const player of [{x:4,z:-3},{x:4.4,z:2.7},{x:-3,z:-1}]){const s={...state(),inside:true,player,activity:{}};const pet=createDragonPetBehavior();pet.update(s,.05);s.activity=null;const p=pet.update(s,.05);assert.ok(!petPositionBlocked(p.position.x,p.position.z,true));}
 });
+
+test('pet play begins promptly, includes happy expressions and stays close to a resting keeper',()=>{
+ const s=state(),pet=createDragonPetBehavior();let firstHop=Infinity,maxDistance=0;const moods=new Set();
+ for(let i=0;i<1000;i++){const p=pet.update(s,.04,false);moods.add(p.mood);if(p.jump>.1)firstHop=Math.min(firstHop,i*.04);maxDistance=Math.max(maxDistance,Math.hypot(p.position.x-s.player.x,p.position.z-s.player.z));if(p.mood==='grin')assert.equal(p.grin,1);}
+ assert.ok(firstHop<3,'the pet should show life without a long wait');assert.ok(moods.has('grin'));assert.ok(maxDistance<3,'idle play remains beside the keeper');
+});

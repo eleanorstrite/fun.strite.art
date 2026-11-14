@@ -36,3 +36,11 @@ test('walking paws stay close to the floor and lift smoothly instead of dangling
  for(let i=0;i<90;i++){dragon.animate(i*.03,true,false,'ember',7,false,{speed:1.7});dragon.group.updateMatrixWorld(true);dragon.group.getObjectByName('adult-dragon').traverse(mesh=>{if(!mesh.isSkinnedMesh||!mesh.name.startsWith('Claw'))return;mesh.geometry.computeBoundingBox();const point=mesh.geometry.boundingBox.getCenter(new T.Vector3());mesh.applyBoneTransform(0,point);mesh.localToWorld(point);minimum=Math.min(minimum,point.y);maximum=Math.max(maximum,point.y);});}
  assert.ok(minimum>.04&&minimum<.13);assert.ok(maximum>.14&&maximum<.23);dragon.dispose();
 });
+
+test('grinning animates the original curved smile and relaxes smoothly afterward',async()=>{
+ const dragon=nurseryDragon(new T.Scene(),kit());await dragon.ready;
+ for(const day of [2,7]){for(let i=0;i<18;i++)dragon.animate(i*.08,false,false,'fern',day,false,{mood:'grin',grin:1});const root=dragon.group.getObjectByName(day<7?'baby-dragon':'adult-dragon');let count=0;root.traverse(mesh=>{if(!mesh.name.startsWith('DragonHappyMouth'))return;count++;assert.ok(mesh.isSkinnedMesh);assert.ok(mesh.morphTargetInfluences[0]>.99);const base=mesh.geometry.attributes.position,target=mesh.geometry.morphAttributes.position[0];assert.ok(new T.Box3().setFromBufferAttribute(target).getSize(new T.Vector3()).x>new T.Box3().setFromBufferAttribute(base).getSize(new T.Vector3()).x);});assert.equal(count,1);
+  for(let i=18;i<36;i++)dragon.animate(i*.08,false,false,'fern',day,false,{mood:'look',grin:0});root.traverse(mesh=>{if(mesh.name.startsWith('DragonHappyMouth'))assert.ok(mesh.morphTargetInfluences[0]<.01);});
+ }
+ dragon.dispose();
+});

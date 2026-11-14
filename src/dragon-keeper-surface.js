@@ -11,15 +11,31 @@ export function refineKeeperSurfaces(model,kit){
    material.sheen=.38;material.sheenColor.set('#e1d7c6');material.sheenRoughness=.85;material.roughness=.82;
    if(kit.details?.fabric){material.bumpMap=kit.details.fabric;material.bumpScale=.0011;}
   }else if(source.name==='KeeperHair'){
-   material.roughness=.43;material.anisotropy=.55;material.anisotropyRotation=Math.PI/2;
-   if(kit.details?.hair){material.bumpMap=kit.details.hair;material.bumpScale=.00065;}
+   material.roughness=.40;material.anisotropy=.65;material.anisotropyRotation=Math.PI/2;
+   if(kit.details?.hair){material.bumpMap=kit.details.hair;material.bumpScale=.00045;}
+   material.onBeforeCompile=shader=>{
+    shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vKeeperHair;').replace('#include <begin_vertex>','#include <begin_vertex>\nvKeeperHair=position;');
+    shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vKeeperHair;').replace('#include <color_fragment>',`#include <color_fragment>
+     float hairFlow=atan(vKeeperHair.z+.014,vKeeperHair.x)*220.+vKeeperHair.y*14.+sin(vKeeperHair.y*23.)*.4;
+     diffuseColor.rgb*=.97+.055*sin(hairFlow)+.018*sin(hairFlow*2.7);
+    `).replace('#include <normal_fragment_maps>',`#include <normal_fragment_maps>
+     #ifdef USE_BUMPMAP
+      float hairRelief=(sin(hairFlow)*.0065+sin(hairFlow*2.7)*.0013)*smoothstep(.02,.09,length(vKeeperHair.xz));
+      normal=perturbNormalArb(-vViewPosition,normal,vec2(dFdx(hairRelief),dFdy(hairRelief)),faceDirection);
+     #endif`);
+   };
+   material.customProgramCacheKey=()=>'keeper-combed-strands-1';
   }else if(source.name==='KeeperIris'){
    material.roughness=.21;material.clearcoat=.8;material.clearcoatRoughness=.12;
   }else if(source.name==='KeeperLeather'){
    material.roughness=.62;material.clearcoat=.12;material.clearcoatRoughness=.65;
   }else{material.roughness=.62;material.clearcoat=.08;material.clearcoatRoughness=.65;}
   converted.set(source,material);return material;
- };object.material=Array.isArray(object.material)?object.material.map(refine):refine(object.material);});
+ };
+ // Comb detail follows the crown and the hanging lengths, rather than the
+ // arbitrary UV islands left by the sculpting operation.
+ if(object.material.name==='KeeperHair'&&object.geometry){const positions=object.geometry.attributes.position,uv=new T.Float32BufferAttribute(new Float32Array(positions.count*2),2);for(let i=0;i<positions.count;i++)uv.setXY(i,Math.atan2(positions.getZ(i)+.014,positions.getX(i))/Math.PI/2,positions.getY(i)*1.3);object.geometry.setAttribute('uv',uv);}
+ object.material=Array.isArray(object.material)?object.material.map(refine):refine(object.material);});
  for(const source of converted.keys())source.dispose();
 }
 

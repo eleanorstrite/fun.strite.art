@@ -47,3 +47,16 @@ test('riding dresses use their connected seated drape and return to their walkin
 });
 
 test('a mounted keeper does not inherit the walking hip bounce',async()=>{const person=nurseryKeeper(new T.Scene(),{loadModel},{});await person.ready;person.animate(0,true,true);const hips=person.group.getObjectByName('Hips'),height=hips.position.y;for(let i=1;i<30;i++){person.animate(i*.08,true,true);assert.equal(hips.position.y,height);}person.dispose();});
+
+test('every hairstyle covers the crown from all directions instead of leaving bald gaps',async()=>{
+ const person=nurseryKeeper(new T.Scene(),{loadModel},{});await person.ready;
+ for(const style of KEEPER_HAIRSTYLES){
+  person.updateAppearance({age:'adult',hairStyle:style.id});person.group.updateMatrixWorld(true);
+  const hair=person.group.getObjectByName(keeperHairNode(style.id)),face=person.group.getObjectByName('KeeperFace');hair.traverse(o=>o.skeleton?.update());face.skeleton.update();
+  for(const theta of [.05,.45,.85])for(let j=0;j<8;j++){
+   const angle=j*Math.PI/4,direction=new T.Vector3(Math.cos(angle)*Math.sin(theta),Math.cos(theta),Math.sin(angle)*Math.sin(theta)),origin=new T.Vector3(0,1.887,-.014).addScaledVector(direction,.5),ray=new T.Raycaster(origin,direction.negate());
+   const covering=ray.intersectObject(hair)[0],scalp=ray.intersectObject(face)[0];assert.ok(covering,style.id+' has an uncovered crown');assert.ok(covering.distance<.385,style.id+' hair roots disappeared');if(scalp)assert.ok(covering.distance<scalp.distance-.001,style.id+' lets the scalp show through');
+  }
+ }
+ person.dispose();
+});
