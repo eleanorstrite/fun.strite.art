@@ -1,3 +1,5 @@
+import {createTag3DGame} from './tag-3d.js';
+import {createTagViewChoice} from './tag-view-choice.js';
 import {TAG_PLAY_STRUCTURES,tagPlayFeatureAt,tagClimbAt,drawTagPlayStructure} from './tag-playground.js';
 import {actorHead,drawActorAccessories} from './actor-accessories.js';
 import {drawPlayBackdrop,drawPlaySprite} from './play-art.js';
@@ -15,10 +17,11 @@ export const TAG_ANIMALS={person:'Person',dragon:'Dragon',cat:'Cat',dog:'Dog'};
 export const TAG_OUTFITS={shirt:'T-shirt',hoodie:'Hoodie',stripes:'Striped sweater',cape:'Hero cape'};
 export const TAG_HATS={none:'No hat',cap:'Cap',crown:'Crown',beanie:'Beanie'};
 export const TAG_ACCESSORIES={none:'No accessory',glasses:'Glasses',scarf:'Scarf',wings:'Wings'};
-export function defaultTagSettings(){return {mode:'computer',layout:'park',background:'forest',players:[{animal:'person',color:'#ed6e40',outfit:'hoodie',hat:'cap',accessory:'none'},{animal:'dragon',color:'#8a78d1',outfit:'shirt',hat:'none',accessory:'scarf'}]};}
+export function defaultTagSettings(){return {view:'side',mode:'computer',layout:'park',background:'forest',players:[{animal:'person',color:'#ed6e40',outfit:'hoodie',hat:'cap',accessory:'none'},{animal:'dragon',color:'#8a78d1',outfit:'shirt',hat:'none',accessory:'scarf'}]};}
 export function validateTagSettings(value){
   const result=defaultTagSettings();
   if(!value||typeof value!=='object')return result;
+  if(['side','firstperson'].includes(value.view))result.view=value.view;
   if(['computer','local'].includes(value.mode))result.mode=value.mode;
   if(Object.hasOwn(TAG_LAYOUTS,value.layout))result.layout=value.layout;
   if(Object.hasOwn(TAG_BACKGROUNDS,value.background))result.background=value.background;
@@ -231,7 +234,7 @@ export function drawTagScene(c,s,width,height,reduced=false){
 }
 export function drawTagPreview(canvas){const c=canvas.getContext('2d');if(c){const s=createTagState();s.status='playing';s.time=5;s.players[0].x=310;s.players[1].x=570;drawTagScene(c,s,canvas.width,canvas.height,true);}}
 
-export function createTagGame({canvas,onHud,onFinish,controls=document.querySelector('#tag-controls'),modeControls=document.querySelector('#tag-mode')}){
+function createTagSideGame({canvas,onHud,onFinish,onViewChange=()=>{},controls=document.querySelector('#tag-controls'),modeControls=document.querySelector('#tag-mode')}){
   const c=canvas.getContext('2d');if(!c)throw Error('Canvas is unavailable.');
   const audio=createMazeAudio(),controller=new AbortController(),events={signal:controller.signal},keys=new Set(),touch=[new Set(),new Set()];
   let settings=defaultTagSettings();try{settings=validateTagSettings(JSON.parse(localStorage.getItem('sidequest.tag.settings.v1')));}catch{}
@@ -247,6 +250,7 @@ export function createTagGame({canvas,onHud,onFinish,controls=document.querySele
     const b=document.createElement('button');b.type='button';b.className='button outline';b.textContent=label;
     b.onclick=()=>{if(active)return;settings.mode=id;save();sync();};modeControls.append(b);modeButtons.push([id,b]);
   }
+  const views=createTagViewChoice(modeControls,'side',id=>{if(active)return;settings.view=id;save();onViewChange(id);});
   const form=document.createElement('fieldset');form.className='tag-customizer';
   function select(parent,label,values,value,change,type='select'){
     const wrapper=document.createElement('label');wrapper.textContent=label;const input=document.createElement(type==='select'?'select':'input');
@@ -274,7 +278,7 @@ export function createTagGame({canvas,onHud,onFinish,controls=document.querySele
     pads.append(group);
   }
   const guide=document.createElement('details'),summary=document.createElement('summary');summary.textContent='Explore nine unique play structures';guide.append(summary);for(const t of TAG_PLAY_STRUCTURES){const p=document.createElement('p');p.textContent=t.name+' · '+t.meaning;guide.append(p);}controls.replaceChildren(tip,pads,form,guide);
-  function sync(){form.disabled=active;for(const [id,b] of modeButtons){b.disabled=active;b.setAttribute('aria-pressed',String(settings.mode===id));}padGroups[1].hidden=settings.mode!=='local';}
+  function sync(){form.disabled=active;views.sync(active);for(const [id,b] of modeButtons){b.disabled=active;b.setAttribute('aria-pressed',String(settings.mode===id));}padGroups[1].hidden=settings.mode!=='local';}
   const allowed=['KeyA','KeyD','KeyW','ArrowLeft','ArrowRight','ArrowUp'];
   canvas.addEventListener('keydown',e=>{if(allowed.includes(e.code)){e.preventDefault();if(active&&!paused){keys.add(e.code);const player=settings.mode==='computer'||e.code.startsWith('Key')?0:1;gestures.stop(player);touchAssist[player]=false;}}},events);
   globalThis.window?.addEventListener('keyup',e=>keys.delete(e.code),events);
@@ -292,4 +296,19 @@ export function createTagGame({canvas,onHud,onFinish,controls=document.querySele
   }
   sync();frame=requestAnimationFrame(tick);
   return {start(){clear();s=createTagState(settings,Math.random()<.5?0:1);s.status='countdown';active=true;paused=false;last=0;audio.unlock();audio.play('gem');sync();canvas.focus();},pause(value){paused=value;last=0;clear();if(value)audio.stop();},setMuted:value=>audio.setMuted(value),destroy(){if(destroyed)return;destroyed=true;active=false;clear();controller.abort();audio.destroy();cancelAnimationFrame(frame);controls.replaceChildren();modeControls.replaceChildren();}};
+}
+
+// Switch renderers with fresh canvases: a 2D canvas cannot acquire a WebGL context.
+export function createTagGame(options){
+ const original=options.canvas;let canvas=original,delegate,closed=false,muted=false;
+ const controls=options.controls||document.querySelector('#tag-controls'),modeControls=options.modeControls||document.querySelector('#tag-mode');
+ const read=()=>{try{return validateTagSettings(JSON.parse(localStorage.getItem('sidequest.tag.settings.v1')));}catch{return defaultTagSettings();}};
+ function open(view,settings=read()){
+  if(closed)return;delegate?.destroy();settings=validateTagSettings({...settings,view});try{localStorage.setItem('sidequest.tag.settings.v1',JSON.stringify(settings));}catch{}
+  if(view==='firstperson'||canvas!==original){const next=original.cloneNode();next.width=900;next.height=600;canvas.replaceWith(next);canvas=next;}
+  const shared={...options,canvas,controls,modeControls,onViewChange:next=>open(next),settings,catalog:{animals:TAG_ANIMALS,outfits:TAG_OUTFITS,hats:TAG_HATS,accessories:TAG_ACCESSORIES,backgrounds:TAG_BACKGROUNDS},onSettingsChange:next=>open('firstperson',next)};
+  try{delegate=view==='firstperson'?createTag3DGame(shared):createTagSideGame(shared);delegate.setMuted?.(muted);}catch(error){if(canvas!==original){canvas.replaceWith(original);canvas=original;}throw error;}
+ }
+ open(read().view);
+ return {start:()=>delegate.start(),pause:value=>delegate.pause(value),setMuted(value){muted=value;delegate.setMuted?.(value);},getState:()=>delegate.getState?.(),getView:()=>delegate.getView?.(),destroy(){if(closed)return;closed=true;delegate.destroy();if(canvas!==original){canvas.replaceWith(original);canvas=original;}}};
 }
