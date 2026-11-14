@@ -225,9 +225,9 @@ def build_keeper():
    o=tube(name+'Sleeve',pts,radii,mat,20);skin(o,arm,segments,lambda n,p:n in [name+'Arm',name+'Forearm']);out.append(o)
    out.append(piece(tube('SleeveCuff',[(side*.31,.93 if long else 1.235,.02 if long else 0),(side*.31,.96 if long else 1.27,.02 if long else 0)],[.054 if long else .078]*2,accent,16),name+'Forearm' if long else name+'Arm'))
   return out
- def trousers(baggy=False):
+ def trousers(baggy=False,wide=False):
   parts=[ellipsoid('Waist',(0,1.02,0),(.2,.13,.135),pants)]
-  for side in [-1,1]:parts.append(tube('TrouserLeg',[(side*.12,.99,0),(side*.13,.76,0),(side*.13,.54,0),(side*.13,.27,.01)],[.105,.111 if baggy else .085,.099 if baggy else .072,.07],pants,24))
+  for side in [-1,1]:parts.append(tube('TrouserLeg',[(side*.12,.99,0),(side*.13,.76,0),(side*.13,.54,0),(side*.13,.12 if wide else .27,.01)],[.105,.12 if wide else .111 if baggy else .085,.12 if wide else .099 if baggy else .072,.11 if wide else .07],pants,24))
   o=fuse('ContinuousTrousers',parts,pants,.009)
   dec=o.modifiers.new('Trouser detail budget','DECIMATE');dec.ratio=.30;bpy.context.view_layer.objects.active=o;bpy.ops.object.modifier_apply(modifier=dec.name)
   groups={n:o.vertex_groups.new(name=n) for n in ['Hips','LeftThigh','RightThigh','LeftShin','RightShin']}
@@ -304,11 +304,11 @@ def build_keeper():
   return parts
  def coat_lapels():
   return [piece(tube('TurnedLapel',[(side*.065,1.59,.11),(side*.145,1.43,.178),(side*.085,1.17,.18)],[.024,.032,.013],cloth,12)) for side in [-1,1]]
- outfits=['ranger','hoodie','denim','cargo','scholar','starlight','violet','raincoat','puffer','adventurer','knit','coat','sport','festival','utility-cargo','slouch-hoodie','blue-jacket','olive-knit','mono-ruffle','mooncoat','rose-dress','cosmic-dress','anemone','nouveau']
+ outfits=['city-sweatshirt','ranger','hoodie','denim','cargo','scholar','starlight','violet','raincoat','puffer','adventurer','knit','coat','sport','festival','utility-cargo','slouch-hoodie','blue-jacket','olive-knit','mono-ruffle','mooncoat','rose-dress','cosmic-dress','anemone','nouveau']
  for style in outfits:
   dress=style in ['scholar','starlight','violet','festival','mono-ruffle','mooncoat','rose-dress','cosmic-dress','anemone','nouveau'];parts=[]
-  parts.append(trousers(style in ['cargo','hoodie','utility-cargo','slouch-hoodie','olive-knit']));parts+=shoes(style in ['hoodie','denim','cargo','sport','utility-cargo','slouch-hoodie','blue-jacket','olive-knit'])
-  parts.append(top('KeeperTailoredTop',bottom=1.04 if dress else 1.0,wide=.22 if dress else .235));parts+=sleeves(puff=style in ['starlight','violet','festival','mono-ruffle','rose-dress','cosmic-dress','anemone'],long=style not in ['ranger','adventurer','festival','mono-ruffle','cosmic-dress'],loose=style in ['slouch-hoodie','olive-knit','nouveau','anemone'])
+  parts.append(trousers(style in ['cargo','hoodie','utility-cargo','slouch-hoodie','olive-knit'],wide=style=='city-sweatshirt'));parts+=shoes(style in ['hoodie','denim','cargo','sport','utility-cargo','slouch-hoodie','blue-jacket','olive-knit','city-sweatshirt'])
+  parts.append(top('KeeperTailoredTop',bottom=1.04 if dress else 1.0,wide=.22 if dress else .235));parts+=sleeves(puff=style in ['starlight','violet','festival','mono-ruffle','rose-dress','cosmic-dress','anemone'],long=style not in ['ranger','adventurer','festival','mono-ruffle','cosmic-dress'],loose=style in ['city-sweatshirt','slouch-hoodie','olive-knit','nouveau','anemone'])
   shell=[o for o in parts if o.name.startswith('KeeperTailoredTop') or o.name.endswith('Sleeve')]
   for o in shell:
    for mod in list(o.modifiers):o.modifiers.remove(mod)
@@ -332,7 +332,7 @@ def build_keeper():
    if style=='violet':parts.append(piece(loft('Corset',[(1.115,.233,.174,0),(1.135,.233,.174,0),(1.23,.22,.171,0),(1.415,.24,.18,0),(1.43,.24,.18,0)],pants,32)));parts += [piece(tube('CorsetLacing',[(-.035,1.16+i*.038,.182),(.035,1.195+i*.038,.182)],[.003]*2,accent,6)) for i in range(5)]
   else:
    if style in ['ranger','denim','knit','coat','raincoat','adventurer']:parts+=buttons()
-   elif style!='hoodie':parts.append(piece(tube('JacketZip',[(0,1.055,.165),(0,1.53,.148)],[.003]*2,accent,6)))
+   elif style not in ['hoodie','city-sweatshirt']:parts.append(piece(tube('JacketZip',[(0,1.055,.165),(0,1.53,.148)],[.003]*2,accent,6)))
    if style in ['ranger','adventurer','coat']:parts+=belt()
    if style in ['hoodie','cargo','raincoat']:parts+=hood()
    if style=='hoodie':
@@ -360,6 +360,17 @@ def build_keeper():
     parts.append(piece(loft('SoftScarf',[(1.49,.14,.12,.01),(1.60,.12,.10,.01)],accent,24)));parts.append(piece(tube('ScarfTail',[(.07,1.52,.16),(.08,1.22,.18)],[.035,.03],accent,12)))
    if style=='sport':
     for side in [-1,1]:parts.append(piece(tube('VarsityStripe',[(side*.22,1.53,.085),(side*.29,1.38,.074)],[.013]*2,linen,10)))
+  if style=='city-sweatshirt':
+   # The reference's layered college sweatshirt, wide jeans, trainers and hand-carried bag.
+   parts.append(piece(loft('WhiteShirtHem',[(.965,.235,.157,0),(.975,.235,.157,0),(1.04,.226,.153,0)],linen,40)))
+   for side in [-1,1]:
+    verts=[tuple(v((side*x,y,z)))for x,y,z in [(.095,1.59,.104),(.018,1.54,.165),(.055,1.475,.172),(.15,1.55,.127)]]
+    me=bpy.data.meshes.new('ShirtCollar');me.from_pydata(verts,[],[(0,1,2,3) if side<0 else (3,2,1,0)]);me.update();o=bpy.data.objects.new('WhiteShirtCollar',me);bpy.context.collection.objects.link(o);finish(o,o.name,linen);parts.append(piece(o))
+   for words,y,size in [('NEW YORK',1.405,.046),('THE EMPIRE STATE',1.345,.014)]:
+    bpy.ops.object.text_add(location=v((0,y,.167)),rotation=(math.pi/2,0,0));text=bpy.context.object;text.data.body=words;text.data.align_x='CENTER';text.data.size=size;text.data.extrude=.0006;text.data.bevel_depth=.0002;bpy.ops.object.convert(target='MESH');finish(text,'SweatshirtLettering',linen);parts.append(piece(text))
+   parts.append(piece(ellipsoid('NavyCrescentBag',(-.41,.65,.045),(.15,.105,.065),cloth),'LeftForearm'))
+   parts.append(piece(tube('BagHandle',[(-.31,.86,.04),(-.46,.82,.045),(-.53,.69,.045),(-.48,.66,.045)],[.012]*4,cloth,10),'LeftForearm'))
+   for side in [-1,1]:parts.append(piece(tube('JeansPocketSeam',[(side*.05,1.00,.13),(side*.13,.945,.13),(side*.19,1.00,.07)],[.0015]*3,linen,6),'Hips'))
   if style=='utility-cargo':
    parts+=hood();parts+=cargo_pockets();parts+=belt(1.10)
    white=tube('CreamUtilitySleeve',[(-.235,1.51,0),(-.29,1.32,0),(-.31,1.04,.012),(-.31,.95,.02)],[.10,.091,.074,.059],linen,20);garment_skin(white,True);parts.append(white)

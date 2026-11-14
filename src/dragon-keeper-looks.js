@@ -10,6 +10,7 @@ export const KEEPER_HAIRSTYLES=[
  ['wispy-bangs','Long hair with wispy bangs'],['side-flick','Short side flick'],['wavy-curtain','Wavy curtain hair'],['tousled-quiff','Tousled swept quiff']
 ].map(([id,name])=>({id,name}));
 export const KEEPER_OUTFITS=[
+ ['city-sweatshirt','City sweatshirt and wide jeans','Navy college sweatshirt, white shirt collar, wide blue jeans, white trainers and a crescent bag'],
  ['ranger','Woodland ranger','Layered tunic, leather belt and boots'],
  ['hoodie','Everyday hoodie','Soft hood, drawstrings and relaxed trousers'],
  ['denim','Denim explorer','Open denim jacket over a light T-shirt'],
@@ -38,6 +39,7 @@ export const KEEPER_OUTFITS=[
 export const KEEPER_SKIN_TONES=[['#f2d3be','Porcelain'],['#edc3a4','Fair peach'],['#c89b7f','Warm beige'],['#bd8c68','Honey'],['#ad7856','Golden brown'],['#946247','Chestnut'],['#79513d','Deep brown'],['#4b332b','Rich ebony']];
 export const KEEPER_HAIR_COLORS=['#241b1a','#493024','#77503a','#ab7c3d','#d5ae68','#ddd5c3','#9a4f39','#754b6f'];
 export const KEEPER_OUTFIT_PALETTES={
+ 'city-sweatshirt':{shirt:'#202c49',accent:'#f1ede4',trousers:'#567f9b'},
  ranger:{shirt:'#657c50',accent:'#c6b079',trousers:'#414b3e'},hoodie:{shirt:'#343a40',accent:'#a5a49b',trousers:'#30383f'},
  denim:{shirt:'#88a6b5',accent:'#c6c2a9',trousers:'#57594e'},cargo:{shirt:'#3c4c60',accent:'#8f9a9e',trousers:'#344459'},
  scholar:{shirt:'#30302f',accent:'#bca064',trousers:'#30302f'},starlight:{shirt:'#26384f',accent:'#d7b269',trousers:'#263344'},

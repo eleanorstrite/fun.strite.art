@@ -1,0 +1,2 @@
+export function keeperOutfitThumbnail(outfit){return new URL('../assets/dragon-adventures/wardrobe/'+outfit+'.png',import.meta.url).href;}
+export function keeperOutfitChoice(outfit){return `<button type="button" data-outfit="${outfit.id}" aria-label="${outfit.name}" aria-pressed="false"><img src="${keeperOutfitThumbnail(outfit.id)}" width="144" height="184" alt="" loading="lazy" draggable="false"></button>`;}
