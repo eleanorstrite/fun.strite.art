@@ -4,17 +4,24 @@ import {readFileSync} from 'node:fs';
 import * as T from '../src/vendor/three/three.module.min.js';
 import {GLTFLoader} from '../src/vendor/three/addons/loaders/GLTFLoader.js';
 import {nurseryDragon,dragonLegPose} from '../src/dragon-nursery-dragon.js';
-import {DRAGON_FACE_IMAGE,DRAGON_FACE_RECTS} from '../src/dragon-face-art.js';
+import {DRAGON_FACE_IMAGE,DRAGON_FACE_PALETTES} from '../src/dragon-face-art.js';
 const loadModel=name=>{const b=readFileSync(new URL('../assets/dragon-adventures/models/'+name+'.glb',import.meta.url));return new GLTFLoader().parseAsync(b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength),'');};
-const kit=()=>({loadModel,loadFaceArt:async()=>new T.Texture()});
+const kit=()=>({loadModel});
 test('all colors and both ages have complete three-dimensional bodies, four legs, jaws and flapping wings',async()=>{
  const dragon=nurseryDragon(new T.Scene(),kit());await dragon.ready;
  for(const day of [2,7])for(const element of ['ember','river','fern']){dragon.animate(1,true,false,element,day);const form=dragon.group.getObjectByName(day<7?'baby-dragon':'adult-dragon');assert.ok(form.visible);const bones=[];form.traverse(o=>{if(o.isBone)bones.push(o);});assert.equal(bones.filter(b=>/^(LFore|RFore|LHind|RHind)Upper$/.test(b.name)).length,4);assert.equal(bones.filter(b=>/^(Left|Right)Wing$/.test(b.name)).length,2);assert.ok(form.getObjectByName('Jaw'));const body=form.getObjectByName(day<7?'BabyDragonBody':'AdultDragonBody');body.geometry.computeBoundingBox();const size=body.geometry.boundingBox.getSize(new T.Vector3());assert.ok(size.x>1&&size.y>1&&size.z>2);assert.ok(body.isSkinnedMesh);assert.ok(!form.getObjectByName('egg'));}
  dragon.dispose();
 });
-test('original cover eyes and smiles are mapped onto curved skinned facial surfaces',async()=>{
+test('cover-inspired faces use recessed 3D smiles and fitted glossy eyes instead of stretched photo patches',async()=>{
  assert.ok(DRAGON_FACE_IMAGE.endsWith('/assets/game-covers/dragon-adventures.jpg'));const dragon=nurseryDragon(new T.Scene(),kit());await dragon.ready;
- for(const element of Object.keys(DRAGON_FACE_RECTS)){dragon.animate(1,false,false,element,7);const root=dragon.group.getObjectByName('adult-dragon');let eyes=0;root.traverse(mesh=>{if(!mesh.isMesh||!/^AdultEye/.test(mesh.name))return;eyes++;const uv=mesh.geometry.attributes.uv,rect=DRAGON_FACE_RECTS[element].eye;for(let i=0;i<uv.count;i++){assert.ok(uv.getX(i)>=rect[0]/1280-.00001&&uv.getX(i)<=(rect[0]+rect[2])/1280+.00001);assert.ok(uv.getY(i)>=1-(rect[1]+rect[3])/720-.00001&&uv.getY(i)<=1-rect[1]/720+.00001);}mesh.geometry.computeBoundingBox();assert.ok(mesh.geometry.boundingBox.getSize(new T.Vector3()).z>.03);assert.ok(mesh.isSkinnedMesh);});assert.equal(eyes,2);}
+ for(const day of [2,7])for(const element of Object.keys(DRAGON_FACE_PALETTES)){
+  dragon.animate(1,false,false,element,day);const root=dragon.group.getObjectByName(day<7?'baby-dragon':'adult-dragon'),parts={eyes:[],irises:[],pupils:[]};
+  root.traverse(mesh=>{if(!mesh.isMesh)return;const kind=/^(?:Baby|Adult)Eye/.test(mesh.name)?'eyes':/^(?:Baby|Adult)Iris/.test(mesh.name)?'irises':/^(?:Baby|Adult)Pupil/.test(mesh.name)?'pupils':null;if(!kind)return;parts[kind].push(mesh);assert.ok(mesh.isSkinnedMesh);assert.equal(mesh.material.map,null);mesh.geometry.computeBoundingBox();assert.ok(mesh.geometry.boundingBox.getSize(new T.Vector3()).z>.02);if(kind!=='eyes'){assert.ok(mesh.material.isMeshPhysicalMaterial);assert.equal(mesh.material.clearcoat,1);}if(kind==='irises')assert.equal(mesh.material.color.getHexString(),DRAGON_FACE_PALETTES[element].iris.slice(1));});
+  for(const list of Object.values(parts))assert.equal(list.length,2);
+  const width=mesh=>mesh.geometry.boundingBox.getSize(new T.Vector3()).x;
+  assert.ok(width(parts.irises[0])<width(parts.eyes[0]));assert.ok(width(parts.pupils[0])<width(parts.irises[0])*.7);
+  const mouth=root.getObjectByName('DragonHappyMouth');mouth.geometry.computeBoundingBox();assert.ok(mouth.geometry.boundingBox.getSize(new T.Vector3()).z>.07,'the smile has an actual recessed bowl');assert.equal(mouth.material.map,null);assert.equal(mouth.skeleton.bones.find(b=>b.name==='Jaw').name,'Jaw');
+ }
  dragon.dispose();
 });
 test('skin seams remain coincident through walking, swimming, flying, panting and head turns',async()=>{
@@ -41,6 +48,18 @@ test('grinning animates the original curved smile and relaxes smoothly afterward
  const dragon=nurseryDragon(new T.Scene(),kit());await dragon.ready;
  for(const day of [2,7]){for(let i=0;i<18;i++)dragon.animate(i*.08,false,false,'fern',day,false,{mood:'grin',grin:1});const root=dragon.group.getObjectByName(day<7?'baby-dragon':'adult-dragon');let count=0;root.traverse(mesh=>{if(!mesh.name.startsWith('DragonHappyMouth'))return;count++;assert.ok(mesh.isSkinnedMesh);assert.ok(mesh.morphTargetInfluences[0]>.99);const base=mesh.geometry.attributes.position,target=mesh.geometry.morphAttributes.position[0];assert.ok(new T.Box3().setFromBufferAttribute(target).getSize(new T.Vector3()).x>new T.Box3().setFromBufferAttribute(base).getSize(new T.Vector3()).x);});assert.equal(count,1);
   for(let i=18;i<36;i++)dragon.animate(i*.08,false,false,'fern',day,false,{mood:'look',grin:0});root.traverse(mesh=>{if(mesh.name.startsWith('DragonHappyMouth'))assert.ok(mesh.morphTargetInfluences[0]<.01);});
+ }
+ dragon.dispose();
+});
+
+test('blinking closes attached upper lids and reopens them without detaching from the face',async()=>{
+ const dragon=nurseryDragon(new T.Scene(),kit());await dragon.ready;
+ for(const day of [2,7]){
+  for(let i=0;i<20;i++)dragon.animate(1+i*.016,false,false,'river',day);
+  const root=dragon.group.getObjectByName(day<7?'baby-dragon':'adult-dragon'),lids=[];root.traverse(mesh=>{if(/^(RelaxedEyeHood|GentleUpperLid)/.test(mesh.name))lids.push(mesh);});assert.equal(lids.length,4);assert.ok(lids.every(l=>l.morphTargetInfluences[0]<.01));
+  for(let i=0;i<=12;i++)dragon.animate(4.3+i/60,false,false,'river',day);
+  assert.ok(lids.every(l=>l.visible&&l.isSkinnedMesh));root.traverse(mesh=>{if(/Catchlight/.test(mesh.name))assert.equal(mesh.visible,false,'highlights must disappear behind a closing lid');});for(const lid of lids){assert.equal(lid.material.map,null);assert.ok(lid.geometry.morphAttributes.position.length);assert.ok(lid.morphTargetInfluences[0]>.2);}
+  for(let i=0;i<20;i++)dragon.animate(5+i*.016,false,false,'river',day);assert.ok(lids.every(l=>l.morphTargetInfluences[0]<.01));
  }
  dragon.dispose();
 });

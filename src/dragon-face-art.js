@@ -1,8 +1,7 @@
-// Small facial details from the cover are fitted to curved, head-bound 3D surfaces.
-// Complete bodies, legs, jaws, tails and wings are actual skinned geometry.
+// Reference artwork stays on the home screen; the pet's facial features are sculpted 3D meshes.
 export const DRAGON_FACE_IMAGE=new URL('../assets/game-covers/dragon-adventures.jpg',import.meta.url).href;
-export const DRAGON_FACE_RECTS={
- river:{eye:[768,203,40,37],mouth:[806,240,46,37]},
- ember:{eye:[346,359,53,47],mouth:[380,388,77,62]},
- fern:{eye:[992,405,56,47],mouth:[936,428,67,53]}
+export const DRAGON_FACE_PALETTES={
+ river:{skin:'#368ed1',wing:'#88bce6',iris:'#977037'},
+ ember:{skin:'#ce4430',wing:'#ef983f',iris:'#9d6027'},
+ fern:{skin:'#7ca945',wing:'#abc963',iris:'#796431'}
 };

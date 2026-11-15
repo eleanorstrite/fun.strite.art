@@ -3,7 +3,7 @@ Run: blender -b --factory-startup --python tools/build-dragon-art.py -- assets/d
 All coordinates below use game axes (x, height, forward), converted to Blender at creation.
 No third-party character meshes or game artwork are used.
 """
-import bpy, math, os, sys, random
+import bpy, bmesh, math, os, sys, random
 from mathutils import Vector
 OUT=os.path.abspath(sys.argv[sys.argv.index('--')+1])
 os.makedirs(OUT,exist_ok=True)
@@ -113,13 +113,31 @@ def dragon(adult):
  arm=rig(prefix+'DragonRig',bones)
  parts=[ellipsoid('torso',(0,sy,0),(.5,.56 if adult else .45,.85 if adult else .63)),ellipsoid('hips',(0,sy-.05,-.55),(.44,.49,.45)),ellipsoid('shoulders',(0,sy+.13,.45),(.46,.48,.4))]
  neck=[(0,sy+.05,.4),(0,sy+.48,.65),(0,heady-.3,.65),(0,heady-.12,headz)];parts.append(tube('neck',neck,[.32,.27,.19,.23] if adult else [.29,.27,.27,.28],None,16))
- parts += [ellipsoid('cranium',(0,heady,headz),(.46,.40,.38)),ellipsoid('cheeks',(0,heady-.11,headz+.18),(.40,.24,.27)),ellipsoid('muzzle',(0,heady-.15,headz+.30),(.30,.18,.23))]
+ parts += [ellipsoid('cranium',(0,heady+.025,headz),(.44,.425,.38)),ellipsoid('cheeks',(0,heady-.10,headz+.16),(.375,.255,.28)),ellipsoid('muzzle',(0,heady-.135,headz+.30),(.325,.185,.245))]
  tailpoints=[(0,.88,-.65),(.1,.76,-1.2),(.32,.54,-1.9),(.48,.34,-2.55),(.65,.39,-3.05)];parts.append(tube('tail',tailpoints,[.29,.23,.16,.09,.012],None,16))
  segments=[(n,h,t) for n,h,t,p in bones if not 'Wing' in n and n!='Root']
  for side in [-1,1]:
   for rear in [False,True]:
    z=-.62 if rear else .46;parts += [ellipsoid('thigh',(side*.43,sy-.12,z),(.22,.34 if adult else .26,.25)),tube('limb',[(side*.43,sy,z),(side*.55,.43,z+(-.12 if rear else .12)),(side*.53,.12,z+.28)],[.18,.12,.095],None),ellipsoid('paw',(side*.53,.1,z+.35),(.18,.11,.25))]
  body=fuse(prefix+'DragonBody',parts,skinmat,.026)
+ # Carve a genuine rounded smile into the continuous muzzle, with raised corners.
+ # This is a recessed mouth cavity, never a photographed mouth pasted on the face.
+ mouth_outline=[]
+ for i in range(25):
+  x=-.17+.34*i/24;mouth_outline.append((x,heady-.195+.025*(x/.17)**2))
+ for i in range(24,-1,-1):
+  x=-.17+.34*i/24;mouth_outline.append((x,heady-.290+.120*(abs(x)/.205)**1.8))
+ cutter_verts=[tuple(v((x,y,z))) for z in [headz+.31,headz+.64] for x,y in mouth_outline]
+ count=len(mouth_outline);cutter_faces=[tuple(reversed(range(count))),tuple(range(count,count*2))]
+ for i in range(count):j=(i+1)%count;cutter_faces.append((i,j,j+count,i+count))
+ cutter_mesh=bpy.data.meshes.new('SmileCavityCut');cutter_mesh.from_pydata(cutter_verts,[],cutter_faces);cutter_mesh.update()
+ bm=bmesh.new();bm.from_mesh(cutter_mesh);bmesh.ops.recalc_face_normals(bm,faces=bm.faces);bm.to_mesh(cutter_mesh);bm.free()
+ cutter=bpy.data.objects.new('SmileCavityCut',cutter_mesh);bpy.context.collection.objects.link(cutter)
+ bpy.context.view_layer.objects.active=body;cut=body.modifiers.new('Inset smiling mouth','BOOLEAN');cut.operation='DIFFERENCE';cut.solver='EXACT';cut.object=cutter;bpy.ops.object.modifier_apply(modifier=cut.name);bpy.data.objects.remove(cutter,do_unlink=True)
+ # Shallow eye sockets stop the skull from cutting across the whites or iris.
+ for side in [-1,1]:
+  socket=ellipsoid('EyeSocketCut',(side*.235,heady+.095,headz+.326),(.123,.144,.076))
+  bpy.context.view_layer.objects.active=body;cut=body.modifiers.new('Fitted eye socket','BOOLEAN');cut.operation='DIFFERENCE';cut.solver='EXACT';cut.object=socket;bpy.ops.object.modifier_apply(modifier=cut.name);bpy.data.objects.remove(socket,do_unlink=True)
  # World-sized UVs keep scales small and consistent across the fused surface.
  uv=body.data.uv_layers.active
  for face in body.data.polygons:
@@ -155,11 +173,39 @@ def dragon(adult):
   for j in range(12):a=i*13+j;faces.append((a,a+1,a+14,a+13))
  me=bpy.data.meshes.new('VentralArmor');me.from_pydata(verts,[],faces);me.update();chest=bpy.data.objects.new('DragonBreast',me);bpy.context.collection.objects.link(chest);finish(chest,chest.name,cream);skin(chest,arm,segments,lambda n,p:n in ['Spine','Neck','Head'])
  for side in [-1,1]:
-  # Dark, fitted eyes with soft catchlights: no exposed staring white eyeballs.
-  eye=ellipsoid(prefix+'Eye',(side*.265,heady+.09,headz+.322),(.135,.155,.033),white);bind(eye,arm,'Head')
-  nostril=ellipsoid('Nostril',(side*.085,heady-.085,headz+.518),(.012,.007,.004),black);bind(nostril,arm,'Head')
-  # Relaxed upper lids follow an even arc rather than forming an angry brow.
-  lid=tube('GentleUpperLid',[(side*.145,heady+.15,headz+.30),(side*.215,heady+.235,headz+.32),(side*.29,heady+.24,headz+.32),(side*.38,heady+.16,headz+.27)],[.009,.014,.014,.009],skinmat,12);bind(lid,arm,'Head')
+  # Inset three-dimensional eyes, a small cream crescent and warm amber irises.
+  eye_center=(side*.235,heady+.095,headz+.323)
+  eye=ellipsoid(prefix+'Eye',eye_center,(.112,.133,.054),cream);bind(eye,arm,'Head')
+  irisobj=ellipsoid(prefix+'Iris',(side*.227,heady+.111,headz+.368),(.091,.113,.022),iris);bind(irisobj,arm,'Head')
+  pupil=ellipsoid(prefix+'Pupil',(side*.224,heady+.116,headz+.386),(.054,.080,.013),black);bind(pupil,arm,'Head')
+  for k,(dx,dy,r) in enumerate([(-.021,.039,.012),(.022,-.026,.005)]):
+   glint=ellipsoid(prefix+'Catchlight',(side*.224+dx,heady+.116+dy,headz+.405),(r,r,.005),white);bind(glint,arm,'Head')
+  nostril=ellipsoid('Nostril',(side*.092,heady-.085,headz+.537),(.012,.008,.004),black);bind(nostril,arm,'Head')
+  # A curved upper hood covers the top of the eye for a relaxed, happy expression.
+  verts=[];faces=[];columns=32;rows=5
+  for row in range(rows+1):
+   t=row/rows
+   for j in range(columns+1):
+    theta=j/columns*math.pi;x=side*.235+(.115+.020*t)*math.cos(theta);y=heady+.095+(.105+.043*t)*math.sin(theta);z=headz+.326+.072*math.sin(theta)*(1-t**8)-.015*t**8
+    verts.append(tuple(v((x,y,z))))
+  for row in range(rows):
+   for j in range(columns):a=row*(columns+1)+j;faces.append((a,a+1,a+columns+2,a+columns+1))
+  me=bpy.data.meshes.new('RelaxedEyeHood');me.from_pydata(verts,[],faces);me.update();hood=bpy.data.objects.new('RelaxedEyeHood',me);bpy.context.collection.objects.link(hood);finish(hood,hood.name,skinmat)
+  bm=bmesh.new();bm.from_mesh(me);bmesh.ops.recalc_face_normals(bm,faces=bm.faces);bm.to_mesh(me);bm.free();hood.shape_key_add(name='Basis');closed=hood.shape_key_add(name='Blink')
+  for row in range(rows+1):
+   t=row/rows
+   for j in range(columns+1):
+    theta=j/columns*math.pi;x=side*.235+(.115+.020*t)*math.cos(theta);y=heady+.095+(-.135*(1-t)+.148*t)*math.sin(theta);z=headz+.326+.082*math.sin(theta)*(1-t**8)-.015*t**8
+    closed.data[row*(columns+1)+j].co=v((x,y,z))
+  bind(hood,arm,'Head')
+  for name,start,end,radius in [('GentleUpperLid',0,math.pi,.012),('SoftLowerLid',math.pi,math.tau,.012)]:
+   points=[(side*.235+.115*math.cos(start+(end-start)*i/32),heady+.095+(.105 if name=='GentleUpperLid' else .135)*math.sin(start+(end-start)*i/32),headz+.326+(.070*math.sin(start+(end-start)*i/32) if name=='GentleUpperLid' else 0)) for i in range(33)]
+   lid=tube(name,points,[radius]*len(points),skinmat,12)
+   if name=='GentleUpperLid':
+    lid.shape_key_add(name='Basis');closed=lid.shape_key_add(name='Blink')
+    for vertex in closed.data:
+     p=vertex.co.copy();theta=math.acos(max(-1,min(1,(p.x-side*.235)/.115)));p.z-=.240*math.sin(theta);p.y-=.012*math.sin(theta);vertex.co=p
+   bind(lid,arm,'Head')
   hornobj=tube('SweptHorn',[(side*.2,heady+.16,headz-.1),(side*.29,heady+.36,headz-.22),(side*.31,heady+.48,headz-.35)],[.075,.045,.012],horn,16);bind(hornobj,arm,'Head')
   for i in range(2):
    fin=tube('CheekSpine',[(side*.30,heady+.03-i*.07,headz-.08-i*.07),(side*.43,heady+.08-i*.05,headz-.24-i*.08)],[.05,.012],horn,12);bind(fin,arm,'Head')
@@ -179,8 +225,18 @@ def dragon(adult):
   me=bpy.data.meshes.new('WingMembrane');me.from_pydata(verts,[],faces);me.update();o=bpy.data.objects.new(label+'Membrane',me);bpy.context.collection.objects.link(o);finish(o,o.name,wingmat);m=o.modifiers.new('Membrane thickness','SOLIDIFY');m.thickness=.012;bpy.context.view_layer.objects.active=o;bpy.ops.object.modifier_apply(modifier=m.name);skin(o,arm,[(n,h,t)for n,h,t,p in bones if n in [label,label+'Tip']])
   for j in [2,3,4]:
    finger=tube('WingFinger',[wingpoints[0],wingpoints[1],wingpoints[j]],[.055,.035,.006],skinmat);skin(finger,arm,[(n,h,t)for n,h,t,p in bones if n in [label,label+'Tip']])
- # A curved mouth surface and articulated lower jaw carry the cover's happy expression.
- mouth=ellipsoid('DragonHappyMouth',(0,heady-.21,headz+.525),(.175,.083,.023),white);bind(mouth,arm,'Jaw')
+ # The cover's small rounded crest breaks up the forehead silhouette.
+ for i in range(4):
+  crest=tube('FriendlyForeheadCrest',[(0,heady+.36-i*.018,headz+.12-i*.13),(0,heady+.47-i*.025,headz+.06-i*.13)],[.058,.008],skinmat,14);bind(crest,arm,'Head')
+ # A softly shaded bowl, small tongue and only two rounded milk teeth.
+ oral=material('DragonMouthInterior','#593641',.86);tongue_mat=material('DragonTongue','#ce858b',.7)
+ verts=[tuple(v((0,heady-.245,headz+.30)))]+[tuple(v((x,y,headz+.30+.245*math.sqrt(max(.02,1-(x/.325)**2-((y-(heady-.135))/.185)**2))-.008))) for x,y in mouth_outline]
+ faces=[(0,i+1,(i+1)%len(mouth_outline)+1) for i in range(len(mouth_outline))]
+ me=bpy.data.meshes.new('SculptedSmileBowl');me.from_pydata(verts,[],faces);me.update();mouth=bpy.data.objects.new('DragonHappyMouth',me);bpy.context.collection.objects.link(mouth);finish(mouth,mouth.name,oral)
+ bm=bmesh.new();bm.from_mesh(me);bmesh.ops.recalc_face_normals(bm,faces=bm.faces);bm.to_mesh(me);bm.free();bind(mouth,arm,'Jaw')
+ tongue=ellipsoid('DragonTongue',(0,heady-.265,headz+.42),(.083,.022,.035),tongue_mat);bind(tongue,arm,'Jaw')
+ for side in [-1,1]:
+  tooth=tube('DragonMilkTooth',[(side*.112,heady-.197,headz+.505),(side*.113,heady-.229,headz+.495)],[.014,.004],cream,12);bind(tooth,arm,'Head')
  for i in range(10):
   z=.2-i*.21;y=sy+.51-max(0,i-3)*.028;spine=tube('DorsalSpine',[(0,y,z),(0,y+.23,z-.12)],[.075,.002],horn,8);bind(spine,arm,'Spine' if i<5 else 'Tail0')
  saddle=ellipsoid('DragonSaddle',(0,1.65 if adult else 1.32,-.1),(.31,.07,.33),leather);bind(saddle,arm,'Spine')
