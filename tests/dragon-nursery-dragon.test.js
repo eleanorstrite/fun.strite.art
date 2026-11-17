@@ -12,8 +12,8 @@ test('all colors and both ages have complete three-dimensional bodies, four legs
  for(const day of [2,7])for(const element of ['ember','river','fern']){dragon.animate(1,true,false,element,day);const form=dragon.group.getObjectByName(day<7?'baby-dragon':'adult-dragon');assert.ok(form.visible);const bones=[];form.traverse(o=>{if(o.isBone)bones.push(o);});assert.equal(bones.filter(b=>/^(LFore|RFore|LHind|RHind)Upper$/.test(b.name)).length,4);assert.equal(bones.filter(b=>/^(Left|Right)Wing$/.test(b.name)).length,2);assert.ok(form.getObjectByName('Jaw'));const body=form.getObjectByName(day<7?'BabyDragonBody':'AdultDragonBody');body.geometry.computeBoundingBox();const size=body.geometry.boundingBox.getSize(new T.Vector3());assert.ok(size.x>1&&size.y>1&&size.z>2);assert.ok(body.isSkinnedMesh);assert.ok(!form.getObjectByName('egg'));}
  dragon.dispose();
 });
-test('cover-inspired faces use recessed 3D smiles and fitted glossy eyes instead of stretched photo patches',async()=>{
- assert.ok(DRAGON_FACE_IMAGE.endsWith('/assets/game-covers/dragon-adventures.jpg'));const dragon=nurseryDragon(new T.Scene(),kit());await dragon.ready;
+test('approved-reference faces use recessed 3D smiles and fitted glossy eyes instead of stretched photo patches',async()=>{
+ assert.ok(DRAGON_FACE_IMAGE.endsWith('/assets/dragon-adventures/three-babies-reference.png'));const dragon=nurseryDragon(new T.Scene(),kit());await dragon.ready;
  for(const day of [2,7])for(const element of Object.keys(DRAGON_FACE_PALETTES)){
   dragon.animate(1,false,false,element,day);const root=dragon.group.getObjectByName(day<7?'baby-dragon':'adult-dragon'),parts={eyes:[],irises:[],pupils:[]};
   root.traverse(mesh=>{if(!mesh.isMesh)return;const kind=/^(?:Baby|Adult)Eye/.test(mesh.name)?'eyes':/^(?:Baby|Adult)Iris/.test(mesh.name)?'irises':/^(?:Baby|Adult)Pupil/.test(mesh.name)?'pupils':null;if(!kind)return;parts[kind].push(mesh);assert.ok(mesh.isSkinnedMesh);assert.equal(mesh.material.map,null);mesh.geometry.computeBoundingBox();assert.ok(mesh.geometry.boundingBox.getSize(new T.Vector3()).z>.02);if(kind!=='eyes'){assert.ok(mesh.material.isMeshPhysicalMaterial);assert.equal(mesh.material.clearcoat,1);}if(kind==='irises')assert.equal(mesh.material.color.getHexString(),DRAGON_FACE_PALETTES[element].iris.slice(1));});
@@ -60,6 +60,30 @@ test('blinking closes attached upper lids and reopens them without detaching fro
   for(let i=0;i<=12;i++)dragon.animate(4.3+i/60,false,false,'river',day);
   assert.ok(lids.every(l=>l.visible&&l.isSkinnedMesh));root.traverse(mesh=>{if(/Catchlight/.test(mesh.name))assert.equal(mesh.visible,false,'highlights must disappear behind a closing lid');});for(const lid of lids){assert.equal(lid.material.map,null);assert.ok(lid.geometry.morphAttributes.position.length);assert.ok(lid.morphTargetInfluences[0]>.2);}
   for(let i=0;i<20;i++)dragon.animate(5+i*.016,false,false,'river',day);assert.ok(lids.every(l=>l.morphTargetInfluences[0]<.01));
+ }
+ dragon.dispose();
+});
+
+test('the approved whole-body design has curled tails, tucked front paws, sixteen rounded nails and layered belly plates',async()=>{
+ const dragon=nurseryDragon(new T.Scene(),kit());await dragon.ready;
+ for(const day of [2,7]){
+  dragon.animate(1,false,false,'river',day);dragon.group.updateMatrixWorld(true);const root=dragon.group.getObjectByName(day<7?'baby-dragon':'adult-dragon');
+  const names=[];root.traverse(o=>{if(o.isMesh)names.push(o.name);});
+  assert.equal(names.filter(n=>/^Claw(?:[_.]?\d+)?$/.test(n)).length,16);
+  assert.equal(names.filter(n=>/^CheekFan(?:[_.]?\d+)?$/.test(n)).length,2);
+  assert.equal(names.filter(n=>/^SweptHorn(?:[_.]?\d+)?$/.test(n)).length,2);
+  assert.equal(names.filter(n=>/^(DragonBreast|DragonBellyPlate)(?:[_.]?\d+)?$/.test(n)).length,9);
+  const front=root.getObjectByName('LForeUpper').getWorldPosition(new T.Vector3()),hind=root.getObjectByName('LHindUpper').getWorldPosition(new T.Vector3());assert.ok(Math.abs(front.x)<Math.abs(hind.x),'front paws tuck below the chest');
+  const curled=root.getObjectByName('Tail3').getWorldPosition(new T.Vector3());assert.ok(curled.x>.7&&curled.z>.1,'the tail curls back toward the paws instead of projecting straight behind');
+ }
+ dragon.dispose();
+});
+
+test('the green and red reference smiles stay gently closed, while blue and panting pets can smile open',async()=>{
+ const dragon=nurseryDragon(new T.Scene(),kit());await dragon.ready;
+ for(const color of ['river','fern','ember']){
+  dragon.animate(1,false,false,color,2,false,{mood:'look'});const root=dragon.group.getObjectByName('baby-dragon'),closed=color!=='river';assert.equal(root.getObjectByName('DragonSmileCover').visible,closed);assert.equal(root.getObjectByName('DragonHappyMouth').visible,!closed);assert.equal(root.getObjectByName('DragonTongue').visible,!closed);
+  dragon.animate(2,false,false,color,2,false,{mood:'pant'});assert.equal(root.getObjectByName('DragonSmileCover').visible,false);assert.equal(root.getObjectByName('DragonHappyMouth').visible,true);
  }
  dragon.dispose();
 });

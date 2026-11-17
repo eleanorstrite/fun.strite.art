@@ -1,7 +1,7 @@
-// Reference artwork stays on the home screen; the pet's facial features are sculpted 3D meshes.
-export const DRAGON_FACE_IMAGE=new URL('../assets/game-covers/dragon-adventures.jpg',import.meta.url).href;
+// Approved three-baby reference. The running pets use complete, animated 3D geometry.
+export const DRAGON_FACE_IMAGE=new URL('../assets/dragon-adventures/three-babies-reference.png',import.meta.url).href;
 export const DRAGON_FACE_PALETTES={
- river:{skin:'#368ed1',wing:'#88bce6',iris:'#977037'},
- ember:{skin:'#ce4430',wing:'#ef983f',iris:'#9d6027'},
- fern:{skin:'#7ca945',wing:'#abc963',iris:'#796431'}
+ river:{skin:'#3c76bd',wing:'#7098c4',iris:'#93662d',brow:'#38506c'},
+ ember:{skin:'#cc4934',wing:'#dd803a',iris:'#9d682b',brow:'#784b32'},
+ fern:{skin:'#4b932c',wing:'#9abb52',iris:'#8d6d27',brow:'#49622d'}
 };
