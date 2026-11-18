@@ -2,6 +2,12 @@
 
 A static game playground for GitHub Pages. Includes Knights and Dragons (a 2D knight-and-dragon maze), Flappy Animals (a flap-to-fly obstacle game), and Hoop Flight (an airplane hoop time trial), a shared character studio, a wallet, and character/environment/equipment upgrades. No bundler, account, or backend required. City Builder loads a locally bundled Three.js renderer; no runtime CDN is required.
 
+## Four Square
+
+A free 3D recess game with four cement squares, a school playground backdrop, four active kids and a waiting line. Start as King; a missed return sends you to the line, moves lower ranks up, and admits the next kid as Peasant. Crowns, royal clothing, armor and a hoodie follow each child’s current rank. Recess lasts three minutes; returns and opponents getting out earn shared coins at the bell.
+
+Space or a court tap serves, returns a bounced ball, or catches a scoop. Use the rank buttons to aim. A slow low bounce becomes a scoop; catching one puts its thrower out. Arrow keys / WASD move; phone swipes step and dragging holds movement. King can call Cherry Bomb or any rank’s square before serving. Down / swipe down jumps outside for Cherry Bomb; otherwise race into the called square. Its resident stays, and the last arrival goes out. King commands have a short cooldown. Pause freezes the match. The rules, pure simulation, 3D scene and controls live in `src/four-square*.js`; all Three.js assets remain local.
+
 ## Homepage robot wardrobe
 
 The Character Studio offers a classic robot, hoodie, overalls, space suit, or adventure jacket; a separate clothing color; baseball cap, beanie, or top hat; and mix-and-match glasses, headphones, and backpack. All robot wardrobe choices are free. Changes update both homepage previews and save automatically when a valid explorer name is present. Robot clothing is saved separately from knight equipment inside the character save and transfers with export/import. Older saves default to the classic robot. The forest explorer dances continuously as soon as the homepage loads. Changing or saving its appearance keeps the dance running. Reduced-motion settings use a gentle glow instead.

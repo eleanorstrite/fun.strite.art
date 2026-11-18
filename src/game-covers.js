@@ -1,5 +1,6 @@
 import {mountAnimatedGameCover} from './animated-game-cover.js';
 export const GAME_COVERS={
+ 'four-square':{name:'Four Square',file:'four-square.png'},
  'dragon-adventures':{name:'Dragon Adventures',file:'dragon-adventures.jpg',animated:true},
  'platform-jump':{name:'Platform Jump',file:'platform-jump.jpg'},
  'animal-sports':{name:'Animal Sports',file:'animal-sports.jpg'},
