@@ -32,7 +32,7 @@ def build_companion(mature):
   for rear in [False,True]:
    label=('L' if side<0 else 'R')+('Hind' if rear else 'Fore');z=-.35 if rear else .42
    hx,kx,px=(.43,.55,.53)if rear else(.33,.35,.35)
-   bones.extend([(label+'Upper',(side*hx,sy,z),(side*kx,.43,z+(-.12 if rear else .12)),'Spine'),(label+'Lower',(side*kx,.43,z+(-.12 if rear else .12)),(side*px,.1,z+.28),label+'Upper')])
+   bones.extend([(label+'Upper',(side*hx,sy,z),(side*kx,.43,z+(-.12 if rear else .12)),'Spine'),(label+'Lower',(side*kx,.43,z+(-.12 if rear else .12)),(side*px,.1,z+.28),label+'Upper'),(label+'Foot',(side*px,.1,z+.28),(side*px,.1,z+.55),label+'Lower')])
   label='LeftWing' if side<0 else 'RightWing'
   bones.extend([(label,(side*.39,1.08,-.13),(side*.88,1.65,-.22),'Spine'),(label+'Tip',(side*.88,1.65,-.22),(side*1.76,1.30,-.50),label)])
  arm=rig(prefix+'DragonRig',bones);segments=[(n,a,b)for n,a,b,p in bones if 'Wing' not in n and n!='Root'];tail_segments=[s for s in segments if s[0].startswith('Tail')]
@@ -78,9 +78,11 @@ def build_companion(mature):
   jaw=ease((z-.79)/.12)*ease((1.45-y)/.12)*ease((y-1.22)/.12)
   head=ease((y-1.25)/.24)*(1-jaw);neck=(1-head-jaw)*ease((y-.94)/.30)
   td=distances(point,tail_segments);tail_weight=max(ease((x-.60)/.21),ease((-z-.56)/.25))*(1-ease((y-.90)/.3))*ease((.36-td[0][0])/.22)
+  # The side curl extends in front of the hips; it must never inherit a foreleg pose.
+  if x>.75 or z<-.80:tail_weight=1.0
   leg=(max(ease((abs(x)-.10)/.20),ease((z-.42)/.16))if z>.03 else ease((abs(x)-.24)/.21))*(1-ease((y-.65)/.25))*(1-tail_weight)
   base=(1-leg)*(1-tail_weight);values={'Head':head*base,'Jaw':jaw*base,'Neck':neck*base,'Spine':max(0,1-head-jaw-neck)*base}
-  label=('L' if x<0 else 'R')+('Fore'if z>.03 else 'Hind');knee=ease((.56-y)/.21);values[label+'Upper']=leg*(1-knee);values[label+'Lower']=leg*knee
+  label=('L' if x<0 else 'R')+('Fore'if z>.03 else 'Hind');knee=ease((.56-y)/.21);ankle=ease((.28-y)/.13)*ease((z-((.42 if z>.03 else -.35)+.17))/.13);values[label+'Upper']=leg*(1-knee);values[label+'Lower']=leg*knee*(1-ankle);values[label+'Foot']=leg*knee*ankle
   weights=[math.exp(-d*16)for d,n in td[:2]];total=sum(weights)or 1
   for (d,n),w in zip(td[:2],weights):values[n]=values.get(n,0)+tail_weight*w/total
   total=sum(values.values())or 1
@@ -114,8 +116,8 @@ def build_companion(mature):
   for rear in [False,True]:
    label=('L'if side<0 else'R')+('Hind'if rear else'Fore');z=-.35 if rear else .42;px=.53 if rear else .35
    for j in range(4):
-    x=side*px+(j-1.5)*.095;nail=orb('Claw',(x,.105,z+.535),(.034,.037,.057),claw);bind(nail,arm,label+'Lower')
-   pad=orb('PawPad',(side*px,.035,z+.36),(.105,.014,.125),material('DragonPawPad'+label,'#cc8f90',.8));bind(pad,arm,label+'Lower')
+    x=side*px+(j-1.5)*.095;nail=orb('Claw',(x,.105,z+.535),(.034,.037,.057),claw);bind(nail,arm,label+'Foot')
+   pad=orb('PawPad',(side*px,.035,z+.36),(.105,.014,.125),material('DragonPawPad'+label,'#cc8f90',.8));bind(pad,arm,label+'Foot')
  # Eyes, lids, cheek fins and swept ivory horns share the head bone.
  for side in [-1,1]:
   eye=orb(prefix+'Eye',(side*.27,eye_y,eye_z),(.126,.15,.061),cream);bind(eye,arm,'Head')

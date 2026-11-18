@@ -9,7 +9,7 @@ export function petPositionBlocked(x,z,inside=false){
 export function createDragonPetBehavior(){
  let p=null,inside=null,mode='look',clock=0,index=0,anchor=null,speed=0,heading=0,jump=0,vy=0,wasForced=false,attention=0;
  function nearby(s){for(const [x,z]of [[1.5,0],[-1.5,0],[0,1.2],[0,-1.2],[1,1],[-1,-1]]){const q={x:s.player.x+x,z:s.player.z+z};if(!petPositionBlocked(q.x,q.z,s.inside))return q;}return s.inside?{x:0,z:2}:{...s.player};}
- const sequence=['look','hop','pant','circle','grin','chase','sit'];
+ const sequence=['look','hop','pant','circle','grin','chase','sit','stand','wag'];
  function reset(point,h=0,room=false){p={x:point.x,z:point.z};inside=room;heading=h;anchor={...p};clock=0;mode='look';speed=0;jump=vy=0;}
  return {reset,attend(seconds=8){attention=seconds;mode='look';clock=0;},update(s,dt,playerMoving=false){
   dt=clamp(dt||0,0,.08);if(!p||inside!==s.inside){reset(nearby(s),s.heading,s.inside);}
@@ -34,8 +34,8 @@ export function createDragonPetBehavior(){
     const desired=Math.atan2(dx,dz);heading+=wrap(desired-heading)*(1-Math.exp(-dt*7));}
   }else speed=smooth(speed,0,8,dt);
   if(vy||jump){vy-=4.8*dt;jump=Math.max(0,jump+vy*dt);if(!jump&&vy<0)vy=0;}
-  const towards=Math.atan2(s.player.x-p.x,s.player.z-p.z);if(!target&&['look','pant','grin'].includes(mode))heading+=wrap(towards-heading)*(1-Math.exp(-dt*1.8));
-  const lookYaw=['look','pant','grin'].includes(mode)?clamp(wrap(towards-heading)*.65+Math.sin(clock*1.6)*.2,-.5,.5):mode==='chase'?.35:Math.sin(clock*.7)*.15;
+  const towards=Math.atan2(s.player.x-p.x,s.player.z-p.z);if(!target&&['look','pant','grin','stand','wag'].includes(mode))heading+=wrap(towards-heading)*(1-Math.exp(-dt*1.8));
+  const lookYaw=['look','pant','grin','stand','wag'].includes(mode)?clamp(wrap(towards-heading)*.65+Math.sin(clock*1.6)*.2,-.5,.5):mode==='chase'?.35:Math.sin(clock*.7)*.15;
   return {position:{...p},heading,moving:speed>.12,speed,mood,jump,lookYaw,grin:mode==='grin'||mode==='hop'||mode==='chase'?1:mode==='pant'?.6:.25};
  }};
 }

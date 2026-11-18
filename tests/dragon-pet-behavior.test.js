@@ -5,7 +5,7 @@ const state=()=>({player:{x:0,z:7},heading:Math.PI,inside:false});
 test('an idle pet looks, pants, circles, hops and chases its tail independently',()=>{
  const s=state(),pet=createDragonPetBehavior(),moods=new Set();let maxJump=0,minX=99,maxX=-99;
  for(let i=0;i<1600;i++){const p=pet.update(s,.05,false);moods.add(p.mood);maxJump=Math.max(maxJump,p.jump);minX=Math.min(minX,p.position.x);maxX=Math.max(maxX,p.position.x);assert.ok(!petPositionBlocked(p.position.x,p.position.z));assert.ok(Math.hypot(p.position.x-s.player.x,p.position.z-s.player.z)<7);}
- for(const mood of ['look','pant','circle','hop','chase'])assert.ok(moods.has(mood),mood);assert.ok(maxJump>.2);assert.ok(maxX-minX>.8);
+ for(const mood of ['look','pant','circle','hop','chase','sit','stand','wag'])assert.ok(moods.has(mood),mood);assert.ok(maxJump>.2);assert.ok(maxX-minX>.8);
 });
 test('the pet follows with lag and turns gradually rather than mirroring player movement',()=>{
  const s=state(),pet=createDragonPetBehavior();let p=pet.update(s,.05),old={...p.position};s.heading=0;const turn=pet.update(s,.05,false);assert.ok(Math.hypot(turn.position.x-old.x,turn.position.z-old.z)<.05);

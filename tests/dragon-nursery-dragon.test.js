@@ -87,3 +87,47 @@ test('the green and red reference smiles stay gently closed, while blue and pant
  }
  dragon.dispose();
 });
+
+test('standing raises the haunches, sitting bends them, and all four ankles stay grounded through the transition',async()=>{
+ const dragon=nurseryDragon(new T.Scene(),kit());await dragon.ready;let time=0;
+ for(const day of [2,7]){
+  const root=dragon.group.getObjectByName(day<7?'baby-dragon':'adult-dragon');
+  for(let i=0;i<100;i++)dragon.animate(time+=1/60,false,false,'river',day,false,{mood:'stand'});
+  dragon.group.updateMatrixWorld(true);const standing=root.getObjectByName('LHindUpper').getWorldPosition(new T.Vector3()).y;
+  for(let i=0;i<100;i++){
+   dragon.animate(time+=1/60,false,false,'river',day,false,{mood:'sit'});dragon.group.updateMatrixWorld(true);
+   for(const name of ['LFore','RFore','LHind','RHind'])assert.ok(Math.abs(root.getObjectByName(name+'Foot').getWorldPosition(new T.Vector3()).y-.1)<.012,'a paw must not lift or sink while sitting down');
+  }
+  const seated=root.getObjectByName('LHindUpper').getWorldPosition(new T.Vector3()).y;assert.ok(standing-seated>.20,'standing and sitting must be different leg/body poses');assert.equal(root.userData.petPosture,'sitting');
+  for(let i=0;i<100;i++)dragon.animate(time+=1/60,false,false,'river',day,false,{mood:'stand'});
+  assert.equal(root.userData.petPosture,'standing');assert.ok(Math.abs(root.position.y-.07)<.001);
+ }
+ dragon.dispose();
+});
+
+test('walking plants stance paws while the body travels, and lifts individual paws during the swing',async()=>{
+ const dragon=nurseryDragon(new T.Scene(),kit());await dragon.ready;let time=0;const root=dragon.group.getObjectByName('adult-dragon');
+ for(let i=0;i<60;i++)dragon.animate(time+=1/60,false,false,'river',7,false,{mood:'stand'});
+ let previous=null,planted=0,maxLift=0;
+ for(let i=0;i<180;i++){
+  dragon.group.position.z+=.7/60;dragon.animate(time+=1/60,true,false,'river',7,false,{mood:'follow',speed:.7});dragon.group.updateMatrixWorld(true);
+  const paw=root.getObjectByName('LForeFoot').getWorldPosition(new T.Vector3());maxLift=Math.max(maxLift,paw.y-.1);
+  assert.ok(paw.y>.085,'walking must not push a paw below the ground');
+  if(previous&&Math.abs(paw.y-.1)<.012&&Math.abs(paw.z-previous.z)<.002)planted++;previous=paw;
+ }
+ assert.ok(planted>30,'stance paws should stay planted instead of sliding with the body');assert.ok(maxLift>.08,'walking must actually lift a paw');
+ dragon.dispose();
+});
+
+test('the curled tail is rigged to its own joints and wags independently without dragging through the floor',async()=>{
+ const dragon=nurseryDragon(new T.Scene(),kit());await dragon.ready;let time=0;
+ for(let i=0;i<60;i++)dragon.animate(time+=1/60,false,false,'fern',2,false,{mood:'stand'});
+ const root=dragon.group.getObjectByName('baby-dragon'),body=root.getObjectByName('BabyDragonBody'),position=body.geometry.attributes.position,indices=body.geometry.attributes.skinIndex,weights=body.geometry.attributes.skinWeight,samples=[];
+ for(let i=0;i<position.count;i++)if(position.getX(i)>.8){let tail=0;for(let j=0;j<4;j++)if(body.skeleton.bones[indices.getComponent(i,j)].name.startsWith('Tail'))tail+=weights.getComponent(i,j);assert.ok(tail>.999,'the side curl must not follow a leg joint');if(i%17===0)samples.push(i);}
+ assert.ok(samples.length>30);const tip=root.getObjectByName('Tail3'),first=tip.getWorldPosition(new T.Vector3());let travel=0;
+ for(const mood of ['wag','sit','stand'])for(let i=0;i<100;i++){
+  dragon.animate(time+=1/60,false,false,'fern',2,false,{mood});dragon.group.updateMatrixWorld(true);travel=Math.max(travel,tip.getWorldPosition(new T.Vector3()).distanceTo(first));
+  for(const index of samples){const p=body.getVertexPosition(index,new T.Vector3());body.localToWorld(p);assert.ok(p.y>-.015,'tail should clear the floor during pet poses');}
+ }
+ assert.ok(travel>.15,'the tail must visibly move independently');dragon.dispose();
+});

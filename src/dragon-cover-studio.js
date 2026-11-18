@@ -38,10 +38,10 @@ function render(time){
  const subjects=trio?[[baby,2,'fern',-1.42,.58],[adult,2,'river',0,.58],[third,2,'ember',1.42,.58]]:[[baby,2,element,close?0:-1.15,.48],[adult,7,element,1.1,.65]];
  for(const [dragon,day,color,x,scale]of subjects){
   dragon.group.position.x=x;dragon.group.scale.setScalar(scale);
-  const mood=motion==='play'?['look','pant','circle','hop','chase'][Math.floor(time/4)%5]:'look';
+  const mood=motion==='play'?['stand','wag','pant','sit','stand','circle','hop','chase'][Math.floor(time/3)%8]:['sit','stand','wag'].includes(motion)?motion:'look';
   dragon.group.rotation.y=angle+(mood==='chase'||mood==='circle'?time*.8:0);
   const jump=mood==='hop'?Math.max(0,Math.sin(time*5))*.28:0;dragon.group.position.y=motion==='fly'?.35:jump;
-  dragon.animate(time,motion==='walk'||mood==='chase'||mood==='circle',motion==='fly',color,day,false,{mood,lookYaw:Math.sin(time+x)*.25,jump});
+  dragon.animate(time,motion==='walk'||mood==='chase'||mood==='circle',motion==='fly',color,day,false,{mood,lookYaw:Math.sin(time+x)*.25,jump,inPlace:true,speed:motion==='walk'||mood==='chase'||mood==='circle'?.75:0});
   const saddle=dragon.group.children.find(o=>o.visible)?.getObjectByName('DragonSaddle');if(saddle)saddle.visible=false;
  }
  renderer.render(scene,camera);
