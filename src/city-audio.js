@@ -1,22 +1,24 @@
-// Short local synthesized pet calls, with browser speech for the house owner.
-export function createCityAudio({Context=globalThis.AudioContext||globalThis.webkitAudioContext,speech=globalThis.speechSynthesis,Utterance=globalThis.SpeechSynthesisUtterance}={}){
-  let context,muted=false,cue=null,elapsed=0,speaking=false,destroyed=false;const voices=new Set();
-  function unlock(){if(destroyed||muted||!Context)return;try{context??=new Context();context.resume?.()?.catch?.(()=>{});}catch{}}
-  function stop(){for(const voice of voices){try{voice.stop();voice.disconnect();}catch{}}voices.clear();if(speaking){speech?.cancel();speaking=false;}cue=null;elapsed=0;}
+// Real local pet recordings; synthesized notes are reserved for magic powers.
+export const CITY_PET_CALLS={dog:new URL('../assets/audio/city-dog-bark.wav',import.meta.url).href,cat:new URL('../assets/audio/city-cat-meow.wav',import.meta.url).href};
+export function createCityAudio({Context=globalThis.AudioContext||globalThis.webkitAudioContext,speech=globalThis.speechSynthesis,Utterance=globalThis.SpeechSynthesisUtterance,fetchAudio=globalThis.fetch}={}){
+  let context,muted=false,cue=null,elapsed=0,speaking=false,destroyed=false;const voices=new Set(),buffers=new Map();let loading=null,pendingPet=null,playGeneration=0;
+  function unlock(){if(destroyed||muted||!Context)return;try{context??=new Context();context.resume?.()?.catch?.(()=>{});loadPets();}catch{}}
+  function stop(){playGeneration++;pendingPet=null;for(const voice of voices){try{voice.stop();voice.disconnect();}catch{}}voices.clear();if(speaking){speech?.cancel();speaking=false;}cue=null;elapsed=0;}
   function sound(kind){if(kind==='owner'&&speech&&Utterance){if(!speaking){const utterance=new Utterance('Hey, get out of the bed!');utterance.rate=1.05;utterance.onend=utterance.onerror=()=>{speaking=false;};speaking=true;speech.speak(utterance);}return;}
-    if(!context||context.state==='suspended')return;
-    const start=context.currentTime;
-    if(kind==='dog'&&context.createBuffer&&context.createBufferSource){
-      for(let i=0;i<2;i++){const buffer=context.createBuffer(1,Math.floor(context.sampleRate*.16),context.sampleRate),data=buffer.getChannelData(0);for(let j=0;j<data.length;j++)data[j]=(Math.random()*2-1)*Math.exp(-j/data.length*4);
-        const source=context.createBufferSource(),gain=context.createGain(),filter=context.createBiquadFilter();source.buffer=buffer;filter.type='lowpass';filter.frequency.value=1100;gain.gain.value=.14;source.connect(filter);filter.connect(gain);gain.connect(context.destination);voices.add(source);source.onended=()=>{voices.delete(source);source.disconnect();filter.disconnect();gain.disconnect();};source.start(start+i*.22);source.stop(start+i*.22+.17);
-      }
-    }
-
-    for(let i=0;i<(kind==='dog'?2:1);i++){const oscillator=context.createOscillator(),gain=context.createGain(),at=start+i*.22,duration=kind==='cat'?.65:.16;
-      oscillator.type=kind==='cat'?'triangle':'sawtooth';oscillator.frequency.setValueAtTime(kind==='cat'?620:170,at);oscillator.frequency.exponentialRampToValueAtTime(kind==='cat'?850:95,at+duration*.4);oscillator.frequency.exponentialRampToValueAtTime(kind==='cat'?420:70,at+duration);
-      gain.gain.setValueAtTime(0,at);gain.gain.linearRampToValueAtTime(.055,at+.025);gain.gain.exponentialRampToValueAtTime(.001,at+duration);oscillator.connect(gain);gain.connect(context.destination);voices.add(oscillator);oscillator.onended=()=>{voices.delete(oscillator);oscillator.disconnect();gain.disconnect();};oscillator.start(at);oscillator.stop(at+duration+.02);
-    }
+    if(kind==='dog'||kind==='cat')playPet(kind);
   }
+  function loadPets(){
+    if(loading)return loading;
+    if(!context?.decodeAudioData||!fetchAudio)return Promise.resolve();
+    loading=Promise.all(Object.entries(CITY_PET_CALLS).map(async([kind,url])=>{try{const response=await fetchAudio(url);if(!response.ok)throw new Error('Pet recording unavailable');const buffer=await context.decodeAudioData(await response.arrayBuffer());if(!destroyed)buffers.set(kind,buffer);}catch{}}));return loading;
+  }
+  function playPet(kind){
+    if(!context||context.state==='suspended'||muted||destroyed)return;
+    const buffer=buffers.get(kind);
+    if(!buffer){if(pendingPet===kind)return;pendingPet=kind;const generation=playGeneration;loadPets().then(()=>{if(generation!==playGeneration)return;pendingPet=null;if(cue===kind&&buffers.has(kind))playPet(kind);});return;}
+    const source=context.createBufferSource(),gain=context.createGain();source.buffer=buffer;gain.gain.value=.55;source.connect(gain);gain.connect(context.destination);voices.add(source);source.onended=()=>{voices.delete(source);source.disconnect();gain.disconnect();};source.start();
+  }
+
   function magic(kind){
     if(destroyed||muted)return;unlock();if(!context||context.state==='suspended')return;
     const notes={shapeshift:[262,392,622,784,1245],flight:[392,587,784,1175,1568],speed:[330,440,660,880,1320],flowers:[523,659,784,1047,1319],bloom:[784,1175]}[kind];if(!notes)return;
@@ -24,5 +26,5 @@ export function createCityAudio({Context=globalThis.AudioContext||globalThis.web
   }
   function cheer(){if(destroyed||muted)return;magic('flowers');if(speech&&Utterance){const line=new Utterance('Hooray! You saved the town!');line.rate=.95;line.pitch=1.1;speaking=true;line.onend=line.onerror=()=>{speaking=false;};speech.speak(line);}}
   function tryAgain(){if(destroyed||muted)return;stop();if(speech&&Utterance){const line=new Utterance('Try again.');line.rate=.85;line.pitch=.85;speaking=true;line.onend=line.onerror=()=>{speaking=false;};speech.speak(line);}}
-  return {unlock,stop,magic,cheer,tryAgain,tick(dt,next){if(destroyed||muted||!next){if(cue)stop();return;}if(next!==cue){stop();cue=next;elapsed=4;}elapsed+=dt;if(elapsed>=3){elapsed=0;sound(cue);}},setMuted(value){muted=value;if(value)stop();else unlock();},destroy(){stop();destroyed=true;context?.close?.()?.catch?.(()=>{});}};
+  return {unlock,stop,magic,cheer,tryAgain,get ready(){return loadPets();},tick(dt,next){if(destroyed||muted||!next){if(cue)stop();return;}if(next!==cue){stop();cue=next;elapsed=4;}elapsed+=dt;if(elapsed>=3){elapsed=0;sound(cue);}},setMuted(value){muted=value;if(value)stop();else unlock();},destroy(){stop();destroyed=true;context?.close?.()?.catch?.(()=>{});}};
 }

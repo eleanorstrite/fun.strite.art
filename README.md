@@ -16,6 +16,12 @@ The Character Studio offers a classic robot, hoodie, overalls, space suit, or ad
 
 Use **Pick your scenery** at the top of the home screen to choose Countryside, City, Sunset, Starry night, or the original Classic background for free. Northern Lights (200 coins) and Enchanted Forest (350 coins) unlock through the shop. Original SVG scenes are bundled locally. The selection is saved per browser under `sidequest.background.v1`, independently of game saves; purchased background ownership is included in game saves, but the selected scene is not; it does not change the maze or exported progress.
 
+## Library filters and City Builder pet sounds
+
+The home-page filters show All worlds, 2D games, 3D worlds, and Both. Tag, Knights and Dragons, and Flappy Animals offer both views, so they appear in Both and in each dimension’s category. Each filter has a distinct color and an animated animal accent; reduced-motion preferences keep the animals still.
+
+City Builder uses local dog-bark and cat-meow recordings when you lie in their beds. Calls repeat while you remain there and stop on standing, leaving, pause, mute, or closing the game. Recording sources and CC0 credits are in `assets/audio/README.md`.
+
 ## Run locally
 
 Run `python3 -m http.server 8000` in this directory, then open http://localhost:8000. Serve over HTTP rather than opening the HTML file directly because the app uses JavaScript modules. Fonts load optionally from Google Fonts; local fallback fonts work offline.
