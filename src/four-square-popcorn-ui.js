@@ -1,0 +1,14 @@
+import {kidName} from './four-square-rules.js';
+import {isFourSquarePopcorn} from './four-square-popcorn.js';
+export function createFourSquarePopcornUI(tools,host){
+ const choice=document.createElement('section');choice.className='fs-popcorn-choice';choice.hidden=true;choice.innerHTML='<h4>🍿 Does the king play Popcorn?</h4><div><button type="button" data-fs-popcorn-participate="true"><span aria-hidden="true">👑🙌</span><strong>King participates</strong><small>The king claps and can get out.</small></button><button type="button" data-fs-popcorn-participate="false"><span aria-hidden="true">👑👀</span><strong>King sits out</strong><small>Queen passes back to Peasant.</small></button></div>';tools.prepend(choice);
+ const hud=document.createElement('section');hud.className='fs-popcorn-hud';hud.hidden=true;hud.setAttribute('role','status');hud.setAttribute('aria-live','polite');hud.innerHTML='<strong data-popcorn-title></strong><b data-popcorn-count></b><span data-popcorn-help></span><small data-popcorn-king></small>';tools.append(hud);
+ const flash=document.createElement('div');flash.className='fs-popcorn-number';flash.hidden=true;flash.setAttribute('aria-hidden','true');host.append(flash);let key='',flashTurn=null;
+ return {sync(s,active,paused){const p=s.popcorn,mode=isFourSquarePopcorn(s);tools.classList.toggle('fs-popcorn-active',mode);choice.hidden=!(active&&s.phase==='popcorn-choice');hud.hidden=!(active&&s.phase==='popcorn');flash.hidden=!(active&&s.phase==='popcorn'&&p.actor===0&&p.stage==='turn');flash.style.animationPlayState=paused||document.hidden?'paused':'running';if(!mode)flashTurn=null;
+   const next=JSON.stringify([s.phase,p?.actor,p?.required,p?.claps,p?.stage,p?.includeKing,p?.turnSerial,active]);if(next===key)return;key=next;if(s.phase!=='popcorn')return;
+   hud.querySelector('[data-popcorn-title]').textContent='🍿 Popcorn · '+(p.actor===0?'Your turn':kidName(p.actor)+'’s turn');hud.querySelector('[data-popcorn-count]').textContent=`${p.claps} / ${p.required} claps`;hud.classList.toggle('fs-popcorn-error',p.claps>p.required);
+   hud.querySelector('[data-popcorn-help]').textContent=p.stage==='pass'?'Passing to '+kidName(p.participants[(p.index+1)%p.participants.length])+'…':p.stage==='catch'?p.drop?'Oops! The ball dropped.':'Catching the ball…':p.actor===0?p.required===0?'No claps this turn — just toss and catch.':`Clap ${p.required} times: tap anywhere in the game or press Space.`:`Watch ${kidName(p.actor)} toss, clap ${p.required} times, and catch.`;
+   hud.querySelector('[data-popcorn-king]').textContent=p.includeKing?'👑 King is playing and can get out.':'👀 King is watching. Queen passes to Peasant.';
+   if(p.actor===0&&p.stage==='turn'&&flashTurn!==p.turnSerial){flashTurn=p.turnSerial;flash.textContent=String(p.required);flash.classList.remove('fs-popcorn-flash');void flash.offsetWidth;flash.classList.add('fs-popcorn-flash');}
+  },destroy(){choice.remove();hud.remove();flash.remove();}};
+}
