@@ -1,0 +1,6 @@
+// Speak the exact entered text; unfamiliar letter strings go to the browser's voice too.
+export function createFourSquareStoryVoice({speech=globalThis.speechSynthesis,Utterance=globalThis.SpeechSynthesisUtterance}={}){
+ let muted=false,destroyed=false,current=null,key=null,word=null;
+ function stop(){if(word)word.pending=false;if(current){try{speech?.cancel();}catch{}}current=null;key=null;word=null;}
+ return {unlock(){try{speech?.resume?.();}catch{}},stop,setMuted(value){muted=!!value;if(muted)stop();},sync(s,enabled=true){const next=s.phase==='story'&&s.story?.stage==='speaking'?s.story.speech:null;if(!enabled||muted||destroyed||!next||!speech||!Utterance){stop();return;}if(next===word&&key===next.serial)return;stop();word=next;key=next.serial;const utterance=new Utterance(next.text);current=utterance;utterance.lang='en-US';utterance.rate=.95;utterance.pitch=.96+(next.actor%4)*.07;const voices=speech.getVoices?.()||[],voice=voices.find(v=>v.localService&&/^en\b/i.test(v.lang))||voices.find(v=>/^en\b/i.test(v.lang));if(voice)utterance.voice=voice;next.pending=true;const done=()=>{if(current===utterance){next.pending=false;current=null;}};utterance.onend=utterance.onerror=done;try{speech.speak(utterance);}catch{done();}},destroy(){stop();destroyed=true;}};
+}

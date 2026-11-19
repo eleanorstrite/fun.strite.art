@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="Red Send arrow">
+ <defs>
+  <linearGradient id="rim" x2=".3" y2="1"><stop stop-color="#e8e8e8"/><stop offset=".42" stop-color="#a6a6a6"/><stop offset=".47" stop-color="#eee"/><stop offset="1" stop-color="#242424"/></linearGradient>
+  <linearGradient id="bevel" x2=".8" y2="1"><stop stop-color="#555"/><stop offset=".45" stop-color="#fff"/><stop offset="1" stop-color="#6c6c6c"/></linearGradient>
+  <linearGradient id="red" x2="0" y2="1"><stop stop-color="#ff0808"/><stop offset=".47" stop-color="#e60000"/><stop offset="1" stop-color="#b40000"/></linearGradient>
+  <linearGradient id="white" x2="0" y2="1"><stop stop-color="#fff"/><stop offset=".55" stop-color="#fffafa"/><stop offset="1" stop-color="#f5d7d7"/></linearGradient>
+  <linearGradient id="shine" x2="0" y2="1"><stop stop-color="#fff" stop-opacity=".03"/><stop offset=".6" stop-color="#fff" stop-opacity=".04"/><stop offset="1" stop-color="#fff" stop-opacity=".28"/></linearGradient>
+ </defs>
+ <circle cx="200" cy="202" r="180" fill="url(#rim)"/>
+ <circle cx="200" cy="200" r="159" fill="url(#bevel)"/>
+ <circle cx="200" cy="200" r="153" fill="url(#red)" stroke="#900" stroke-width="2"/>
+ <circle cx="200" cy="200" r="157" fill="none" stroke="#fff" stroke-width="3"/>
+ <path d="M200 82c-10 0-18 5-26 13l-66 67c-12 12-13 26-3 36s25 10 36-1l34-35v125c0 18 9 29 25 29s25-11 25-29V162l34 35c11 11 26 11 36 1s9-24-3-36l-66-67c-8-8-16-13-26-13Z" fill="url(#white)"/>
+ <path d="M47 199a153 153 0 0 1 306 0c-61 48-130 57-198 35-43-14-75-25-108-35Z" fill="url(#shine)"/>
+</svg>
