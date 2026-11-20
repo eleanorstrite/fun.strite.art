@@ -5,8 +5,10 @@ export function requestFourSquarePopcorn(s){
  s.ball=null;s.command={name:'Popcorn',king:s.order[0]};s.cooldown=13;s.phase='popcorn-choice';s.popcorn={king:s.order[0],stage:'choice',includeKing:null};s.notice='Popcorn! Choose whether the king participates.';s.noticeTime=3.5;
  if(s.order[0]!==0)startFourSquarePopcorn(s,s.random()<.65);return true;
 }
+// Kids usually manage the early claps; longer counts become genuinely fallible.
+export function fourSquarePopcornMistakeChance(count){return count===0?0:count<8?.012:Math.min(.6,.28+(count-8)*.085);}
 function prepareTurn(s){const p=s.popcorn;p.actor=p.participants[p.index];p.stage='turn';p.elapsed=0;p.claps=0;p.lastClap=0;p.turnSerial++;p.deadline=Math.max(3,1.3+p.required*.55);p.drop=false;p.planned=p.required;
- if(p.actor!==0){const chance=p.required===0?0:Math.min(.3,.035+p.required*.012);if(s.random()<chance){if(s.random()<.5)p.drop=true;else p.planned=Math.max(0,p.required+(s.random()<.5?-1:1));}p.nextClap=.55+s.random()*.15;}
+ if(p.actor!==0){const chance=fourSquarePopcornMistakeChance(p.required);if(s.random()<chance){if(s.random()<.5)p.drop=true;else p.planned=Math.max(0,p.required+(s.random()<.5?-1:1));}p.nextClap=.55+s.random()*.15;}
  s.kids[p.actor].heading=0;
 }
 export function startFourSquarePopcorn(s,includeKing){if(s.phase!=='popcorn-choice'||typeof includeKing!=='boolean')return false;const king=s.popcorn.king;clearFourSquareClaps(s);s.popcorn={king,includeKing,participants:[...s.order].reverse().filter(id=>includeKing||id!==king),index:0,actor:null,required:0,turnSerial:0,completed:0,stage:'turn'};s.phase='popcorn';prepareTurn(s);return true;}

@@ -16,3 +16,16 @@ test('too many claps causes an out and excessive extra taps do not build an endl
 test('bots can drop the ball and go out, leaving a watching King safely in King square',()=>{const s=begin(false);s.popcorn.drop=true;until(s,()=>s.popcorn?.stage==='catch');assert.ok(fourSquareBallPoint(s).y>0);step(s,.75);assert.ok(fourSquareBallPoint(s).y<.5);until(s,()=>s.phase==='reset');assert.equal(s.lastOut,3);assert.equal(s.order[0],0);assert.match(s.history.at(-1).reason,/Dropped the Popcorn ball/);});
 test('Popcorn isolates movement, serving and regular hits; tapping any part of the game claps instead',()=>{const s=humanTurn(),position={x:s.kids[0].x,z:s.kids[0].z};assert.equal(hitFourSquare(s),false);assert.equal(sendFourSquare(s,0,1),false);assert.equal(fourSquareNumberServe(s,'2'),false);moveFourSquare(s,1,1,1);assert.deepEqual({x:s.kids[0].x,z:s.kids[0].z},position);assert.equal(callFourSquare(s,'Cherry Bomb'),false);assert.equal(fourSquareTap(s,null),true);assert.equal(fourSquareTap(s,{player:false,square:2}),true);assert.equal(s.popcorn.claps,2);assert.equal(s.phase,'popcorn');});
 test('the recess timer continues through the Popcorn round and bot kings can start Popcorn without a human choice',()=>{const s=begin(false),remaining=s.remaining;step(s,5);assert.ok(Math.abs(s.remaining-(remaining-5))<.03);const bot=newFourSquare(()=>.99);bot.order=[1,2,3,0];assert.equal(callFourSquare(bot,'Popcorn'),true);assert.equal(bot.phase,'popcorn');assert.equal(bot.popcorn.includeKing,false);assert.ok(bot.popcorn.participants.includes(0));assert.ok(!bot.popcorn.participants.includes(1));});
+
+test('ordinary bot rounds can fail naturally at eight, nine or ten and can also continue beyond ten',()=>{
+ const counts=new Map();let survivedTen=0,drops=0,wrongCounts=0;
+ for(let trial=1;trial<=180;trial++){
+  let seed=trial*7919;const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;},s=newFourSquare(random);
+  callFourSquare(s,'Popcorn');startFourSquarePopcorn(s,false);let count=0;
+  for(let tick=0;tick<8500&&s.phase==='popcorn';tick++){count=s.popcorn.required;tickFourSquare(s,.02);if(count>10){survivedTen++;break;}}
+  if(s.lastOut!==null){assert.notEqual(s.lastOut,0);counts.set(count,(counts.get(count)||0)+1);const reason=s.history.at(-1).reason;if(reason.includes('Dropped'))drops++;else if(reason.includes('claps'))wrongCounts++;}
+ }
+ for(const count of [8,9,10])assert.ok((counts.get(count)||0)>=8,`bots occasionally lose at ${count}: ${JSON.stringify([...counts])}`);
+ assert.ok(survivedTen>10,'some rounds still make it beyond ten');assert.ok(drops>10);assert.ok(wrongCounts>10);
+ const early=[...counts].filter(([n])=>n<8).reduce((sum,[,n])=>sum+n,0);assert.ok(early<50,'most rounds can reach the longer counts');
+});

@@ -19,3 +19,12 @@ test('ordinary bots sometimes miss, rotate the line and keep all six children in
 test('an unreturned ball visibly crosses the outside line before the recipient is out',()=>{for(const kind of ['bounce','slow']){const s=game();sendFourSquare(s,1,0,kind);s.ball.elapsed=s.ball.duration+.65;const p=fourSquareBallPoint(s);assert.ok(Math.abs(p.x)>4||Math.abs(p.z)>4);}});
 
 test('Cherry Bomb accepts phone jump directions up, down, left and right',()=>{for(const [x,z]of [[0,-1],[0,1],[-1,0],[1,0]]){const s=game();callFourSquare(s,'Cherry Bomb');moveFourSquare(s,x,z,.1);step(s,2);assert.notEqual(s.lastOut,0);assert.ok(s.history.length);}});
+
+test('the physically closest waiting child enters Peasant, and each eliminated child joins the back',()=>{
+ const s=game(),peasant={x:-2,z:2},distance=p=>Math.hypot(p.x-peasant.x,p.z-peasant.z);
+ for(let round=0;round<12;round++){
+  const [next,last]=s.queue;assert.ok(distance(s.kids[next].home)<distance(s.kids[last].home));const loser=s.order[round%4];
+  eliminateFourSquare(s,loser,'Line rotation');assert.equal(s.order[3],next);assert.deepEqual(s.queue,[last,loser]);step(s,2.9);
+  assert.ok(distance(s.kids[s.queue[0]])<distance(s.kids[s.queue[1]]));assert.equal(new Set([...s.order,...s.queue]).size,6);
+ }
+});

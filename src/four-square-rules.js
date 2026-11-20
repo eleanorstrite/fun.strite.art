@@ -8,12 +8,13 @@ export const FOUR_SQUARE_ROLES=[
  {name:'Peasant',symbol:'♟',x:-2,z:2,color:'#d2a133'}
 ];
 export const FOUR_SQUARE_COMMANDS=['Cherry Bomb','King square','Queen square','Knight square','Peasant square','Popcorn','Story Time'];
+export const fourSquareLinePoint=index=>({x:-4.95-index*.45,z:2+index*1.7});
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const randomBetween=(s,a,b)=>a+s.random()*(b-a);
 export function fourSquareRole(s,id=0){return s.order.indexOf(id);}
-export function newFourSquare(random=Math.random){return {random,order:[0,1,2,3],queue:[4,5],kids:Array.from({length:6},(_,id)=>({id,x:id<4?FOUR_SQUARE_ROLES[id].x:-4.9,z:id<4?FOUR_SQUARE_ROLES[id].z:1+(id-4)*1.3,jump:0,hit:0,heading:0})),phase:'serve',clock:0,remaining:180,phaseTime:0,serverDelay:1.5,aim:1,ball:null,command:null,cooldown:0,notice:'You are king! Press 1–4 or tap a numbered square to serve.',noticeTime:4,outs:0,hits:0,kingTime:0,score:0,history:[],lastOut:null,round:1};}
+export function newFourSquare(random=Math.random){return {random,order:[0,1,2,3],queue:[4,5],kids:Array.from({length:6},(_,id)=>({id,x:id<4?FOUR_SQUARE_ROLES[id].x:fourSquareLinePoint(id-4).x,z:id<4?FOUR_SQUARE_ROLES[id].z:fourSquareLinePoint(id-4).z,jump:0,hit:0,heading:0})),phase:'serve',clock:0,remaining:180,phaseTime:0,serverDelay:1.5,aim:1,ball:null,command:null,cooldown:0,notice:'You are king! Press 1–4 or tap a numbered square to serve.',noticeTime:4,outs:0,hits:0,kingTime:0,score:0,history:[],lastOut:null,round:1};}
 function notice(s,text){s.notice=text;s.noticeTime=3.5;}
-export function fourSquareHome(s){s.order.forEach((id,rank)=>{const p=FOUR_SQUARE_ROLES[rank];s.kids[id].home={x:p.x,z:p.z};});s.queue.forEach((id,i)=>s.kids[id].home={x:-4.9,z:1+i*1.3});}
+export function fourSquareHome(s){s.order.forEach((id,rank)=>{const p=FOUR_SQUARE_ROLES[rank];s.kids[id].home={x:p.x,z:p.z};});s.queue.forEach((id,i)=>s.kids[id].home=fourSquareLinePoint(i));}
 export function eliminateFourSquare(s,id,reason){if(!s.order.includes(id)||s.phase==='over'||s.phase==='ending')return false;endFourSquarePopcorn(s);s.story=null;const rank=fourSquareRole(s,id);s.order.splice(rank,1);s.queue.push(id);s.order.push(s.queue.shift());s.lastOut=id;s.history.push({id,reason,rank,time:s.clock});s.history=s.history.slice(-10);if(id===0)s.outs++;else s.score+=2;s.ball=null;s.command=null;s.phase='reset';s.phaseTime=0;s.round++;fourSquareHome(s);notice(s,`${id===0?'You are':kidName(id)+' is'} out! ${reason} Everyone below moves up; the next kid joins Peasant.`);return true;}
 export function kidName(id){return ['You','Maya','Leo','Ava','Noah','Zoe'][id];}
 function inSquare(k,rank){const p=FOUR_SQUARE_ROLES[rank];return Math.abs(k.x-p.x)<1.8&&Math.abs(k.z-p.z)<1.8;}

@@ -1,0 +1,16 @@
+import * as T from './vendor/three/three.module.min.js';
+// Small, local procedural surface maps keep the 3D playground self-contained.
+export function createFourSquareMaterials({materials,textures}){
+ let seed=137;const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
+ function surface(name,repeat,paint,bump=.025,roughness=.85){
+  const el=document.createElement('canvas');el.width=el.height=512;const c=el.getContext('2d');paint(c);
+  const map=new T.CanvasTexture(el);map.colorSpace=T.SRGBColorSpace;map.wrapS=map.wrapT=T.RepeatWrapping;map.repeat.set(...repeat);map.anisotropy=4;textures.push(map);
+  const material=new T.MeshStandardMaterial({map,bumpMap:map,bumpScale:bump,roughness});materials.set(name,material);return material;
+ }
+ const brick=surface('school-brick',[5,2],c=>{c.fillStyle='#cdb99d';c.fillRect(0,0,512,512);for(let row=0;row<16;row++)for(let col=-1;col<5;col++){const x=col*128+(row%2)*64;c.fillStyle=`hsl(${12+random()*9} 35% ${48+random()*12}%)`;c.fillRect(x+2,row*32+2,124,28);c.fillStyle='#fff1';c.fillRect(x+3,row*32+3,122,2);}for(let i=0;i<18000;i++){c.fillStyle=i%2?'#47241416':'#fff2';c.fillRect(random()*512,random()*512,1+random()*2,1);}},.045);
+ const wood=surface('warm-wood',[1,3],c=>{c.fillStyle='#bd8d51';c.fillRect(0,0,512,512);for(let i=0;i<260;i++){c.strokeStyle=i%3?'#56391b20':'#fff1';c.lineWidth=1+random()*2;c.beginPath();const x=random()*512;c.moveTo(x,0);c.bezierCurveTo(x+12,160,x-10,350,x+random()*8,512);c.stroke();}},.02);
+ const lawn=surface('lawn',[32,32],c=>{c.fillStyle='#759b42';c.fillRect(0,0,512,512);for(let i=0;i<26000;i++){c.strokeStyle=['#a1b756','#427133','#c0cd72','#6b9238'][i%4];const x=random()*512,y=random()*512;c.beginPath();c.moveTo(x,y);c.lineTo(x+random()*3-1.5,y-2-random()*5);c.stroke();}},.018);
+ const roof=surface('school-roof',[5,2],c=>{c.fillStyle='#566572';c.fillRect(0,0,512,512);for(let row=0;row<12;row++)for(let col=-1;col<8;col++){c.strokeStyle='#263642';c.lineWidth=2;c.strokeRect(col*74+(row%2)*37,row*43,73,42);c.fillStyle='#ffffff13';c.fillRect(col*74+(row%2)*37,row*43,73,3);}},.025);
+ const cloth=new Map();function fabric(color){if(cloth.has(color))return cloth.get(color);const m=surface('fabric-'+color,[2,2],c=>{c.fillStyle=color;c.fillRect(0,0,512,512);c.lineWidth=1;for(let i=0;i<512;i+=4){c.strokeStyle='#ffffff0b';c.beginPath();c.moveTo(i,0);c.lineTo(i,512);c.stroke();c.strokeStyle='#0000000b';c.beginPath();c.moveTo(0,i);c.lineTo(512,i);c.stroke();}},.003,.9);cloth.set(color,m);return m;}
+ return {brick,wood,lawn,roof,fabric};
+}
