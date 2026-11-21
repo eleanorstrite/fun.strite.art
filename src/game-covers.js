@@ -1,7 +1,6 @@
-import {mountFourSquareCover} from './four-square-cover.js';
 import {mountAnimatedGameCover} from './animated-game-cover.js';
 export const GAME_COVERS={
- 'four-square':{name:'Four Square',file:'four-square-v2.webp',animated:true,animation:'four-square'},
+ 'four-square':{name:'Four Square',file:'four-square-still-v3.webp'},
  'dragon-adventures':{name:'Dragon Adventures',file:'dragon-adventures.jpg',animated:true},
  'platform-jump':{name:'Platform Jump',file:'platform-jump.jpg'},
  'animal-sports':{name:'Animal Sports',file:'animal-sports.jpg'},
@@ -22,8 +21,7 @@ export function gameCoverImage(id){const cover=GAME_COVERS[id];if(!cover||typeof
 export function drawGameCover(canvas,id){
  const image=gameCoverImage(id),c=canvas.getContext('2d');if(!image||!c)return false;
  canvas.width=960;canvas.height=540;canvas.parentElement?.classList.add('library-cover');
- if(GAME_COVERS[id].animation==='four-square')mountFourSquareCover(canvas.parentElement);
- else if(GAME_COVERS[id].animated)mountAnimatedGameCover(canvas.parentElement,image.src);
+ if(GAME_COVERS[id].animated)mountAnimatedGameCover(canvas.parentElement,image.src);
  c.fillStyle='#252b43';c.fillRect(0,0,960,540);
  const paint=()=>{if(canvas.isConnected===false)return;if(image.complete&&image.naturalWidth)c.drawImage(image,0,0,960,540);};
  if(image.complete)paint();else image.addEventListener('load',paint,{once:true});return true;
