@@ -17,6 +17,6 @@ test('moustaches use separate atlas cells anchored to the upper lip, with None r
   const image=images[0];cells.add(image[1]+':'+image[2]);assert.equal(image[5],-17);const cell=facialHairCell(facialHair);assert.ok(Math.abs(image[6]+image[8]*(cell.anchor-cell.top)/(cell.bottom-cell.top)+59)<1e-10);
   for(const pose of [false,true,'clap'])assert.doesNotThrow(()=>drawJumper(c,0,0,{...JUMP_DEFAULTS,hairstyle:'Bald',facialHair},1,true,pose));
  }
- assert.equal(cells.size,14);assert.equal(faces.length,42);assert.ok(faces.every(a=>a[7]<=40&&a[8]<=46));assert.equal(heads.filter(a=>a[2]===20&&a[3]===23).length,faces.length);
+ assert.equal(cells.size,14);assert.equal(faces.length,42);assert.ok(faces.every(a=>Math.abs(a[3]/a[4]-a[7]/a[8])<1e-10));assert.equal(heads.filter(a=>a[2]===20&&a[3]===23).length,0,'Adding a moustache must not cut or reshape the head');
  images.length=0;assert.equal(drawJumpFacialHair(c,'None'),false);assert.equal(drawJumpFacialHair(c,'unknown'),false);assert.equal(images.length,0);
 });

@@ -38,9 +38,9 @@ test('taco trucks are mixed through every course and their roofs remain landable
  for(const number of trucks){const s=createJumpState(difficulty),p=s.platforms[number];s.x=p.x;s.y=p.y-5;s.vy=200;s.grounded=false;s.platform=number-1;s.landingLimit=number;tickJump(s,.04);assert.equal(s.grounded,true);assert.equal(s.platform,number);assert.equal(s.y,p.y);assert.equal(s.coins[number].collected,true);}}
 });
 
- test('hair and clothing changes keep the same starter face and fitted body scale',async t=>{
- const {drawJumper}=await import('../src/platform-jump-person.js'),{JUMP_HAIR}=await import('../src/platform-jump-hair.js'),{JUMP_OUTFITS}=await import('../src/platform-jump-clothes.js');
+test('all outfits and hairstyles retain the same complete girl at her original proportions in every pose',async t=>{
+ const {drawJumper}=await import('../src/platform-jump-person.js'),{JUMP_HAIR}=await import('../src/platform-jump-hair.js'),{JUMP_OUTFITS}=await import('../src/platform-jump-clothes.js'),{PLAY_ART}=await import('../src/play-art-bounds.js');
  const old=globalThis.Image;t.after(()=>globalThis.Image=old);globalThis.Image=class{complete=true;naturalWidth=1263;naturalHeight=1246;};
- const faces=[],scales=[];const c=new Proxy({drawImage:(...a)=>{if(a[0].src?.endsWith('/characters.png'))faces.push(a);},scale:(...a)=>scales.push(a),createLinearGradient:()=>({addColorStop(){}})},{get:(o,k)=>o[k]||(()=>{})});
- for(const hairstyle of JUMP_HAIR)for(const outfit of JUMP_OUTFITS){if(hairstyle===JUMP_DEFAULTS.hairstyle&&outfit===JUMP_DEFAULTS.outfit)continue;faces.length=scales.length=0;drawJumper(c,0,0,{...JUMP_DEFAULTS,hairstyle,outfit},1);assert.equal(faces.length,1);assert.deepEqual(faces[0].slice(1,5),[157,20,49,54],'Every haircut uses the starter girl rather than swapping faces');assert.ok(scales.some(a=>a[0]===.68&&a[1]===1.25),'Clothes retain one body size');assert.ok(scales.some(a=>a[0]===.48&&a[1]===.5),'The girl keeps the same head size');}
- });
+ const girls=[];const c=new Proxy({drawImage:(...a)=>{if(a[0].src?.endsWith('/characters.png'))girls.push(a);},createLinearGradient:()=>({addColorStop(){}})},{get:(o,k)=>o[k]||(()=>{})});
+ for(const hairstyle of JUMP_HAIR)for(const outfit of JUMP_OUTFITS)for(const [wave,index] of [[false,0],[true,2],['clap',3]]){girls.length=0;drawJumper(c,0,0,{...JUMP_DEFAULTS,hairstyle,outfit},0,false,wave);assert.equal(girls.length,1);const a=girls[0],b=PLAY_ART.characters.bounds[index];assert.deepEqual(a.slice(1,5),[b.x,b.y,b.w,b.h],'Use the complete original girl, including the full head');assert.equal(a[8],94);assert.ok(Math.abs(a[7]/a[8]-b.w/b.h)<1e-10,'Never stretch the girl to fit an outfit');}
+});
