@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createSystem as createRealSystem, freshSave, validateSave, UPGRADES } from '../src/system.js';
+import { createSystem as createRealSystem, freshSave, validateSave, UPGRADES, ROBOT_OUTFITS, ROBOT_HATS } from '../src/system.js';
 const testPassword=async (value,step)=>value===(step===1?'TestFirst':'TestSecond');
 const createSystem=(storage,onError)=>createRealSystem(storage,onError,testPassword);
 function memory(){const data=new Map();return {getItem:key=>data.get(key),setItem:(key,value)=>data.set(key,value)};}
@@ -60,13 +60,13 @@ test('speed and magnet cost five hundred coins and eliminator costs six hundred'
 });
 test('robot outfits and mixed accessories survive reload and export without changing knight settings',()=>{
   const storage=memory(),system=createSystem(storage),before=system.snapshot().character;
-  const robot={outfit:'spacesuit',hat:'beanie',color:'#9b85bb',glasses:true,headphones:true,backpack:true};
+  const robot={outfit:'spacesuit',hat:'beanie',color:'#9b85bb',glasses:true,headphones:true,backpack:true,scarf:true,bowtie:true,necklace:true};
   system.setCharacter({...before,robot});const restored=createSystem(storage);assert.deepEqual(restored.snapshot().character.robot,robot);assert.equal(restored.snapshot().character.armor,before.armor);
   const copy=createSystem(memory());copy.importSave(system.exportSave());assert.deepEqual(copy.snapshot(),restored.snapshot());
 });
 test('old saves get a classic robot and invalid wardrobe data cannot overwrite a save',()=>{
   const old=freshSave();delete old.character.robot;assert.equal(validateSave(old).character.robot.outfit,'none');
-  const system=createSystem(memory()),before=system.snapshot();for(const robot of [null,[],{outfit:'unknown'},{hat:'unknown'},{color:'red'},{glasses:'yes'}])assert.throws(()=>system.setCharacter({...before.character,robot}));assert.deepEqual(system.snapshot(),before);
+  const system=createSystem(memory()),before=system.snapshot();for(const robot of [null,[],{outfit:'unknown'},{hat:'unknown'},{color:'red'},{glasses:'yes'},{scarf:1},{bowtie:'yes'},{necklace:[]}])assert.throws(()=>system.setCharacter({...before.character,robot}));assert.deepEqual(system.snapshot(),before);
 });
 
 test('dragon eliminators cost six hundred coins, share the bag, and persist until consumed',()=>{
@@ -245,4 +245,18 @@ test('hero coin taps add 100 each, persist, and can be spent without creating ga
  assert.equal(updates,6);const restored=createSystem(storage);assert.equal(restored.snapshot().coins,600);assert.deepEqual(restored.snapshot().stats,{});
  restored.buy('dragon-race');assert.equal(restored.snapshot().coins,0);assert.equal(restored.snapshot().sideQuests.dragonRace,1);
  restored.importSave(JSON.stringify({...freshSave(),coins:999999950}));restored.claimHeroCoins();restored.claimHeroCoins();assert.equal(restored.snapshot().coins,1000000000);assert.equal(createSystem(storage).snapshot().coins,1000000000);
+});
+
+test('expanded robot wardrobe persists and older robot saves gain optional accessories',()=>{
+  const storage=memory(),system=createSystem(storage);
+  for(const outfit of Object.keys(ROBOT_OUTFITS))for(const hat of Object.keys(ROBOT_HATS)){
+    system.setCharacter({...system.snapshot().character,robot:{outfit,hat,scarf:true,bowtie:true,necklace:true}});
+    const restored=createSystem(storage).snapshot().character.robot;
+    assert.equal(restored.outfit,outfit);assert.equal(restored.hat,hat);
+    assert.equal(restored.scarf,true);assert.equal(restored.bowtie,true);assert.equal(restored.necklace,true);
+  }
+  const old=freshSave();old.character.robot={outfit:'hoodie',hat:'cap',color:'#6e9eae',glasses:true,headphones:false,backpack:true};
+  const look=validateSave(old).character.robot;
+  assert.equal(look.glasses,true);assert.equal(look.backpack,true);
+  assert.equal(look.scarf,false);assert.equal(look.bowtie,false);assert.equal(look.necklace,false);
 });

@@ -22,9 +22,9 @@ export const MAZE_BOOST_IDS=['boots','magnet','eliminator','ward','frost'];
 export const mazeBagCount=boosts=>MAZE_BOOST_IDS.reduce((sum,id)=>sum+(boosts[id]||0),0);
 export const HELMETS = { plume: 'Feather plume', horns: 'Dragon horns', crown: 'Royal crown', plain: 'Classic helmet' };
 HELMETS.winged='Winged helmet';
-export const ROBOT_OUTFITS={none:'Classic robot',hoodie:'Cozy hoodie',overalls:'Explorer overalls',spacesuit:'Space suit',jacket:'Adventure jacket'};
-export const ROBOT_HATS={none:'No hat',cap:'Baseball cap',beanie:'Beanie',tophat:'Top hat'};
-export const ROBOT_DEFAULTS={outfit:'none',hat:'none',color:'#6e9eae',glasses:false,headphones:false,backpack:false};
+export const ROBOT_OUTFITS={none:'Classic robot',hoodie:'Cozy hoodie',overalls:'Explorer overalls',spacesuit:'Space suit',jacket:'Adventure jacket',sundress:'Flower sundress',royal:'Royal ball gown',tutu:'Ballet tutu',party:'Party suit'};
+export const ROBOT_HATS={none:'No hat',cap:'Baseball cap',beanie:'Beanie',tophat:'Top hat',crown:'Royal crown',bow:'Ribbon bow',sunhat:'Sun hat',wizard:'Wizard hat'};
+export const ROBOT_DEFAULTS={outfit:'none',hat:'none',color:'#6e9eae',glasses:false,headphones:false,backpack:false,scarf:false,bowtie:false,necklace:false};
 export const PLANE_STYLES={sport:'Sport plane',swept:'Swept wings',biplane:'Biplane',jet:'Passenger jet',glider:'Sailplane',seaplane:'Seaplane',stealth:'Stealth jet',rocket:'Rocket plane'};
 export const PLANE_HATS={none:'No hat',cap:'Baseball cap',tophat:'Top hat',crown:'Golden crown',beanie:'Cozy beanie'};
 export const PLANE_SCARVES={none:'No scarf',short:'Short scarf',long:'Flying scarf'};
@@ -105,7 +105,7 @@ export function validateSave(data) {
   const planeDifficulty=plane.difficulty??'sloth';
   if(!Object.hasOwn(AIR_DIFFICULTIES,planeDifficulty))throw Error('Invalid airplane difficulty.');
   const robot={...ROBOT_DEFAULTS,...data.character.robot};
-  if(!Object.hasOwn(ROBOT_OUTFITS,robot.outfit)||!Object.hasOwn(ROBOT_HATS,robot.hat)||!COLORS.includes(robot.color)||['glasses','headphones','backpack'].some(key=>typeof robot[key]!=='boolean'))throw new Error('Invalid robot appearance.');
+  if(!Object.hasOwn(ROBOT_OUTFITS,robot.outfit)||!Object.hasOwn(ROBOT_HATS,robot.hat)||!COLORS.includes(robot.color)||['glasses','headphones','backpack','scarf','bowtie','necklace'].some(key=>typeof robot[key]!=='boolean'))throw new Error('Invalid robot appearance.');
   const look = { ...KNIGHT_DEFAULTS };
   for (const field of Object.keys(look)) if (data.character[field] !== undefined) look[field] = data.character[field];
   if (!Object.hasOwn(ARMORS, look.armor) || !Object.hasOwn(HELMETS, look.helmet) || typeof look.cape !== 'boolean' || typeof look.shield !== 'boolean' || !Object.hasOwn(DRAGON_STYLES,look.dragon)) throw new Error('Invalid knight appearance in save file.');
@@ -130,7 +130,7 @@ export function validateSave(data) {
     if(stat.bestTimeMs!==undefined&&(!validInt(stat.bestTimeMs)||stat.bestTimeMs===0))throw Error('Invalid best race time.');
     Object.defineProperty(stats, id, { value: { plays: stat.plays, best: stat.best,...(stat.bestScore===undefined?{}:{bestScore:stat.bestScore}),...(stat.bestTimeMs===undefined?{}:{bestTimeMs:stat.bestTimeMs}) }, enumerable: true, writable: true, configurable: true });
   }
-  return { version: 1, mazeLevel, ravenLevel, unlimitedCoins: data.unlimitedCoins===true, coins: Math.min(1000000000,data.coins+(data.upgrades.includes('garden')?60:0)+(data.upgrades.includes('flight-sunset')?200:0)), character: { name: data.character.name.trim(), color: data.character.color, style: data.character.style, ...look, flight, plane:{color:plane.color,style:plane.style,difficulty:planeDifficulty,background:planeBackground,hat,scarf,accessoryColor}, robot:{outfit:robot.outfit,hat:robot.hat,color:robot.color,glasses:robot.glasses,headphones:robot.headphones,backpack:robot.backpack} }, upgrades: [...new Set(data.upgrades.filter(id=>!['garden','flight-sunset',...MAZE_BOOST_IDS,'snack'].includes(id)))], sideQuests:{dragonRace:sideQuests.dragonRace}, boosts:{boots:boosts.boots,magnet:boosts.magnet,eliminator,ward,frost,snack}, stats };
+  return { version: 1, mazeLevel, ravenLevel, unlimitedCoins: data.unlimitedCoins===true, coins: Math.min(1000000000,data.coins+(data.upgrades.includes('garden')?60:0)+(data.upgrades.includes('flight-sunset')?200:0)), character: { name: data.character.name.trim(), color: data.character.color, style: data.character.style, ...look, flight, plane:{color:plane.color,style:plane.style,difficulty:planeDifficulty,background:planeBackground,hat,scarf,accessoryColor}, robot:{outfit:robot.outfit,hat:robot.hat,color:robot.color,glasses:robot.glasses,headphones:robot.headphones,backpack:robot.backpack,scarf:robot.scarf,bowtie:robot.bowtie,necklace:robot.necklace} }, upgrades: [...new Set(data.upgrades.filter(id=>!['garden','flight-sunset',...MAZE_BOOST_IDS,'snack'].includes(id)))], sideQuests:{dragonRace:sideQuests.dragonRace}, boosts:{boots:boosts.boots,magnet:boosts.magnet,eliminator,ward,frost,snack}, stats };
 }
 export function createSystem(storage, onStorageError = () => {}, checkWalletPassword = verifyWalletPassword) {
   let state = freshSave();
