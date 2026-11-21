@@ -1,5 +1,6 @@
-import {actorHead,drawActorAccessories} from './actor-accessories.js';
-import {drawPlayBackdrop,drawPlaySprite} from './play-art.js';
+import {drawFittedSportsSprite} from './sports-sprite-kit.js';
+import {drawFittedSportsHeadwear} from './sports-kit.js';
+import {drawPlayBackdrop} from './play-art.js';
 import {drawEquipmentSprite} from './sports-equipment-art.js';
 import {sportsShotPoint,sportsShotAligned} from './animal-sports-rules.js';
 import {drawSportsHub} from './sports-hub.js';
@@ -9,7 +10,7 @@ const line=(c,points,color='#ffffffbb',width=3)=>{c.strokeStyle=color;c.lineWidt
 function panel(c,x,y,w,h,color,r=10){c.fillStyle=color;c.beginPath();c.roundRect(x,y,w,h,r);c.fill();}
 function text(c,value,x,y,size=22,color='#fff'){c.fillStyle=color;c.font=`700 ${size}px system-ui`;c.textAlign='center';c.fillText(value,x,y);}
 export function drawSportsAnimal(c,x,y,size,settings=SPORTS_DEFAULTS,time=0,moving=false){
- const sprite={dog:['characters',10],fox:['characters',11],rabbit:['characters',12],cat:['characters',13],dragon:['characters',14],capybara:['details',13],bird:['details',14]}[settings.animal];if(sprite&&drawPlaySprite(c,...sprite,x,y+(moving?Math.sin(time*10)*2:0),size*1.25,size*1.5,{tint:settings.jersey,fur:settings.color!==SPORTS_DEFAULTS.color?settings.color:undefined})){const landmark=settings.animal==='dragon'?{x:.72,y:.24,w:.4,h:.3}:settings.animal==='capybara'?{x:.62,y:.19,w:.55,h:.34}:settings.animal==='bird'?{x:.64,y:.2,w:.5,h:.32}:{x:.59,y:.16,w:.48,h:.28},head=actorHead(...sprite,size*1.25,size*1.5,landmark);c.save();c.translate(x,y+(moving?Math.sin(time*10)*2:0));drawActorAccessories(c,{hat:settings.accessory==='cap'?'cap':'none',accessory:settings.accessory,color:settings.jersey},head,time);c.restore();return;}
+ if(drawFittedSportsSprite(c,x,y,size,settings,time,moving))return;
 
  c.save();c.translate(x,y);c.scale(size/60,size/60);const coat=settings.color,jersey=settings.jersey,animal=settings.animal,bob=moving?Math.sin(time*11)*2:0;
  ellipse(c,0,6,27,8,'#101c3435');c.translate(0,bob);
@@ -23,8 +24,7 @@ export function drawSportsAnimal(c,x,y,size,settings=SPORTS_DEFAULTS,time=0,movi
  if(animal==='bird'){c.fillStyle='#ffc34f';c.beginPath();c.moveTo(-11,-48);c.lineTo(0,-28);c.lineTo(13,-48);c.fill();for(let i=0;i<3;i++)ellipse(c,i*7-7,-80-i*2,4,10,coat);}else ellipse(c,0,-45,animal==='capybara'?10:6,5,'#3b3033');
  for(const side of [-1,1]){ellipse(c,side*12,-57,4,5,'#17283a');ellipse(c,side*12-1,-59,1.3,1.7,'#fff');}
  if(animal==='cat'){for(const side of [-1,1])for(let k=0;k<2;k++)line(c,[[side*14,-43+k*5],[side*36,-46+k*10]],'#68534d',1);}
- if(settings.accessory==='headband')panel(c,-28,-70,56,7,jersey,3);
- if(settings.accessory==='cap'){panel(c,-27,-82,54,18,jersey,12);panel(c,-32,-69,71,7,jersey,4);}
+ drawFittedSportsHeadwear(c,{...settings,facing:1},{x:0,y:-54,w:58,h:52},time);
  if(settings.accessory==='glasses'){for(const side of [-1,1]){panel(c,side*12-10,-64,20,15,'#1c3047',5);line(c,[[side*12-5,-61],[side*12+2,-61]],'#9cdef5',2);}line(c,[[-3,-57],[3,-57]],'#17283a',3);}
  c.restore();
 }
