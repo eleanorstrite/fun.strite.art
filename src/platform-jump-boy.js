@@ -1,0 +1,11 @@
+let atlas,bounds;
+export function jumpBoyAtlas(){if(typeof Image==='undefined')return null;if(!atlas){atlas=new Image();atlas.src=new URL('../assets/platform-jump-boy.png',import.meta.url).href;}return atlas;}
+// Landmarks are in the 2048 x 684 reference view, scaled to the saved full-resolution sheet.
+const poses=[
+ {neck:[251,151],waist:[250,323],face:[251,80],arms:[[[184,174],[165,358]],[[303,175],[337,364]]],legs:[[[212,349],[181,584]],[[286,354],[286,585]]]},
+ {neck:[795,164],waist:[750,298],face:[795,88],arms:[[[735,180],[626,268]],[[849,195],[895,180]]],legs:[[[726,326],[600,534]],[[800,333],[791,456]]]},
+ {neck:[1276,154],waist:[1273,320],face:[1271,82],arms:[[[1224,177],[1190,359]],[[1332,170],[1403,100]]],legs:[[[1238,357],[1210,582]],[[1305,357],[1328,582]]]},
+ {neck:[1772,152],waist:[1774,320],face:[1777,82],arms:[[[1732,178],[1800,225]],[[1819,176],[1858,170]]],legs:[[[1728,356],[1724,581]],[[1804,356],[1850,583]]]}
+];
+function spriteBounds(image){if(bounds)return bounds;const cw=image.naturalWidth/4,h=image.naturalHeight;if(!globalThis.document?.createElement)return Array.from({length:4},(_,i)=>({x:i*cw,y:0,w:cw,h}));const canvas=document.createElement('canvas');canvas.width=image.naturalWidth;canvas.height=h;const c=canvas.getContext('2d');c.drawImage(image,0,0);const data=c.getImageData(0,0,canvas.width,h).data;bounds=Array.from({length:4},(_,i)=>{let left=Math.ceil(i*cw),right=Math.ceil((i+1)*cw)-1,minX=right,minY=h,maxX=left,maxY=0;for(let y=0;y<h;y++)for(let x=left;x<=right;x++)if(data[(y*canvas.width+x)*4+3]>32){minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);}return{x:minX,y:minY,w:maxX-minX+1,h:maxY-minY+1};});return bounds;}
+export function jumpBoyFrame(index){const image=jumpBoyAtlas();if(!image?.complete||!image.naturalWidth)return null;const b=spriteBounds(image)[index],scale=Math.min(82/b.w,94/b.h),point=([x,y])=>({x:(x*image.naturalWidth/2048-b.x-b.w/2)*scale,y:(y*image.naturalHeight/684-b.y-b.h)*scale}),l=poses[index];return{image,bounds:b,index,isBoy:true,scale,width:b.w*scale,height:b.h*scale,neck:point(l.neck),waist:point(l.waist),face:point(l.face),arms:l.arms.map(a=>a.map(point)),legs:l.legs.map(a=>a.map(point))};}

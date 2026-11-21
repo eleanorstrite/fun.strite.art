@@ -1,3 +1,4 @@
+import {jumpBoyFrame} from './platform-jump-boy.js';
 import {playAtlas} from './play-art.js';
 import {drawJumpFacialHair} from './platform-jump-facial-hair.js';
 import {drawJumpHair} from './platform-jump-hair.js';
@@ -5,7 +6,7 @@ import {jumpGirlFrame,drawGirlBase,drawGirlClothes} from './platform-jump-wardro
 const oval=(c,x,y,rx,ry,color)=>{c.fillStyle=color;c.beginPath();c.ellipse(x,y,rx,ry,0,0,Math.PI*2);c.fill();};
 export function drawStarterGirlFace(c){const image=playAtlas('characters');if(!image?.complete||!image.naturalWidth)return false;c.drawImage(image,157,20,49,54,-20,-89,40,40*54/49);return true;}
 export function drawJumper(c,x,y,s,time=0,moving=false,waving=false,pose={}){
- const index=waving==='clap'?3:waving?2:['jump','land'].includes(pose.pose)?1:moving&&Math.sin(time*12)>0?1:0,frame=jumpGirlFrame(index),changeClothes=s.outfit!=='Lace collar & skirt',changeHair=s.hairstyle!=='Sunset blossom waves';
+ const index=waving==='clap'?3:waving?2:['jump','land'].includes(pose.pose)?1:moving&&Math.sin(time*12)>0?1:0,frame=s.face==='Boy'?jumpBoyFrame(index):jumpGirlFrame(index),changeClothes=s.outfit!=='Lace collar & skirt',changeHair=s.face==='Boy'||s.hairstyle!=='Sunset blossom waves';
  if(frame){c.save();c.translate(x,y+(!waving&&moving?Math.sin(time*12)*1.2:0));if(pose.facing<0)c.scale(-1,1);
   const head=()=>{c.translate(frame.face.x,frame.face.y+66*.36);c.scale(.36,.36);};
   if(changeHair){c.save();head();drawJumpHair(c,s.hairstyle,s.hair,'back',time);c.restore();}
