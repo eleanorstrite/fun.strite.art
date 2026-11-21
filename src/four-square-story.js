@@ -9,7 +9,7 @@ export function submitFourSquareStoryWord(s,value){if(!isFourSquareStory(s)||s.s
 export function finishFourSquareStory(s){if(!isFourSquareStory(s))return false;s.story=null;s.command=null;s.ball=null;s.phase='reset';s.phaseTime=0;s.notice='That was a great story! Back to Four Square.';s.noticeTime=3.5;return true;}
 export function requestFourSquareStoryUp(s,caller=0){
  if(!isFourSquareStory(s)||s.story.king!==caller||['huddle','up'].includes(s.story.stage))return false;
- const story=s.story;story.stage='up';story.elapsed=0;story.speech=null;story.error='';story.up={elapsed:0,reaction:{},finished:[]};
+ const story=s.story;story.actor=story.king;story.stage='up';story.elapsed=0;story.speech=null;story.error='';story.up={elapsed:0,reaction:{},finished:[]};
  story.participants.forEach((id,index)=>{story.up.reaction[id]=id===story.king?0:id===0?Infinity:.3+s.random()*.85+index*.015;});return true;
 }
 export function standFourSquareStory(s,id=0){
