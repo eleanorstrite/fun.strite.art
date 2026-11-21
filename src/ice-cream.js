@@ -1,6 +1,6 @@
 import {drawIceToppingScatter} from './ice-topping-scatter.js';
 import {iceDragonCleanupAtlas,iceDragonCleanupFacing,drawIceDragonCleanup} from './ice-dragon-cleanup.js';
-import {isMilkshake,selectMilkshake,resetMilkshakeBlend,chooseMilkshakeTopping,startMilkshakeBlend,tickMilkshakeBlend,milkshakeBlendView,milkshakeEndingSounds,MILKSHAKE_DRINK_SECONDS,MILKSHAKE_THANKS,drawMilkshakeBowl,drawMilkshakeGlass,drawMilkshakeBlender,drawMilkshakeDrink} from './milkshake.js';
+import {isMilkshake,selectMilkshake,resetMilkshakeBlend,chooseMilkshakeTopping,startMilkshakeBlend,tickMilkshakeBlend,milkshakeBlendView,milkshakeEndingSounds,MILKSHAKE_DRINK_SECONDS,MILKSHAKE_THANKS,drawMilkshakeGlass,drawMilkshakeBlender,drawMilkshakeDrink} from './milkshake.js';
 import {drawIceIngredient,iceArtReady} from './ice-art.js';
 import {drawPlayBackdrop,drawPlaySprite} from './play-art.js';
 import { createMazeAudio } from './maze-audio.js';
@@ -350,7 +350,7 @@ export function drawIceScene(ctx,recipe,width,height,clipTime=null,reducedMotion
     const v=milkshakeBlendView(recipe);
     if(clipTime!==null)drawMilkshakeDrink(ctx,recipe,clipTime,drawIceDragon,reducedMotion);
     else if(v.phase==='countdown'||v.phase==='blending')drawMilkshakeBlender(ctx,recipe,450,505,{reduced:reducedMotion});
-    else{if(v.phase==='ready')drawMilkshakeGlass(ctx,recipe,450,503,{time:v.time,reduced:reducedMotion});else drawMilkshakeBowl(ctx,recipe);ctx.font='800 23px system-ui';ctx.fillStyle='#533e4a';ctx.fillText(v.phase==='ready'?'Your milkshake is ready! ✨':'Build your milkshake · choose up to 3 toppings',450,553);ctx.font='17px system-ui';ctx.fillText(v.phase==='ready'?'Little topping chunks are mixed into your ice cream.':'Ice cream and toppings go into the blender next.',450,584);}
+    else{drawMilkshakeGlass(ctx,recipe,450,503,{time:v.time,reduced:reducedMotion});ctx.font='800 23px system-ui';ctx.fillStyle='#533e4a';ctx.fillText(v.phase==='ready'?'Your milkshake is ready! ✨':'Build your milkshake · choose up to 3 toppings',450,553);ctx.font='17px system-ui';ctx.fillText(v.phase==='ready'?'Little topping chunks are mixed into your ice cream.':'Ice cream and toppings go into the blender next.',450,584);}
     ctx.restore();return;
   }
   if(clipTime===null){
@@ -412,7 +412,7 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
   const events={signal:controller.signal};
   canvas.addEventListener?.('pointerdown',e=>{
     if(!canPour()||pointer!==null||e.button>0)return;
-    const p=canvasPoint(e),bx=450+bottle.x*1.15,by=307+bottle.y*1.15-85+(isMilkshake(recipe)?70:0);
+    const p=canvasPoint(e),bx=450+bottle.x*1.15,by=307+bottle.y*1.15-85;
     if(Math.abs(p.x-bx)>32||p.y<by-50||p.y>by+40)return;
     e.preventDefault();canvas.focus();audio.unlock();canvas.setPointerCapture?.(e.pointerId);
     pointer=e.pointerId;drag={...p,bx:bottle.x,by:bottle.y};squeezing=true;
@@ -453,7 +453,7 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
   });
   function renderControls(){
     modeButton.textContent=funny?'Funny mode · switch to Normal':'Normal mode · switch to Funny';modeButton.setAttribute('aria-pressed',String(funny));
-    stopPour();sauceHelp.textContent=isMilkshake(recipe)?'Squeeze syrup into your bowl: tap and hold the bottle, then drag it to drizzle. With a keyboard, focus the canvas, use arrow keys to move the bottle, and hold Space to squeeze. Choose up to three toppings, then send everything to the blender.':'Syrup bottle: tap to squeeze, hold for more, and drag to spread it around. Thick syrup makes up to two slow drips, then sets in place. Squeeze beside the ice cream to make a puddle on the floor. With a keyboard, focus the canvas, move with arrow keys, and hold Space to pour. Choose another topping to put the bottle away. Choose the same drizzle to bring it back; tap it again while the bottle is out to remove the syrup.';sauceHelp.hidden=!(step===2&&isIceSyrup(activeTopping)&&recipe.toppings.includes(activeTopping)&&clip===null);
+    stopPour();sauceHelp.textContent=isMilkshake(recipe)?'Squeeze syrup into your milkshake cup: tap and hold the bottle, then drag it to drizzle. With a keyboard, focus the canvas, use arrow keys to move the bottle, and hold Space to squeeze. Choose up to three toppings, then send everything to the blender.':'Syrup bottle: tap to squeeze, hold for more, and drag to spread it around. Thick syrup makes up to two slow drips, then sets in place. Squeeze beside the ice cream to make a puddle on the floor. With a keyboard, focus the canvas, move with arrow keys, and hold Space to pour. Choose another topping to put the bottle away. Choose the same drizzle to bring it back; tap it again while the bottle is out to remove the syrup.';sauceHelp.hidden=!(step===2&&isIceSyrup(activeTopping)&&recipe.toppings.includes(activeTopping)&&clip===null);
     const mixing=isMixing(),shake=isMilkshake(recipe),blend=milkshakeBlendView(recipe),locked=!active||paused||clip!==null||mixing;blendControlKey=blendKey();choices.hidden=mixing||(shake&&blend.phase==='ready'&&step===2);
     stepButtons.forEach((button,index)=>{button.disabled=locked;button.setAttribute('aria-pressed',String(index===step));});
     heading.textContent=clip!==null?(shake?'Your dragon is drinking its milkshake!':'Your dragon is enjoying its ice cream!'):mixing?(blend.count?'Blender countdown · '+blend.count:'Blending your ice cream and toppings…'):shake&&blend.phase==='ready'&&step===2?'Your milkshake is ready — feed your dragon!':step===0?'Choose your cone or make a milkshake':step===1?'Choose 1–3 ice cream flavors · '+iceRecipeFlavors(recipe).length+' selected':shake?'Choose up to 3 milkshake toppings · '+recipe.toppings.length+' selected':'Choose your toppings — mix as many as you like';
@@ -484,7 +484,7 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
       };
       choices.append(button);
     }
-    if(step===0){const button=document.createElement('button');button.type='button';button.className='button outline milkshake-choice';button.setAttribute?.('data-milkshake-choice','');button.setAttribute?.('aria-pressed',String(shake));button.disabled=locked;const picture=document.createElement('canvas'),caption=document.createElement('span');picture.width=140;picture.height=110;picture.setAttribute?.('aria-hidden','true');caption.textContent='Make a milkshake';button.append(picture,caption);ingredientPreviews.push({picture,kind:'drink',id:'milkshake',ready:null});button.onclick=()=>{if(!active||paused||clip!==null||isMixing())return;selectMilkshake(recipe);activeTopping=null;renderControls();};choices.append(button);}
+    if(step===0){const button=document.createElement('button');button.type='button';button.className='button outline milkshake-choice';button.setAttribute?.('data-milkshake-choice','');button.setAttribute?.('aria-pressed',String(shake));button.disabled=locked;const picture=document.createElement('canvas'),caption=document.createElement('span');picture.width=140;picture.height=110;picture.setAttribute?.('aria-hidden','true');caption.textContent='Make a milkshake';button.append(picture,caption);ingredientPreviews.push({picture,kind:'drink',id:'milkshake',ready:null});button.onclick=()=>{if(!active||paused||clip!==null||isMixing())return;selectMilkshake(recipe);activeTopping=null;step=1;renderControls();heading.focus({preventScroll:true});};choices.append(button);}
     back.disabled=locked||step===0;next.disabled=locked||(step>=1&&!iceRecipeFlavors(recipe).length);
     next.textContent=step===2?(shake?(blend.phase==='ready'?'Feed dragon':mixing?'Blending…':'Send to blender'):'Done — feed the dragon!'):'Next: '+steps[step+1]+' →';
     onHud({text:clip!==null?'Watch your dragon enjoy the treat!':steps[step]+' · '+recipe.toppings.length+' toppings · More ingredients in the Appearance shop'});
@@ -523,7 +523,7 @@ export function createIceCream({canvas,onHud,onFinish,controls=document.querySel
     if(active&&!paused&&!document.hidden&&clip===null)tickIceChocolate(recipe,dt);
     drawIceScene(ctx,recipe,canvas.width,canvas.height,clip,reduced);
     if(!isMixing()&&(!isMilkshake(recipe)||recipe.blend?.phase==='choosing')&&active&&step===2&&isIceSyrup(activeTopping)&&clip===null&&recipe.toppings.includes(activeTopping)){
-      ctx.save();ctx.scale(canvas.width/900,canvas.height/620);drawChocolateBottle(ctx,isMilkshake(recipe)?{...bottle,y:bottle.y+70/1.15}:bottle,squeezing&&!paused,activeTopping);ctx.restore();
+      ctx.save();ctx.scale(canvas.width/900,canvas.height/620);drawChocolateBottle(ctx,bottle,squeezing&&!paused,activeTopping);ctx.restore();
     }
     paintIngredientPreviews();frame=requestAnimationFrame(tick);
   }
