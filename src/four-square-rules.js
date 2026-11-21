@@ -36,9 +36,9 @@ export function moveFourSquare(s,dx,dz,dt){const rank=fourSquareRole(s);if(rank<
  if(s.phase!=='command'){const p=FOUR_SQUARE_ROLES[rank];k.x=clamp(k.x,p.x-1.5,p.x+1.5);k.z=clamp(k.z,p.z-1.5,p.z+1.5);}else{k.x=clamp(k.x,-5,5);k.z=clamp(k.z,-5,5);}
 }
 function approach(k,p,speed,dt){const dx=p.x-k.x,dz=p.z-k.z,d=Math.hypot(dx,dz),step=Math.min(d,speed*dt);if(d>.02){k.x+=dx/d*step;k.z+=dz/d*step;k.heading=Math.atan2(dx,dz);}return d;}
-export function tickFourSquare(s,dt){if(s.phase==='over')return;dt=clamp(dt,0,.08);s.clock+=dt;s.phaseTime+=dt;if(s.phase==='ending'){tickFourSquareEnding(s,dt);return;}s.remaining=Math.max(0,s.remaining-dt);s.cooldown=Math.max(0,s.cooldown-dt);s.noticeTime=Math.max(0,s.noticeTime-dt);if(fourSquareRole(s)===0)s.kingTime+=dt;s.kids.forEach(k=>{k.jump=Math.max(0,k.jump-dt);k.hit=Math.max(0,k.hit-dt);tickFourSquareClap(k,dt);});
+export function tickFourSquare(s,dt){if(s.phase==='over')return;dt=clamp(dt,0,.08);s.clock+=dt;s.phaseTime+=dt;if(s.phase==='ending'){tickFourSquareEnding(s,dt);return;}s.remaining=Math.max(0,s.remaining-dt);s.cooldown=Math.max(0,s.cooldown-dt);s.noticeTime=Math.max(0,s.noticeTime-dt);if(fourSquareRole(s)===0)s.kingTime+=dt;s.kids.forEach(k=>{k.jump=Math.max(0,k.jump-dt);k.hit=Math.max(0,k.hit-dt);tickFourSquareClap(k,dt);if(s.phase!=='story')k.kneel=Math.max(0,(k.kneel||0)-dt*3.5);});
  if(!s.remaining){startFourSquareEnding(s);return;}
- if(isFourSquareStory(s)){tickFourSquareStory(s,dt);return;}
+ if(isFourSquareStory(s)){tickFourSquareStory(s,dt,eliminateFourSquare);return;}
  if(isFourSquarePopcorn(s)){tickFourSquarePopcorn(s,dt,eliminateFourSquare);return;}
  if(s.phase==='reset'){fourSquareHome(s);s.kids.forEach(k=>approach(k,k.home,4,dt));if(s.phaseTime>2.8){s.phase='serve';s.phaseTime=0;s.serverDelay=randomBetween(s,1.2,2.1);s.aim=fourSquareRole(s)===1?2:1;notice(s,fourSquareRole(s)<0?'You are in line. Watch the rally — you will rejoin when a place opens.':`${kidName(s.order[0])}${s.order[0]===0?' are':' is'} king. ${s.order[0]===0?'Press Space or 2–4, or tap another square to serve.':'Get ready for the serve!'}`);}return;}
  if(s.phase==='command'){const c=s.command;c.elapsed+=dt;for(const id of s.order){const k=s.kids[id];if(c.arrived.includes(id))continue;

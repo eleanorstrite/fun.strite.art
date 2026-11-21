@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {newFourSquare,callFourSquare,tickFourSquare,hitFourSquare,sendFourSquare,moveFourSquare} from '../src/four-square-rules.js';
-import {STORY_WORDS,cleanFourSquareStoryWord,submitFourSquareStoryWord,finishFourSquareStory} from '../src/four-square-story.js';
+import {requestFourSquareStoryUp,standFourSquareStory,STORY_WORDS,cleanFourSquareStoryWord,submitFourSquareStoryWord,finishFourSquareStory} from '../src/four-square-story.js';
 import {fourSquareNumberServe,fourSquareTap} from '../src/four-square-input.js';
 import {createFourSquareStoryVoice} from '../src/four-square-story-voice.js';
 const step=(s,seconds)=>{for(let i=0;i<seconds/.02;i++)tickFourSquare(s,.02);};
@@ -16,3 +16,26 @@ test('bot kings can start the story and human players still get a typing turn in
 test('words remain on screen until speech finishes, with a fallback for a stalled browser voice',()=>{const s=begin();submitFourSquareStoryWord(s,'jkl');s.story.speech.pending=true;step(s,5);assert.equal(s.story.stage,'speaking');s.story.speech.pending=false;step(s,.04);assert.equal(s.story.actor,1);const stalled=begin();submitFourSquareStoryWord(stalled,'dog');stalled.story.speech.pending=true;step(stalled,10.1);assert.equal(stalled.story.actor,1);});
 test('voice pronounces the exact word or made-up text once and respects pause, mute, close and errors',()=>{const said=[];let cancels=0;class Utterance{constructor(text){this.text=text;}}const speech={speak:u=>said.push(u),cancel(){cancels++;},getVoices:()=>[{lang:'en-US',localService:true}]},voice=createFourSquareStoryVoice({speech,Utterance}),s=begin();submitFourSquareStoryWord(s,'jkl');voice.sync(s);voice.sync(s);assert.equal(said.length,1);assert.equal(said[0].text,'jkl');assert.equal(s.story.speech.pending,true);said[0].onend();assert.equal(s.story.speech.pending,false);voice.sync(s);assert.equal(said.length,1);voice.sync(s,false);voice.sync(s,true);assert.equal(said.length,2);voice.setMuted(true);assert.equal(cancels,1);voice.sync(s);assert.equal(said.length,2);voice.setMuted(false);voice.sync(s);assert.equal(said.length,3);said[2].onerror();assert.equal(s.story.speech.pending,false);voice.destroy();voice.sync(s);assert.equal(said.length,3);});
 test('missing speech support leaves text bubbles and turns fully playable',()=>{const s=begin(),voice=createFourSquareStoryVoice({speech:null,Utterance:null});submitFourSquareStoryWord(s,'dog');assert.doesNotThrow(()=>voice.sync(s));assert.equal(s.story.speech.pending,false);step(s,2);assert.equal(s.story.actor,1);voice.destroy();});
+
+
+test('Queen and Peasant keep their own quadrants while all four kneel in the center',()=>{
+ for(const order of [[0,1,2,3],[3,0,2,1]]){const s=newFourSquare(()=>.5);s.order=order;callFourSquare(s,'Story Time');step(s,1.6);s.order.forEach((id,rank)=>{const k=s.kids[id];assert.equal(Math.sign(k.x),rank===0||rank===3?-1:1);assert.equal(Math.sign(k.z),rank<2?-1:1);assert.equal(k.kneel,1);});assert.deepEqual(s.order,order);for(const id of s.queue)assert.equal(s.kids[id].kneel||0,0);}
+});
+test('only King can call Up, after everyone has knelt, including during a spoken word',()=>{
+ const s=newFourSquare(()=>.5);callFourSquare(s,'Story Time');assert.equal(requestFourSquareStoryUp(s),false);step(s,1.4);assert.equal(requestFourSquareStoryUp(s,1),false);submitFourSquareStoryWord(s,'hello');assert.equal(requestFourSquareStoryUp(s),true);assert.equal(s.story.stage,'up');assert.equal(s.story.speech,null);assert.equal(requestFourSquareStoryUp(s),false);assert.equal(submitFourSquareStoryWord(s,'extra'),false);
+});
+test('Up animates everyone standing, eliminates the slowest non-king and puts them at the back',()=>{
+ const s=begin();requestFourSquareStoryUp(s);step(s,.2);assert.ok(s.kids[0].kneel>0&&s.kids[0].kneel<1);assert.equal(s.kids[3].kneel,1);step(s,1.5);assert.equal(s.lastOut,3);assert.equal(s.phase,'reset');assert.equal(s.order[0],0);assert.equal(s.queue.at(-1),3);assert.match(s.history.at(-1).reason,/Last to stand/);assert.ok(s.kids.every(k=>(k.kneel||0)===0));
+});
+test('a non-king human can stand immediately, while ignoring Up loses the challenge',()=>{
+ for(const react of [true,false]){const s=newFourSquare(()=>.5);s.order=[1,0,2,3];callFourSquare(s,'Story Time');step(s,1.4);assert.equal(requestFourSquareStoryUp(s,0),false);assert.equal(requestFourSquareStoryUp(s,1),true);if(react){assert.equal(standFourSquareStory(s),true);assert.equal(standFourSquareStory(s),false);}step(s,3.5);assert.equal(s.phase,'reset');assert.equal(s.order[0],1);assert.equal(s.lastOut===0,!react);}
+});
+test('King is never eliminated by Up for any identity or reaction order',()=>{
+ for(let king=0;king<4;king++){const s=newFourSquare(()=>.99);[s.order[0],s.order[king]]=[s.order[king],s.order[0]];callFourSquare(s,'Story Time');until(s,()=>s.story.stage!=='huddle');assert.equal(requestFourSquareStoryUp(s,king),true);s.story.up.reaction[king]=2;step(s,3.6);assert.notEqual(s.lastOut,king);assert.equal(s.order[0],king);}
+});
+test('computer kings call Up themselves even if the human never sends a story word',()=>{
+ const s=newFourSquare(()=>.5);s.order=[1,2,3,0];callFourSquare(s,'Story Time');until(s,()=>s.story?.stage==='up',25);assert.equal(s.story.king,1);step(s,3.5);assert.equal(s.lastOut,0);assert.equal(s.order[0],1);
+});
+test('recess bell safely interrupts kneeling or standing without leaving anyone in the kneeling pose',()=>{
+ for(const up of [false,true]){const s=begin();if(up)requestFourSquareStoryUp(s);s.remaining=.01;tickFourSquare(s,.02);assert.equal(s.phase,'ending');assert.equal(s.story,null);assert.ok(s.kids.every(k=>k.kneel===0));}
+});

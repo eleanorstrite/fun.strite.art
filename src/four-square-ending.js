@@ -6,7 +6,7 @@ export function startFourSquareEnding(s){
  if(s.ending||s.phase==='over')return false;
  s.phase='ending';s.phaseTime=0;s.remaining=0;s.ball=null;s.command=null;s.popcorn=null;s.story=null;
  s.ending={elapsed:0,stage:'bell'};s.notice='Recess bell';s.noticeTime=0;
- s.kids.forEach(k=>{k.jump=0;k.hit=0;k.clapQueued=0;k.clapRemaining=0;k.clapProgress=null;k.clapPulse=0;k.holding=false;delete k.escape;k.insideSchool=false;});return true;
+ s.kids.forEach(k=>{k.kneel=0;k.jump=0;k.hit=0;k.clapQueued=0;k.clapRemaining=0;k.clapProgress=null;k.clapPulse=0;k.holding=false;delete k.escape;k.insideSchool=false;});return true;
 }
 export function tickFourSquareEnding(s,dt){
  const ending=s.ending;if(!ending||s.phase!=='ending')return;
